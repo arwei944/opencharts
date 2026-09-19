@@ -1,0 +1,199 @@
+{
+  "startedAt": "2026-09-19T06:40:16.944Z",
+  "samples": [
+    {
+      "what": "just-complete",
+      "alive": true,
+      "atMs": 12022,
+      "frames": 325,
+      "maxGap": 1517,
+      "longSum": 4215,
+      "agg": {
+        "long": 22,
+        "applyBars:0": 2,
+        "rest(0 left, 0 lines)": 2,
+        "applyBars:1000": 2,
+        "rest(5 left, 0 lines)": 2,
+        "rest(4 left, 0 lines)": 2,
+        "rest(3 left, 0 lines)": 4,
+        "rest(2 left, 1 lines)": 4,
+        "rest(1 left, 2 lines)": 4,
+        "rest(0 left, 3 lines)": 4,
+        "encodeBars:21000": 1,
+        "idbPut:21000": 1,
+        "encodeBars:41000": 1,
+        "idbPut:41000": 1,
+        "encodeBars:61000": 1,
+        "idbPut:61000": 1,
+        "encodeBars:81000": 1,
+        "idbPut:81000": 1,
+        "encodeBars:101000": 1,
+        "idbPut:101000": 1,
+        "applyBars:105000": 2,
+        "encodeBars:105000": 1,
+        "rest(5 left, 3 lines)": 2,
+        "rest(4 left, 3 lines)": 2,
+        "idbPut:105000": 1
+      },
+      "tail": [
+        "applyBars:105000=435",
+        "applyBars:105000=469",
+        "encodeBars:105000=5",
+        "rest(5 left, 3 lines)=198",
+        "rest(5 left, 3 lines)=222",
+        "longtask=985",
+        "longtask=521",
+        "rest(4 left, 3 lines)=0",
+        "rest(4 left, 3 lines)=0",
+        "rest(3 left, 0 lines)=122",
+        "rest(3 left, 0 lines)=118",
+        "rest(2 left, 1 lines)=162",
+        "rest(2 left, 1 lines)=139",
+        "rest(1 left, 2 lines)=144",
+        "rest(1 left, 2 lines)=139",
+        "rest(0 left, 3 lines)=282",
+        "rest(0 left, 3 lines)=162",
+        "idbPut:105000=3308",
+        "longtask=111",
+        "longtask=252",
+        "longtask=51",
+        "longtask=488",
+        "longtask=375",
+        "longtask=539",
+        "longtask=50",
+        "longtask=92"
+      ],
+      "badges": [
+        "完整 105,000 根 · 始于 2023-09-21"
+      ]
+    },
+    {
+      "what": "idle-0",
+      "alive": true,
+      "atMs": 13987,
+      "frames": 337,
+      "maxGap": 1517,
+      "longSum": 4785,
+      "agg": {
+        "long": 25,
+        "applyBars:0": 2,
+        "rest(0 left, 0 lines)": 2,
+        "applyBars:1000": 2,
+        "rest(5 left, 0 lines)": 2,
+        "rest(4 left, 0 lines)": 2,
+        "rest(3 left, 0 lines)": 4,
+        "rest(2 left, 1 lines)": 4,
+        "rest(1 left, 2 lines)": 4,
+        "rest(0 left, 3 lines)": 4,
+        "encodeBars:21000": 1,
+        "idbPut:21000": 1,
+        "encodeBars:41000": 1,
+        "idbPut:41000": 1,
+        "encodeBars:61000": 1,
+        "idbPut:61000": 1,
+        "encodeBars:81000": 1,
+        "idbPut:81000": 1,
+        "encodeBars:101000": 1,
+        "idbPut:101000": 1,
+        "applyBars:105000": 2,
+        "encodeBars:105000": 1,
+        "rest(5 left, 3 lines)": 2,
+        "rest(4 left, 3 lines)": 2,
+        "idbPut:105000": 1
+      },
+      "tail": [
+        "rest(5 left, 3 lines)=198",
+        "rest(5 left, 3 lines)=222",
+        "longtask=985",
+        "longtask=521",
+        "rest(4 left, 3 lines)=0",
+        "rest(4 left, 3 lines)=0",
+        "rest(3 left, 0 lines)=122",
+        "rest(3 left, 0 lines)=118",
+        "rest(2 left, 1 lines)=162",
+        "rest(2 left, 1 lines)=139",
+        "rest(1 left, 2 lines)=144",
+        "rest(1 left, 2 lines)=139",
+        "rest(0 left, 3 lines)=282",
+        "rest(0 left, 3 lines)=162",
+        "idbPut:105000=3308",
+        "longtask=111",
+        "longtask=252",
+        "longtask=51",
+        "longtask=488",
+        "longtask=375",
+        "longtask=539",
+        "longtask=50",
+        "longtask=92",
+        "longtask=60",
+        "longtask=263",
+        "longtask=247"
+      ],
+      "badges": [
+        "完整 105,000 根 · 始于 2023-09-21"
+      ]
+    },
+    {
+      "what": "idle-1",
+      "alive": true,
+      "atMs": 2024,
+      "frames": 21,
+      "maxGap": 1400,
+      "longSum": 1474,
+      "agg": {
+        "long": 3,
+        "applyBars:0": 2,
+        "rest(0 left, 0 lines)": 2,
+        "applyBars:105000": 2,
+        "rest(5 left, 0 lines)": 2,
+        "rest(4 left, 0 lines)": 2
+      },
+      "tail": [
+        "longtask=62",
+        "applyBars:0=0",
+        "applyBars:0=0",
+        "rest(0 left, 0 lines)=0",
+        "rest(0 left, 0 lines)=0",
+        "applyBars:105000=455",
+        "applyBars:105000=426",
+        "rest(5 left, 0 lines)=170",
+        "rest(5 left, 0 lines)=155",
+        "longtask=966",
+        "longtask=446",
+        "rest(4 left, 0 lines)=0",
+        "rest(4 left, 0 lines)=0"
+      ],
+      "badges": [
+        "完整 105,000 根 · 始于 2023-09-21"
+      ]
+    },
+    {
+      "what": "idle-2",
+      "alive": false
+    },
+    {
+      "what": "drag-0",
+      "alive": true,
+      "atMs": 385,
+      "frames": 12,
+      "maxGap": 100,
+      "longSum": 97,
+      "agg": {
+        "applyBars:0": 2,
+        "long": 1
+      },
+      "tail": [
+        "applyBars:0=0",
+        "applyBars:0=0",
+        "longtask=97"
+      ],
+      "badges": []
+    },
+    {
+      "what": "drag-1",
+      "alive": false
+    }
+  ],
+  "diedAtIdle": 2,
+  "diedAtDrag": 1
+}

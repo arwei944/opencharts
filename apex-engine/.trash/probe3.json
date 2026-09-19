@@ -1,0 +1,326 @@
+{
+  "ok": true,
+  "samples": [
+    {
+      "i": 0,
+      "alive": true,
+      "atMs": 1590,
+      "frames": 47,
+      "maxGap": 502,
+      "commits": 2,
+      "lastCommitBars": 0,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": []
+    },
+    {
+      "i": 1,
+      "alive": true,
+      "atMs": 908,
+      "frames": 40,
+      "maxGap": 108,
+      "commits": 2,
+      "lastCommitBars": 0,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": []
+    },
+    {
+      "i": 2,
+      "alive": true,
+      "atMs": 854,
+      "frames": 37,
+      "maxGap": 114,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 3,
+      "alive": true,
+      "atMs": 877,
+      "frames": 36,
+      "maxGap": 114,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 4,
+      "alive": true,
+      "atMs": 984,
+      "frames": 34,
+      "maxGap": 103,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 5,
+      "alive": true,
+      "atMs": 847,
+      "frames": 39,
+      "maxGap": 118,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 6,
+      "alive": true,
+      "atMs": 898,
+      "frames": 40,
+      "maxGap": 92,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 7,
+      "alive": true,
+      "atMs": 923,
+      "frames": 34,
+      "maxGap": 140,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 8,
+      "alive": true,
+      "atMs": 844,
+      "frames": 34,
+      "maxGap": 100,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 9,
+      "alive": true,
+      "atMs": 890,
+      "frames": 44,
+      "maxGap": 90,
+      "commits": 2,
+      "lastCommitBars": 0,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": []
+    },
+    {
+      "i": 10,
+      "alive": true,
+      "atMs": 894,
+      "frames": 41,
+      "maxGap": 98,
+      "commits": 2,
+      "lastCommitBars": 0,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": []
+    },
+    {
+      "i": 11,
+      "alive": true,
+      "atMs": 903,
+      "frames": 39,
+      "maxGap": 108,
+      "commits": 2,
+      "lastCommitBars": 0,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": []
+    },
+    {
+      "i": 12,
+      "alive": true,
+      "atMs": 897,
+      "frames": 37,
+      "maxGap": 132,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 13,
+      "alive": true,
+      "atMs": 975,
+      "frames": 42,
+      "maxGap": 107,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 14,
+      "alive": true,
+      "atMs": 895,
+      "frames": 32,
+      "maxGap": 118,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 15,
+      "alive": true,
+      "atMs": 879,
+      "frames": 37,
+      "maxGap": 95,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 16,
+      "alive": true,
+      "atMs": 793,
+      "frames": 36,
+      "maxGap": 123,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 0%"
+      ]
+    },
+    {
+      "i": 17,
+      "alive": true,
+      "atMs": 932,
+      "frames": 46,
+      "maxGap": 83,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 9%"
+      ]
+    },
+    {
+      "i": 18,
+      "alive": true,
+      "atMs": 894,
+      "frames": 40,
+      "maxGap": 94,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 19,
+      "alive": true,
+      "atMs": 916,
+      "frames": 40,
+      "maxGap": 114,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 20,
+      "alive": true,
+      "atMs": 856,
+      "frames": 42,
+      "maxGap": 102,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 5%"
+      ]
+    },
+    {
+      "i": 21,
+      "alive": true,
+      "atMs": 881,
+      "frames": 42,
+      "maxGap": 128,
+      "commits": 4,
+      "lastCommitBars": 1000,
+      "stacks": [
+        "    at ChartEngine.commit (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:250:5) <-     at ChartEngine.setFullData (http://127.0.0.1:8080/src/lib/market/chart-engine.ts?t=1789799250037:244:8) <-     at http://127.0.0.1:8080/src/components/terminal/ChartPane.tsx?t=1789799250037:157:16 <-     at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:12902:13) <-     at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:851:66) <-     at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6617:153) <-     at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=7ad31d43:6652:55)"
+      ],
+      "badges": [
+        "后台补齐 9%"
+      ]
+    }
+  ],
+  "startedAt": "2026-09-19T06:44:48.932Z"
+}

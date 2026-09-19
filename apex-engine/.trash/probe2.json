@@ -1,0 +1,135 @@
+{
+  "ok": false,
+  "windows": [
+    {
+      "what": "prefill-group-0",
+      "atMs": 1536,
+      "frames": 16,
+      "maxGap": 17,
+      "longTasks": 0,
+      "maxTask": 0,
+      "commits": 0,
+      "commitMs": 0,
+      "restJobs": 0,
+      "restMs": 0,
+      "badges": []
+    },
+    {
+      "what": "prefill-group-1",
+      "atMs": 3750,
+      "frames": 62,
+      "maxGap": 150,
+      "longTasks": 8,
+      "maxTask": 80,
+      "commits": 2,
+      "commitMs": 21,
+      "restJobs": 6,
+      "restMs": 10,
+      "badges": [
+        "后台补齐 9%",
+        "后台补齐 9%"
+      ]
+    },
+    {
+      "what": "prefill-group-2",
+      "atMs": 5058,
+      "frames": 54,
+      "maxGap": 133,
+      "longTasks": 5,
+      "maxTask": 67,
+      "commits": 0,
+      "commitMs": 0,
+      "restJobs": 0,
+      "restMs": 0,
+      "badges": [
+        "后台补齐 24%",
+        "后台补齐 24%"
+      ]
+    },
+    {
+      "what": "prefill-group-3",
+      "atMs": 6772,
+      "frames": 58,
+      "maxGap": 117,
+      "longTasks": 11,
+      "maxTask": 78,
+      "commits": 0,
+      "commitMs": 0,
+      "restJobs": 0,
+      "restMs": 0,
+      "badges": [
+        "后台补齐 43%",
+        "后台补齐 43%"
+      ]
+    },
+    {
+      "what": "prefill-group-4",
+      "atMs": 7983,
+      "frames": 44,
+      "maxGap": 133,
+      "longTasks": 4,
+      "maxTask": 79,
+      "commits": 0,
+      "commitMs": 0,
+      "restJobs": 0,
+      "restMs": 0,
+      "badges": [
+        "后台补齐 58%",
+        "后台补齐 58%"
+      ]
+    },
+    {
+      "what": "prefill-group-5",
+      "atMs": 9980,
+      "frames": 66,
+      "maxGap": 150,
+      "longTasks": 11,
+      "maxTask": 88,
+      "commits": 0,
+      "commitMs": 0,
+      "restJobs": 0,
+      "restMs": 0,
+      "badges": [
+        "后台补齐 81%",
+        "后台补齐 81%"
+      ]
+    },
+    {
+      "what": "prefill-group-6",
+      "atMs": 17258,
+      "frames": 103,
+      "maxGap": 700,
+      "longTasks": 39,
+      "maxTask": 469,
+      "commits": 1,
+      "commitMs": 443,
+      "restJobs": 6,
+      "restMs": 876,
+      "badges": [
+        "完整 105,000 根 · 始于 2023-09-21",
+        "完整 105,000 根 · 始于 2023-09-21"
+      ]
+    },
+    {
+      "what": "idle-after-bursts",
+      "atMs": 21391,
+      "frames": 14,
+      "maxGap": 933,
+      "longTasks": 13,
+      "maxTask": 609,
+      "commits": 1,
+      "commitMs": 563,
+      "restJobs": 6,
+      "restMs": 1229,
+      "badges": [
+        "完整 105,000 根 · 始于 2023-09-21",
+        "完整 105,000 根 · 始于 2023-09-21"
+      ]
+    }
+  ],
+  "commits": 0,
+  "startedAt": "2026-09-19T06:20:19.919Z",
+  "completeAtGroup": 6,
+  "completeReached": true,
+  "timeout": true
+}

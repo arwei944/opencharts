@@ -1,0 +1,163 @@
+{
+  "ok": true,
+  "badgesWhileFilling": [
+    "后台补齐 5%",
+    "后台补齐 5%"
+  ],
+  "inkDuringBackfillDrag": 0.142,
+  "dragDuringBackfill": {
+    "what": "drag-during-backfill",
+    "frames": 348,
+    "maxGap": 1233.3,
+    "over50": 4,
+    "over100": 1,
+    "longTasks": 5,
+    "maxTask": 1250,
+    "klines": 105,
+    "wsOpen": 2,
+    "wsTicks": 0,
+    "perf": [
+      [
+        "encodeBars:21000",
+        3
+      ],
+      [
+        "idbPut:21000",
+        51
+      ],
+      [
+        "encodeBars:41000",
+        2
+      ],
+      [
+        "idbPut:41000",
+        30
+      ],
+      [
+        "encodeBars:61000",
+        3
+      ],
+      [
+        "idbPut:61000",
+        39
+      ],
+      [
+        "encodeBars:81000",
+        5
+      ],
+      [
+        "idbPut:81000",
+        39
+      ],
+      [
+        "encodeBars:101000",
+        5
+      ],
+      [
+        "idbPut:101000",
+        49
+      ],
+      [
+        "encodeBars:105000",
+        5
+      ],
+      [
+        "idbPut:105000",
+        55
+      ],
+      [
+        "applyBars",
+        406
+      ],
+      [
+        "applyVol",
+        288
+      ],
+      [
+        "applyCompares",
+        0
+      ],
+      [
+        "applyIndicators",
+        556
+      ],
+      [
+        "setVisibleLogicalRange",
+        0
+      ]
+    ]
+  },
+  "badgesJustBeforeRelease": [
+    "完整 105,000 根 · 始于 2023-09-21",
+    "完整 105,000 根 · 始于 2023-09-21"
+  ],
+  "afterRelease": {
+    "what": "after-release",
+    "frames": 42,
+    "maxGap": 1799.9,
+    "over50": 1,
+    "over100": 1,
+    "longTasks": 1,
+    "maxTask": 1782,
+    "klines": 0,
+    "wsOpen": 2,
+    "wsTicks": 0,
+    "perf": [
+      [
+        "applyBars",
+        453
+      ],
+      [
+        "applyVol",
+        269
+      ],
+      [
+        "applyCompares",
+        0
+      ],
+      [
+        "applyIndicators",
+        1047
+      ],
+      [
+        "setVisibleTimeRange",
+        1
+      ]
+    ]
+  },
+  "inkAfterRelease": 0.1367,
+  "badgesAfterRelease": [
+    "完整 105,000 根 · 始于 2023-09-21",
+    "完整 105,000 根 · 始于 2023-09-21"
+  ],
+  "completeReached": true,
+  "steadyPanIntoHistory": {
+    "what": "steady-pan-history",
+    "frames": 136,
+    "maxGap": 33.4,
+    "over50": 0,
+    "over100": 0,
+    "longTasks": 0,
+    "maxTask": 0,
+    "klines": 0,
+    "wsOpen": 2,
+    "wsTicks": 0,
+    "perf": []
+  },
+  "inkSteady": 0.1265,
+  "steadyPanMore": {
+    "what": "steady-pan-2",
+    "frames": 133,
+    "maxGap": 33.4,
+    "over50": 0,
+    "over100": 0,
+    "longTasks": 0,
+    "maxTask": 0,
+    "klines": 0,
+    "wsOpen": 2,
+    "wsTicks": 0,
+    "perf": []
+  },
+  "wsMessagesIn5s": 0,
+  "pageErrors": []
+}

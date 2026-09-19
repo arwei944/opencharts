@@ -1,0 +1,118 @@
+{
+  "startedAt": "2026-09-19T06:42:25.612Z",
+  "badgeWait": "ok",
+  "fpsDuringProfile": 35,
+  "totalSamples": 9218,
+  "top": [
+    [
+      "(idle)  @:-1",
+      3012,
+      "32.7%"
+    ],
+    [
+      "exports.jsxDEV  @react_jsx-dev-runtime.js?v=7ad31d43:190",
+      1532,
+      "16.6%"
+    ],
+    [
+      "fmtPx  @utils.ts:14",
+      725,
+      "7.9%"
+    ],
+    [
+      "jsxDEVImpl  @react_jsx-dev-runtime.js?v=7ad31d43:147",
+      457,
+      "5%"
+    ],
+    [
+      "(garbage collector)  @:-1",
+      412,
+      "4.5%"
+    ],
+    [
+      "(program)  @:-1",
+      347,
+      "3.8%"
+    ],
+    [
+      "_internal__fillRawPoints  @lightweight-charts.js?v=7ad31d43:11512",
+      347,
+      "3.8%"
+    ],
+    [
+      "Line  @lightweight-charts.js?v=7ad31d43:2787",
+      275,
+      "3%"
+    ],
+    [
+      "_internal_setData  @lightweight-charts.js?v=7ad31d43:2901",
+      165,
+      "1.8%"
+    ],
+    [
+      "Histogram  @lightweight-charts.js?v=7ad31d43:2794",
+      116,
+      "1.3%"
+    ],
+    [
+      "(anonymous)  @lightweight-charts.js?v=7ad31d43:12262",
+      111,
+      "1.2%"
+    ],
+    [
+      "exports.createElement  @react.js?v=7ad31d43:590",
+      108,
+      "1.2%"
+    ],
+    [
+      "run  @:-1",
+      104,
+      "1.1%"
+    ],
+    [
+      "Candlestick  @lightweight-charts.js?v=7ad31d43:2748",
+      102,
+      "1.1%"
+    ],
+    [
+      "fmtNum  @utils.ts:5",
+      93,
+      "1%"
+    ],
+    [
+      "createTask  @:-1",
+      75,
+      "0.8%"
+    ],
+    [
+      "updateProperties  @react-dom_client.js?v=7ad31d43:9925",
+      75,
+      "0.8%"
+    ],
+    [
+      "now  @:-1",
+      55,
+      "0.6%"
+    ],
+    [
+      "recursivelyTraverseMutationEffects  @react-dom_client.js?v=7ad31d43:7196",
+      53,
+      "0.6%"
+    ],
+    [
+      "validateProperty  @react-dom_client.js?v=7ad31d43:1874",
+      51,
+      "0.6%"
+    ],
+    [
+      "updateElement  @react-dom_client.js?v=7ad31d43:3602",
+      37,
+      "0.4%"
+    ],
+    [
+      "warnUnknownProperties  @react-dom_client.js?v=7ad31d43:1992",
+      37,
+      "0.4%"
+    ]
+  ]
+}
