@@ -3,7 +3,7 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "Apex";
+const APP_NAME = "OpenCharts";
 
 export const Route = createRootRoute({
   head: () => ({
@@ -11,8 +11,8 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: APP_NAME },
-      { name: "theme-color", content: "#0b0e11" },
-      { name: "description", content: "Apex — professional crypto trading desk with live charts, order book, and paper trading." },
+      { name: "theme-color", content: "#6366f1" },
+      { name: "description", content: "OpenCharts — Professional crypto trading chart engine with customizable visualization." },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },

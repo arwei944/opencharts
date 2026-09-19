@@ -1,8 +1,11 @@
 {
-  "name": "app-builder-workspace",
+  "name": "opencharts",
+  "version": "1.0.0",
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "description": "Professional crypto trading chart engine with customizable visualization",
+  "author": "OpenCharts Team",
   "overrides": {
     "nf3": "0.3.17"
   },

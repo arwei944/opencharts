@@ -18,11 +18,22 @@ export function Header() {
   return (
     <header className="flex h-11 shrink-0 items-center gap-4 border-b border-border bg-bg px-3">
       <div className="flex items-center gap-2">
-        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
-          <path d="M12 2 L22 20 H2 Z" fill="#f0b90b" />
+        <svg width="24" height="24" viewBox="0 0 100 100" aria-hidden>
+          <defs>
+            <linearGradient id="chart-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <circle cx="50" cy="50" r="48" fill="url(#chart-gradient)"/>
+          <path d="M 20 70 L 35 50 L 50 55 L 65 30 L 80 40" 
+                stroke="white" 
+                stroke-width="6" 
+                fill="none" 
+                stroke-linecap="round"
+                stroke-linejoin="round"/>
         </svg>
-        <span className="text-sm font-semibold tracking-wide">Apex</span>
-        <span className="hidden text-micro text-subtle sm:inline">模拟盘</span>
+        <span className="text-base font-bold tracking-wide text-fg">OpenCharts</span>
       </div>
       <nav className="flex items-center gap-1 text-xs">
         <button
