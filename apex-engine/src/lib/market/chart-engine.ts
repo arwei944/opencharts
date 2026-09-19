@@ -6,11 +6,12 @@ import {
   CrosshairMode,
   HistogramSeries,
   LineSeries,
-  LineStyle,
   PriceScaleMode,
   createChart,
   type IChartApi,
   type ISeriesApi,
+  type LineWidth,
+  type Logical,
   type LogicalRange,
   type Time,
   type UTCTimestamp,
@@ -65,6 +66,8 @@ export class ChartEngine {
   private compareData = new Map<string, { bars: Candle[]; color: string }>();
   private type: ChartType = "candle";
   private invert = false;
+  /** 倒垂视角：价格轴翻转。与 `invert`（红绿互换）是两件事，各开各的。 */
+  private mirror = false;
   /**
    * What the series actually hold. In steady state this is the *complete*
    * resident history, so panning and zooming are pure canvas repaints: no
@@ -140,8 +143,8 @@ export class ChartEngine {
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: pal.text, width: settings.crosshairWidth, style: settings.crosshairLineStyle as any, labelBackgroundColor: settings.crosshairLabelBg },
-        horzLine: { color: pal.text, width: settings.crosshairWidth, style: settings.crosshairLineStyle as any, labelBackgroundColor: settings.crosshairLabelBg },
+        vertLine: { color: pal.text, width: settings.crosshairWidth as LineWidth, style: settings.crosshairLineStyle as any, labelBackgroundColor: settings.crosshairLabelBg },
+        horzLine: { color: pal.text, width: settings.crosshairWidth as LineWidth, style: settings.crosshairLineStyle as any, labelBackgroundColor: settings.crosshairLabelBg },
       },
       rightPriceScale: { borderColor: pal.grid, scaleMargins: { top: settings.priceScaleMargins[0], bottom: settings.priceScaleMargins[1] } },
       leftPriceScale: { visible: false, borderColor: pal.grid, scaleMargins: { top: settings.priceScaleMargins[0], bottom: settings.priceScaleMargins[1] } },
@@ -230,6 +233,7 @@ export class ChartEngine {
       });
     }
     this.applyBars();
+    this.syncMirror();
   }
 
   setType(t: ChartType) {
@@ -298,8 +302,8 @@ export class ChartEngine {
       const toTime = bars.length + 5;
       
       this.chart.timeScale().setVisibleLogicalRange({
-        from: fromTime as Time,
-        to: toTime as Time,
+        from: fromTime as Logical,
+        to: toTime as Logical,
       });
       
       requestAnimationFrame(() => {
@@ -335,6 +339,9 @@ export class ChartEngine {
     // next queue refill rebuilt on top of this one.
     this.owed = this.owed.filter((j) => j !== job);
     job?.();
+    // 指标 job 会 addSeries 到新 pane，新 pane 带着默认（未翻转）标尺进场：
+    // 每跑完一个就补一次，倒垂才不会在指标加载完的那一帧丢掉副图。
+    this.syncMirror();
     if (this.restJobs.length) this.pumpRest();
   };
 
@@ -526,6 +533,8 @@ export class ChartEngine {
         mode: PriceScaleMode.Percentage,
       },
     });
+    // 对比线的 left 标尺是此刻才存在的，倒垂要马上补上它。
+    this.syncMirror();
   }
 
   setTheme(mode: ThemeMode) {
@@ -803,6 +812,41 @@ export class ChartEngine {
   }
   xToTime(x: number) {
     return this.chart.timeScale().coordinateToTime(x) as number | null;
+  }
+
+  /**
+   * 倒垂（价格轴翻转）：高价落到底部、低价升到顶部，坐标轴读数仍是真实价格。
+   * 用 lightweight-charts 原生的 `invertScale`，而不是伪造的 margin 抖动 ——
+   * 后者只是把画面往上挪，K 线形状根本没翻。
+   */
+  setMirror(v: boolean) {
+    if (this.mirror === v) return;
+    this.mirror = v;
+    this.syncMirror();
+  }
+
+  get isMirrored() {
+    return this.mirror;
+  }
+
+  /**
+   * `invertScale` 属于「每个 pane 的每条标尺」，而 pane 和标尺都是随系列创建才出现的：
+   * 指标线会新建副图 pane，对比线会新建 left 标尺。所以每次系列结构变化后都要重新
+   * 下一道命令，否则「先开倒垂、后加载指标」会有一半画面偷偷正回来。
+   *
+   * 成交量走独立的 `vol` 标尺，故意为之不翻 —— 它始终贴在底部，与币安/TradingView 一致。
+   */
+  private syncMirror() {
+    const panes = this.chart.panes();
+    for (let i = 0; i < panes.length; i++) {
+      for (const id of ["right", "left"] as const) {
+        try {
+          panes[i].priceScale(id).applyOptions({ invertScale: this.mirror });
+        } catch {
+          /* 这个 pane 没有该标尺（例如没有对比线时的 left） */
+        }
+      }
+    }
   }
 
   destroy() {

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import type { ChartSettings } from "@/lib/market/settings";
 import { IndicatorInst } from "@/lib/market/types";
 import { TimeRangeSelector } from "./TimeRangeSelector";
+import { InvertedViewToggle } from "./InvertedViewToggle";
 
 interface ChartToolbarProps {
   engine?: ChartEngine | null;
@@ -190,6 +191,8 @@ export function ChartToolbar({
       <button type="button" className={cn("rounded-sm px-1.5", invert ? "text-gold" : "text-muted")} onClick={toggleInvert}>
         红涨绿跌
       </button>
+      <InvertedViewToggle />
+      
       {master && (
         <>
           <i className="mx-1 h-4 w-px bg-border" />

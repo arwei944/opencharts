@@ -43,6 +43,8 @@ interface TerminalState {
   interval: Interval;
   chartType: ChartType;
   invert: boolean;
+  /** 倒垂视角：价格轴上下翻转（与 invert 的颜色互换互不干涉）。 */
+  mirrorAxis: boolean;
   logScale: boolean;
   showVol: boolean;
   tool: Tool;
@@ -82,6 +84,7 @@ interface TerminalState {
   setInterval: (i: Interval) => void;
   setChartType: (t: ChartType) => void;
   toggleInvert: () => void;
+  toggleMirrorAxis: () => void;
   toggleLog: () => void;
   toggleVol: () => void;
   setTool: (t: Tool) => void;
@@ -138,6 +141,7 @@ export const useTerminal = create<TerminalState>()(
       interval: "15m",
       chartType: "candle",
       invert: false,
+      mirrorAxis: false,
       logScale: false,
       showVol: true,
       tool: "cursor",
@@ -204,6 +208,7 @@ export const useTerminal = create<TerminalState>()(
         }),
       setChartType: (chartType) => set({ chartType }),
       toggleInvert: () => set({ invert: !get().invert }),
+      toggleMirrorAxis: () => set({ mirrorAxis: !get().mirrorAxis }),
       toggleLog: () => set({ logScale: !get().logScale }),
       toggleVol: () => set({ showVol: !get().showVol }),
       setTool: (tool) => set({ tool }),
@@ -390,6 +395,7 @@ export const useTerminal = create<TerminalState>()(
         interval: s.interval,
         chartType: s.chartType,
         invert: s.invert,
+        mirrorAxis: s.mirrorAxis,
         logScale: s.logScale,
         showVol: s.showVol,
         theme: s.theme,

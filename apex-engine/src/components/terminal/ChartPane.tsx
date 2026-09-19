@@ -29,6 +29,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   const bars = useTerminal((s) => (master ? s.bars : (s.paneBars[paneId] ?? NO_BARS)));
   const chartType = useTerminal((s) => s.chartType);
   const invert = useTerminal((s) => s.invert);
+  const mirrorAxis = useTerminal((s) => s.mirrorAxis);
   const logScale = useTerminal((s) => s.logScale);
   const showVol = useTerminal((s) => s.showVol);
   const indicators = useTerminal((s) => s.indicators);
@@ -154,6 +155,9 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   useEffect(() => {
     eng.current?.setInvert(invert);
   }, [invert]);
+  useEffect(() => {
+    eng.current?.setMirror(mirrorAxis);
+  }, [mirrorAxis]);
   useEffect(() => {
     eng.current?.setLog(logScale);
   }, [logScale]);

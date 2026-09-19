@@ -65,25 +65,8 @@ export function withTouchGestures<P extends object>(
   };
 }
 
-// Example usage in ApexChart component:
-/*
-export function ApexChartWithTouchGestures() {
-  const chartRef = useRef<ChartEngine>(null);
-  
-  useTouchGestureIntegration({
-    engine: chartRef.current!,
-    settings: {
-      touchPanSensitivity: 1.2,
-      touchDoubleTapDelay: 250,
-      touchLongPressDelay: 600,
-    },
-  });
-  
-  return (
-    <div>
-      <ChartEngine ref={chartRef} />
-      {/* Rest of your component */}
-    </div>
-  );
-}
-*/
+// Example usage:
+//   useTouchGestureIntegration({
+//     engine,
+//     settings: { touchPanSensitivity: 1.2, touchDoubleTapDelay: 250, touchLongPressDelay: 600 },
+//   });
