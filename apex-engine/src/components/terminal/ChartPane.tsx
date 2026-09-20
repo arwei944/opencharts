@@ -5,8 +5,9 @@ import { COMPARE_COLORS, FIB_LEVELS } from "@/lib/market/constants";
 import { cancelHistory, ensureCompleteHistory, ensureCoverage, historyKey, masterRef, paneRef } from "@/lib/market/history";
 import { NO_BARS, useTerminal } from "@/lib/market/store";
 import type { Candle, DrawPoint, Drawing, Interval } from "@/lib/market/types";
-import { fmtNum, fmtPx, uid } from "@/lib/utils";
+import { fmtPx, uid } from "@/lib/utils";
 import { ChartToolbar } from "./ChartToolbar";
+import { Legend } from "./Legend";
 
 type Props = {
   paneId?: string;
@@ -243,7 +244,6 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   }, []);
 
   const shown: Candle | null = (master ? overlayBar : null) ?? lastBar ?? null;
-  const up = shown ? (invert ? shown.close < shown.open : shown.close >= shown.open) : true;
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-bg">
@@ -253,52 +253,10 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
         <svg ref={overlay} className="pointer-events-none absolute inset-0 h-full w-full">
           {ready && master && drawings.map((d) => <DrawShape key={d.id} d={d} engine={eng.current} />)}
         </svg>
-        {shown && (
-          <div className="pointer-events-none absolute left-2 top-2 z-10 flex flex-wrap gap-2 text-micro text-muted">
-            {master && mirrorAxis && (
-              <span className="text-gold" title="价格轴已上下翻转">
-                ↕ 倒垂
-              </span>
-            )}
-            <span>
-              {symbol} {interval}
-            </span>
-            <span>
-              开 <b className={up ? "text-up" : "text-down"}>{fmtPx(shown.open)}</b>
-            </span>
-            <span>
-              高 <b className={up ? "text-up" : "text-down"}>{fmtPx(shown.high)}</b>
-            </span>
-            <span>
-              低 <b className={up ? "text-up" : "text-down"}>{fmtPx(shown.low)}</b>
-            </span>
-            <span>
-              收 <b className={up ? "text-up" : "text-down"}>{fmtPx(shown.close)}</b>
-            </span>
-            <span>
-              量 <b className="text-fg">{fmtNum(shown.volume, 3)}</b>
-            </span>
-            <HistoryBadge statusKey={historyKey_} />
-            {master && compareSymbols.length > 0 && (
-              <span className="text-gold">对比 {compareSymbols.map((s) => s.replace("USDT", "")).join(" / ")}</span>
-            )}
-          </div>
-        )}
+        {shown && <Legend symbol={symbol} interval={interval} bar={shown} invert={invert} mirrorAxis={master && mirrorAxis} compareSymbols={compareSymbols} historyKey_={historyKey_} />}
       </div>
     </div>
   );
-}
-
-function HistoryBadge({ statusKey }: { statusKey: string }) {
-  const status = useTerminal((s) => s.historyStatus[statusKey]);
-  if (!status) return null;
-  if (status.phase === "error") return <span className="text-down">历史补齐中断 · 移动视图重试</span>;
-  if (status.phase === "complete") {
-    const from = status.oldest ? new Date(status.oldest * 1000).toISOString().slice(0, 10) : "";
-    return <span className="text-subtle">完整 {status.bars.toLocaleString()} 根{from && ` · 始于 ${from}`}</span>;
-  }
-  const pct = status.target ? Math.min(99, Math.round((status.bars / status.target) * 100)) : 0;
-  return <span className="text-gold">后台补齐 {pct}%</span>;
 }
 
 function DrawShape({ d, engine }: { d: Drawing; engine: ChartEngine | null }) {
