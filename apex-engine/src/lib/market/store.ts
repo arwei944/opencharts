@@ -78,6 +78,8 @@ interface TerminalState {
   watch: WatchItem[];
   watchSymbols: string[];
   live: boolean;
+  /** Connection health: connecting | live | degraded | offline */
+  conn: "connecting" | "live" | "degraded" | "offline";
   overlay: Candle | null;
   searchOpen: boolean;
   indicatorOpen: boolean;
@@ -126,6 +128,7 @@ interface TerminalState {
   addWatch: (s: string) => void;
   removeWatch: (s: string) => void;
   setLive: (v: boolean) => void;
+  setConn: (c: "connecting" | "live" | "degraded" | "offline") => void;
   setOverlay: (c: Candle | null) => void;
   setSearchOpen: (v: boolean) => void;
   setIndicatorOpen: (v: boolean) => void;
@@ -180,6 +183,7 @@ export const useTerminal = create<TerminalState>()(
       watch: [],
       watchSymbols: DEFAULT_WATCH,
       live: false,
+      conn: "connecting",
       overlay: null,
       searchOpen: false,
       indicatorOpen: false,
@@ -416,7 +420,8 @@ export const useTerminal = create<TerminalState>()(
         set({ watchSymbols: [symbol, ...get().watchSymbols] });
       },
       removeWatch: (s) => set({ watchSymbols: get().watchSymbols.filter((x) => x !== s) }),
-      setLive: (live) => set({ live }),
+      setLive: (live) => set({ live, conn: live ? "live" : "degraded" }),
+      setConn: (conn) => set({ conn }),
       setOverlay: (overlay) => set({ overlay }),
       setSearchOpen: (searchOpen) => set({ searchOpen }),
       setIndicatorOpen: (indicatorOpen) => set({ indicatorOpen }),

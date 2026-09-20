@@ -1,8 +1,14 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useTerminal } from "@/lib/market/store";
-import { Terminal } from "@/components/terminal/Terminal";
 import type { ChartLayout, Interval } from "@/lib/market/types";
+
+// The terminal bundles the full chart engine (lightweight-charts etc.); load it
+// lazily so the app shell paints first.
+const Terminal = lazy(async () => {
+  const mod = await import("@/components/terminal/Terminal");
+  return { default: mod.Terminal };
+});
 
 const INTERVAL_IDS = new Set([
   "1s", "1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w",
@@ -42,5 +48,15 @@ function Home() {
     return unsub;
   }, [navigate]);
 
-  return <Terminal />;
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-dvh items-center justify-center bg-bg text-muted">
+          <span className="animate-pulse text-sm">加载中…</span>
+        </div>
+      }
+    >
+      <Terminal />
+    </Suspense>
+  );
 }

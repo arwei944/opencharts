@@ -1,5 +1,6 @@
 import { ChartSettings, DEFAULT_SETTINGS } from "@/lib/market/settings";
 import { useTerminal } from "@/lib/market/store";
+import { Modal } from "./Modal";
 
 export function SettingsModal() {
   const open = useTerminal((s) => s.settingsOpen);
@@ -7,18 +8,16 @@ export function SettingsModal() {
   const settings = useTerminal((s) => s.chartSettings);
   const setSettings = useTerminal((s) => s.setChartSettings);
 
-  if (!open) return null;
-
   const update = <K extends keyof ChartSettings>(key: K, value: ChartSettings[K]) => {
     setSettings({ ...settings, [key]: value });
   };
 
   return (
-    <div className="fixed inset-0 z-999 flex items-center justify-center bg-black/50">
-      <div className="w-[720px] max-h-[85dvh] overflow-auto rounded-lg border border-border bg-bg p-4 shadow-xl">
+    <Modal open={open} onClose={close} labelledBy="settings-dialog" wide>
+      <div className="max-h-[85dvh] overflow-auto p-4">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-fg">⚙️ 图表设置</h2>
-          <button onClick={close} className="rounded-sm bg-surface px-2 py-1 text-muted hover:bg-gold hover:text-bg transition-colors">
+          <h2 id="settings-dialog" className="text-lg font-semibold text-fg">⚙️ 图表设置</h2>
+          <button onClick={close} aria-label="关闭设置" className="rounded-sm bg-surface px-2 py-1 text-muted hover:bg-gold hover:text-bg transition-colors">
             ✕ 关闭
           </button>
         </div>
@@ -249,7 +248,7 @@ export function SettingsModal() {
           </section>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 

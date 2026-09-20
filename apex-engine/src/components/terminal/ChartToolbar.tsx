@@ -73,6 +73,7 @@ export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartTool
     <div className="flex h-8 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border px-1 text-micro [&>*]:shrink-0">
       <button
         type="button"
+        aria-label="图表设置"
         className="flex items-center gap-1.5 rounded-sm bg-gold px-2 font-medium text-bg hover:bg-opacity-90"
         onClick={() => useTerminal.getState().setSettingsOpen(true)}
       >
@@ -200,15 +201,15 @@ export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartTool
       {master && (
         <>
           <i className="mx-1 h-4 w-px bg-border" />
-          <button type="button" className="rounded-sm p-1 text-muted hover:text-fg" title="截图" onClick={screenshot}>
+          <button type="button" aria-label="导出截图" className="rounded-sm p-1 text-muted hover:text-fg" title="截图" onClick={screenshot}>
             <Camera className="size-3.5" />
           </button>
-          <button type="button" className="rounded-sm px-1.5 text-muted hover:text-fg" onClick={exportCsv}>
+          <button type="button" aria-label="导出 CSV" className="rounded-sm px-1.5 text-muted hover:text-fg" onClick={exportCsv}>
             CSV
           </button>
         </>
       )}
-      <button type="button" className="rounded-sm p-1 text-muted hover:text-fg" onClick={() => engine?.fit()}>
+      <button type="button" aria-label="自适应缩放" className="rounded-sm p-1 text-muted hover:text-fg" onClick={() => engine?.fit()}>
         <Maximize2 className="size-3.5" />
       </button>
       <Countdown closeAt={closeAt} />

@@ -5,6 +5,7 @@ import { useTerminal } from "@/lib/market/store";
 import type { IndicatorInst } from "@/lib/market/types";
 import { scriptParser } from "@/lib/market/script-parser";
 import type { Candle } from "@/lib/market/types";
+import { Modal } from "./Modal";
 
 interface CustomIndicatorModalProps {
   isOpen: boolean;
@@ -86,67 +87,68 @@ export function CustomIndicatorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-999 flex items-center justify-center bg-black/50">
-      <div className="w-[800px] max-h-[90dvh] overflow-hidden rounded-lg border border-border bg-bg shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="text-lg font-semibold text-fg">📊 Custom Indicators</h2>
-          <button onClick={onClose} className="rounded-sm bg-surface px-2 py-1 text-muted hover:bg-gold transition-colors">
-            <X className="size-4" />
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-border">
-          <button
-            onClick={() => setActiveTab("builtin")}
-            className={`px-4 py-2 text-sm font-medium ${
-              activeTab === "builtin" 
-                ? "bg-surface text-gold border-b-2 border-gold" 
-                : "text-muted hover:text-fg"
-            }`}
-          >
-            📈 Built-in Indicators
-          </button>
-          <button
-            onClick={() => setActiveTab("custom")}
-            className={`px-4 py-2 text-sm font-medium ${
-              activeTab === "custom" 
-                ? "bg-surface text-gold border-b-2 border-gold" 
-                : "text-muted hover:text-fg"
-            }`}
-          >
-            ✏️ Custom Script
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="overflow-auto p-4">
-          {activeTab === "builtin" ? (
-            <BuiltinsGrid onSelect={handleBuiltinIndicatorSelect} />
-          ) : (
-            <CustomScriptEditor
-              script={customScript}
-              setScript={setCustomScript}
-              onRun={handleRunScript}
-              result={testResult}
-              onSave={handleAddToChart}
-              barsCount={bars.length}
-            />
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
-          <button
-            onClick={onClose}
-            className="rounded-sm px-3 py-1.5 text-micro bg-surface text-fg hover:bg-opacity-70 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
+    <Modal open={isOpen} onClose={onClose} labelledBy="custom-indicator-dialog" wide>
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <h2 id="custom-indicator-dialog" className="text-lg font-semibold text-fg" tabIndex={-1}>📊 Custom Indicators</h2>
+        <button onClick={onClose} aria-label="关闭自定义指标" className="rounded-sm bg-surface px-2 py-1 text-muted hover:bg-gold transition-colors">
+          <X className="size-4" />
+        </button>
       </div>
-    </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-border" role="tablist" aria-label="自定义指标模式">
+        <button
+          role="tab"
+          aria-selected={activeTab === "builtin"}
+          onClick={() => setActiveTab("builtin")}
+          className={`px-4 py-2 text-sm font-medium ${
+            activeTab === "builtin" 
+              ? "bg-surface text-gold border-b-2 border-gold" 
+              : "text-muted hover:text-fg"
+          }`}
+        >
+          📈 Built-in Indicators
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === "custom"}
+          onClick={() => setActiveTab("custom")}
+          className={`px-4 py-2 text-sm font-medium ${
+            activeTab === "custom" 
+              ? "bg-surface text-gold border-b-2 border-gold" 
+              : "text-muted hover:text-fg"
+          }`}
+        >
+          ✏️ Custom Script
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="max-h-[60dvh] overflow-auto p-4">
+        {activeTab === "builtin" ? (
+          <BuiltinsGrid onSelect={handleBuiltinIndicatorSelect} />
+        ) : (
+          <CustomScriptEditor
+            script={customScript}
+            setScript={setCustomScript}
+            onRun={handleRunScript}
+            result={testResult}
+            onSave={handleAddToChart}
+            barsCount={bars.length}
+          />
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
+        <button
+          onClick={onClose}
+          className="rounded-sm px-3 py-1.5 text-micro bg-surface text-fg hover:bg-opacity-70 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </Modal>
   );
 }
 

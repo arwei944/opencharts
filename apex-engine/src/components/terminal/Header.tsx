@@ -7,7 +7,7 @@ export function Header() {
   const market = useTerminal((s) => s.market);
   const setMarket = useTerminal((s) => s.setMarket);
   const quote = usePaper((s) => s.quote);
-  const live = useTerminal((s) => s.live);
+  const conn = useTerminal((s) => s.conn);
   const theme = useTerminal((s) => s.theme);
   const toggleTheme = useTerminal((s) => s.toggleTheme);
 
@@ -53,8 +53,8 @@ export function Header() {
       </nav>
       <div className="ml-auto flex items-center gap-3 text-micro">
         <span className="flex items-center gap-1.5 text-muted">
-          <span className={`size-1.5 rounded-full ${live ? "bg-up" : "bg-subtle"}`} />
-          {live ? "实时" : "连接中"}
+          <span className={`size-1.5 rounded-full ${conn === "live" ? "bg-up" : conn === "degraded" ? "bg-gold" : "bg-subtle"}`} />
+          {conn === "live" ? "实时" : conn === "degraded" ? "重连中" : conn === "offline" ? "离线" : "连接中"}
         </span>
         <span className="hidden text-muted sm:inline">
           权益 <span className="font-mono text-fg">{fmtNum(quote, 2)} USDT</span>

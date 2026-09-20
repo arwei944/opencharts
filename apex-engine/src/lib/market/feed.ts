@@ -248,6 +248,7 @@ export function useMarketFeed() {
         attempts = 0;
         lastMsgAt = Date.now();
         useTerminal.getState().setLive(true);
+        useTerminal.getState().setConn("live");
       };
       sock.onmessage = handle;
       sock.onerror = () => {
@@ -258,6 +259,7 @@ export function useMarketFeed() {
         // flip live=false over a fresh socket that already set it true.
         if (closed) return;
         useTerminal.getState().setLive(false);
+        useTerminal.getState().setConn(attempts >= 3 ? "offline" : "degraded");
         host += 1;
         scheduleReconnect();
       };
@@ -266,6 +268,7 @@ export function useMarketFeed() {
         attempts = 0;
         lastMsgAt = Date.now();
         useTerminal.getState().setLive(true);
+        useTerminal.getState().setConn("live");
       }
     };
 
@@ -288,6 +291,7 @@ export function useMarketFeed() {
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
         if (Date.now() - lastMsgAt > 45000) {
           useTerminal.getState().setLive(false);
+          useTerminal.getState().setConn("degraded");
           ws.close();
         }
       }, 5000);
@@ -299,6 +303,7 @@ export function useMarketFeed() {
       if (document.visibilityState === "visible") {
         if (!ws || ws.readyState !== WebSocket.OPEN || Date.now() - lastMsgAt > 15000) {
           useTerminal.getState().setLive(false);
+          useTerminal.getState().setConn("degraded");
           if (ws && ws.readyState === WebSocket.OPEN) ws.close();
           else if (ws && ws.readyState === WebSocket.CONNECTING) abandoned = true;
         }
