@@ -17,13 +17,4 @@
         fill="none" 
         stroke-linecap="round"
         stroke-linejoin="round"/>
-  
-  <!-- Bars -->
-  <rect x="25" y="60" width="8" height="25" fill="white" rx="2"/>
-  <rect x="37" y="45" width="8" height="40" fill="white" rx="2"/>
-  <rect x="49" y="50" width="8" height="35" fill="white" rx="2"/>
-  <rect x="61" y="25" width="8" height="60" fill="white" rx="2"/>
-  
-  <!-- Open text (small) -->
-  <text x="50" y="85" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white" letter-spacing="3">O</text>
 </svg>

@@ -147,12 +147,18 @@ export function setupTouchGestures(host: HTMLElement, engine: ChartEngine, setti
       const width = host.clientWidth;
       if (range && typeof range.from === "number" && typeof range.to === "number") {
         const timeSpan = range.to - range.from;
-        return timeSpan > 0 ? width / timeSpan : 0;
+        // ✅ P1 Bug Fix: Prevent division by zero or negative values
+        if (timeSpan <= 0) {
+          console.warn("[TouchGesture] Invalid time span:", timeSpan);
+          return width / (15 * 60); // Default to 15 minutes
+        }
+        return width / timeSpan;
       }
-    } catch {
-      // Ignore errors
+    } catch (err) {
+      console.error("[TouchGesture] Failed to calculate pixels/sec:", err);
     }
-    return 0; // Default fallback
+    // ✅ Return meaningful default instead of 0
+    return host.clientWidth / (15 * 60);
   }
 
   /** Handle double tap gesture */

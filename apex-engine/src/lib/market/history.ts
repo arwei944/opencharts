@@ -93,15 +93,20 @@ function getStatus(ref: SeriesRef) {
 }
 
 async function page(ref: SeriesRef, endTimeSec?: number): Promise<Candle[]> {
-  return fetchKlines({
-    data: {
-      symbol: ref.symbol,
-      interval: ref.interval,
-      market: ref.market,
-      limit: HISTORY_PAGE,
-      endTime: endTimeSec == null ? undefined : endTimeSec * 1000 - 1,
-    },
-  });
+  try {
+    return await fetchKlines({
+      data: {
+        symbol: ref.symbol,
+        interval: ref.interval,
+        market: ref.market,
+        limit: HISTORY_PAGE,
+        endTime: endTimeSec == null ? undefined : endTimeSec * 1000 - 1,
+      },
+    });
+  } catch (error) {
+    console.error('[History] fetchKlines failed:', error);
+    throw error;
+  }
 }
 
 /** Drop the in-progress live bar: REST can hand back a bar the WS already owns. */

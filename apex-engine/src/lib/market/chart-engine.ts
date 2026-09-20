@@ -184,10 +184,10 @@ export class ChartEngine {
       }
       this.onCrosshair?.(time, price);
     });
-    host.addEventListener("pointerdown", this.onPointerDown, true);
+    host.addEventListener("pointerdown", this.onPointerDown, { capture: true, passive: false });
     host.addEventListener("wheel", this.onWheel, { passive: true, capture: true });
-    window.addEventListener("pointerup", this.onPointerUp);
-    window.addEventListener("pointercancel", this.onPointerUp);
+    window.addEventListener("pointerup", this.onPointerUp, { capture: true }); // ✅ Match with pointerdown
+    window.addEventListener("pointercancel", this.onPointerUp, { capture: true }); // ✅ Match with pointerdown
   }
 
   /** True from `pointerdown` until the button is lifted: the DOM must keep out of the way. */
@@ -855,10 +855,11 @@ export class ChartEngine {
     if (this.restRaf) cancelAnimationFrame(this.restRaf);
     this.restRaf = 0;
     this.restJobs = [];
-    this.host.removeEventListener("pointerdown", this.onPointerDown, true);
-    this.host.removeEventListener("wheel", this.onWheel, true);
-    window.removeEventListener("pointerup", this.onPointerUp);
-    window.removeEventListener("pointercancel", this.onPointerUp);
+    // ✅ P0 Bug Fix: Use matching options when removing event listeners
+    this.host.removeEventListener("pointerdown", this.onPointerDown, { capture: true, passive: false });
+    this.host.removeEventListener("wheel", this.onWheel, { passive: true, capture: true });
+    window.removeEventListener("pointerup", this.onPointerUp, { capture: true });
+    window.removeEventListener("pointercancel", this.onPointerUp, { capture: true });
     if (this.rangeRaf) cancelAnimationFrame(this.rangeRaf);
     this.rangeRaf = 0;
     this.chart.remove();

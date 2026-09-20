@@ -170,6 +170,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   useEffect(() => {
     eng.current?.setFullData(bars, historyPhase !== "complete");
   }, [bars, historyPhase]);
+  
   useEffect(() => {
     const ref = refFor(useTerminal.getState(), paneId, master);
     ensureCompleteHistory(ref);

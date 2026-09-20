@@ -21,17 +21,17 @@ export function Header() {
         <svg width="24" height="24" viewBox="0 0 100 100" aria-hidden>
           <defs>
             <linearGradient id="chart-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
-              <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+              <stop offset="0%" stopColor="#6366f1" stopOpacity="1" />
+              <stop offset="100%" stopColor="#8b5cf6" stopOpacity="1" />
             </linearGradient>
           </defs>
           <circle cx="50" cy="50" r="48" fill="url(#chart-gradient)"/>
           <path d="M 20 70 L 35 50 L 50 55 L 65 30 L 80 40" 
                 stroke="white" 
-                stroke-width="6" 
+                strokeWidth="6" 
                 fill="none" 
-                stroke-linecap="round"
-                stroke-linejoin="round"/>
+                strokeLinecap="round"
+                strokeLinejoin="round"/>
         </svg>
         <span className="text-base font-bold tracking-wide text-fg">OpenCharts</span>
       </div>

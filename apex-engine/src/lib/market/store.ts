@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { uid } from "@/lib/utils";
-import { prependBars as prependContiguous } from "./bars";
+import { prependBars as prependContiguous, intervalSec } from "./bars";
 import { BAR_CAP, DEFAULT_PANE_INTERVALS, DEFAULT_WATCH, INDICATOR_CATALOG, PANE_COUNT } from "./constants";
 import type { ThemeMode } from "./constants";
 import type { ChartSettings } from "./settings";
@@ -239,14 +239,33 @@ export const useTerminal = create<TerminalState>()(
       updateBar: (bar) => {
         const cur = get().bars;
         const last = cur[cur.length - 1];
-        if (last && bar.time < last.time) return;
-        if (last && last.time === bar.time) {
+
+        // If we have nothing yet (history still loading or failed), accept the
+        // live bar as a seed — otherwise a blank store swallows every update.
+        if (!last) {
+          set({ bars: [bar].slice(-BAR_CAP), liveOpenTime: bar.time });
+          return;
+        }
+
+        if (bar.time < last.time) return; // Outdated
+
+        if (last.time === bar.time) {
+          // Update current open bar
           const next = cur.slice();
           next[next.length - 1] = bar;
           set({ bars: next, liveOpenTime: bar.time });
           return;
         }
-        set({ bars: [...cur, bar].slice(-BAR_CAP), liveOpenTime: bar.time });
+
+        // ✅ Only add as NEW bar if it's at the correct interval
+        const stepSec = intervalSec(get().interval);
+        // Allow small tolerance for network jitter
+        if (Math.abs(bar.time - (last.time + stepSec)) <= stepSec * 0.5) {
+          set({ bars: [...cur, bar].slice(-BAR_CAP), liveOpenTime: bar.time });
+        } else if (bar.time > last.time + stepSec) {
+          console.warn('[Store] Skipped gap in bar times:', last.time, '->', bar.time);
+          // Don't add intermediate fake bars
+        }
       },
       setLayout: (layout) => {
         const panes = makePanes(layout, get().panes);
@@ -411,3 +430,9 @@ export const useTerminal = create<TerminalState>()(
     },
   ),
 );
+
+// Expose store to window for debugging (dev only)
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  window.useTerminal = useTerminal;
+}

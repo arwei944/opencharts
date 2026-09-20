@@ -1,0 +1,311 @@
+import { useState, useEffect } from "react";
+import { X, Plus, Save, Copy, Trash2, Play } from "lucide-react";
+import { useTerminal } from "@/lib/market/store";
+import type { IndicatorInst } from "@/lib/market/types";
+import { indicatorEngine } from "@/lib/market/indicator-engine";
+import { scriptParser } from "@/lib/market/script-parser";
+import type { Candle } from "@/lib/market/types";
+
+interface CustomIndicatorModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  bars?: Candle[];
+}
+
+export function CustomIndicatorModal({
+  isOpen,
+  onClose,
+  bars = [],
+}: CustomIndicatorModalProps) {
+  const [activeTab, setActiveTab] = useState<"builtin" | "custom">("custom");
+  const [customScript, setCustomScript] = useState("");
+  const [scriptParams, setScriptParams] = useState<Record<string, number>>({});
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    data?: Array<{ time: number; value: number }>;
+    error?: string;
+  } | null>(null);
+  
+  const indicators = useTerminal((s) => s.indicators);
+  const addIndicator = useTerminal((s) => s.addIndicator);
+  const removeIndicator = useTerminal((s) => s.removeIndicator);
+
+  useEffect(() => {
+    if (isOpen && activeTab === "custom") {
+      // Reset state when opening custom tab
+      setCustomScript(`// @version=5\n// Write your custom indicator here\n\nlength = input.int(9, "Period", minval=1)\nresult = sma(close, length)\nplot(result)`);
+      setScriptParams({});
+      setTestResult(null);
+    }
+  }, [isOpen, activeTab]);
+
+  if (!isOpen) return null;
+
+  const handleBuiltinIndicatorSelect = (kind: string) => {
+    addIndicator(kind);
+    onClose();
+  };
+
+  const handleRunScript = () => {
+    try {
+      const result = scriptParser.parse(customScript);
+      
+      if (!result.success || !result.calculationFn) {
+        setTestResult({
+          success: false,
+          error: result.errors?.join(", ") || "Failed to parse script"
+        });
+        return;
+      }
+      
+      if (bars.length === 0) {
+        setTestResult({
+          success: false,
+          error: "No data available for testing"
+        });
+        return;
+      }
+      
+      const calculationData = result.calculationFn(bars);
+      
+      setTestResult({
+        success: true,
+        data: calculationData
+      });
+    } catch (error) {
+      setTestResult({
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  };
+
+  const handleAddToChart = () => {
+    if (!testResult?.success || !testResult.data) return;
+    
+    const instance: IndicatorInst = {
+      id: `custom-${Date.now()}`,
+      kind: "CUSTOM",
+      params: { ...scriptParams, source: customScript },
+      visible: true
+    };
+    
+    // Store in terminal state (you may want to create a custom indicator store action)
+    console.log("Adding custom indicator:", instance);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-999 flex items-center justify-center bg-black/50">
+      <div className="w-[800px] max-h-[90dvh] overflow-hidden rounded-lg border border-border bg-bg shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h2 className="text-lg font-semibold text-fg">📊 Custom Indicators</h2>
+          <button onClick={onClose} className="rounded-sm bg-surface px-2 py-1 text-muted hover:bg-gold transition-colors">
+            <X className="size-4" />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-border">
+          <button
+            onClick={() => setActiveTab("builtin")}
+            className={`px-4 py-2 text-sm font-medium ${
+              activeTab === "builtin" 
+                ? "bg-surface text-gold border-b-2 border-gold" 
+                : "text-muted hover:text-fg"
+            }`}
+          >
+            📈 Built-in Indicators
+          </button>
+          <button
+            onClick={() => setActiveTab("custom")}
+            className={`px-4 py-2 text-sm font-medium ${
+              activeTab === "custom" 
+                ? "bg-surface text-gold border-b-2 border-gold" 
+                : "text-muted hover:text-fg"
+            }`}
+          >
+            ✏️ Custom Script
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="overflow-auto p-4">
+          {activeTab === "builtin" ? (
+            <BuiltinsGrid onSelect={handleBuiltinIndicatorSelect} />
+          ) : (
+            <CustomScriptEditor
+              script={customScript}
+              setScript={setCustomScript}
+              onRun={handleRunScript}
+              result={testResult}
+              onSave={handleAddToChart}
+              barsCount={bars.length}
+            />
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
+          <button
+            onClick={onClose}
+            className="rounded-sm px-3 py-1.5 text-micro bg-surface text-fg hover:bg-opacity-70 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Built-in indicators grid */
+function BuiltinsGrid({ onSelect }: { onSelect: (kind: string) => void }) {
+  const availableIndicators = indicatorEngine.getAvailableIndicators();
+
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {availableIndicators.map((indicator) => (
+        <button
+          key={indicator.id}
+          onClick={() => onSelect(indicator.id)}
+          className="rounded-lg border border-border bg-surface p-4 text-left hover:border-gold hover:bg-surface-hover transition-colors"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <span className="font-semibold text-fg">{indicator.name}</span>
+            <span className="rounded-full bg-gold/20 px-2 py-0.5 text-xs text-gold">
+              {indicator.category}
+            </span>
+          </div>
+          <p className="text-sm text-muted">{indicator.description}</p>
+          
+          <div className="mt-3 flex flex-wrap gap-2">
+            {indicator.params.slice(0, 3).map((param) => (
+              <span key={param.name} className="text-xs text-subtle">
+                {param.label}: {param.defaultValue}
+              </span>
+            ))}
+            {indicator.params.length > 3 && (
+              <span className="text-xs text-subtle">+{indicator.params.length - 3} more</span>
+            )}
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Custom script editor component */
+function CustomScriptEditor({
+  script,
+  setScript,
+  onRun,
+  result,
+  onSave,
+  barsCount,
+}: {
+  script: string;
+  setScript: (s: string) => void;
+  onRun: () => void;
+  result: { success: boolean; data?: any; error?: string } | null;
+  onSave: () => void;
+  barsCount: number;
+}) {
+  return (
+    <div className="space-y-4">
+      {/* Info box */}
+      <div className="rounded-md bg-blue-500/10 p-3 text-sm text-blue-300">
+        <strong>Syntax similar to Pine Script v5:</strong><br />
+        Use parameters like <code>input.int(9, "Period", minval=1)</code>,<br />
+        And functions like <code>sma(close, length)</code>, <code>ema(close, length)</code>, etc.<br />
+        Available bars: {barsCount}
+      </div>
+
+      {/* Code editor area */}
+      <div>
+        <label className="mb-2 block text-sm font-medium text-fg">Script Editor</label>
+        <textarea
+          value={script}
+          onChange={(e) => setScript(e.target.value)}
+          className="h-64 w-full resize-none rounded-lg border border-border bg-bg p-3 font-mono text-sm text-fg outline-none focus:border-gold"
+          placeholder="// Write your indicator script here...&#10;// Example: length = input.int(9, &quot;Period&quot;)&#10;// result = sma(close, length)&#10;// plot(result)"
+          spellCheck={false}
+        />
+      </div>
+
+      {/* Run button */}
+      <button
+        onClick={onRun}
+        className="flex items-center gap-2 rounded-sm bg-gold px-4 py-1.5 text-bg hover:bg-opacity-90 transition-colors font-medium"
+      >
+        <Play className="size-4" />
+        Run Script
+      </button>
+
+      {/* Results */}
+      {result && (
+        <div className={`rounded-lg border p-4 ${
+          result.success 
+            ? "border-green-500/30 bg-green-500/10" 
+            : "border-red-500/30 bg-red-500/10"
+        }`}>
+          {result.success ? (
+            <>
+              <div className="mb-2 flex items-center gap-2">
+                <div className="rounded-full bg-green-500 p-1">
+                  <Plus className="size-3 text-white" />
+                </div>
+                <span className="font-semibold text-green-300">
+                  Script executed successfully!
+                </span>
+              </div>
+              
+              {/* Preview graph (simple ASCII visualization) */}
+              {result.data && result.data.length > 0 && (
+                <div className="mt-3">
+                  <p className="mb-2 text-xs text-green-400">Preview (first 20 points):</p>
+                  <div className="flex h-32 items-end gap-1 overflow-x-auto">
+                    {result.data.slice(0, 30).map((point: any, i: number) => (
+                      <div
+                        key={i}
+                        style={{
+                          height: `${Math.min(100, Math.max(5, (point.value / (Math.max(...result.data.map((d: any) => d.value))) * 100)))}%`,
+                          width: "8px",
+                          background: "rgba(255, 255, 255, 0.8)",
+                          borderRadius: "2px"
+                        }}
+                        title={`Time: ${point.time}, Value: ${point.value.toFixed(2)}`}
+                      />
+                    ))}
+                  </div>
+                  
+                  {/* Add button */}
+                  <button
+                    onClick={onSave}
+                    className="mt-4 flex items-center gap-2 rounded-sm bg-gold px-4 py-1.5 text-bg hover:bg-opacity-90 transition-colors font-medium"
+                  >
+                    <Save className="size-4" />
+                    Add to Chart
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="rounded-full bg-red-500 p-1">
+                <XIcon className="size-3 text-white" />
+              </div>
+              <span className="font-semibold text-red-300">Error:</span>
+              <span className="text-red-300">{result.error}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function XIcon(props: any) {
+  return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>;
+}
