@@ -1,7 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { uid } from "@/lib/utils";
-import { prependBars as prependContiguous, intervalSec } from "./bars";
+import {
+  appendCapped,
+  prependBars as prependContiguous,
+  intervalSec,
+} from "./bars";
 import {
   BAR_CAP,
   DEFAULT_PANE_INTERVALS,
@@ -346,7 +350,7 @@ export const useTerminal = create<TerminalState>()(
         // Allow small tolerance for network jitter
         if (Math.abs(bar.time - (last.time + stepSec)) <= stepSec * 0.5) {
           set({
-            bars: [...cur, bar].slice(-BAR_CAP),
+            bars: appendCapped(cur, bar, BAR_CAP),
             lastBar: bar,
             liveOpenTime: bar.time,
           });
@@ -412,7 +416,7 @@ export const useTerminal = create<TerminalState>()(
           next = cur.slice();
           next[next.length - 1] = bar;
         } else {
-          next = [...cur, bar].slice(-BAR_CAP);
+          next = appendCapped(cur, bar, BAR_CAP);
         }
         set({ paneBars: { ...get().paneBars, [paneId]: next } });
       },
@@ -459,7 +463,7 @@ export const useTerminal = create<TerminalState>()(
           next = cur.slice();
           next[next.length - 1] = bar;
         } else {
-          next = [...cur, bar].slice(-BAR_CAP);
+          next = appendCapped(cur, bar, BAR_CAP);
         }
         set({ compareBars: { ...get().compareBars, [symbol]: next } });
       },

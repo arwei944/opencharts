@@ -32,6 +32,13 @@ import {
   IND_TAIL_GROW,
   UP,
 } from "./constants";
+
+/**
+ * Length of a left-grow the prefill must accumulate before the resident
+ * series is refreshed mid-fill, so a long history populates progressively
+ * instead of hiding behind `frozen` until the final page.
+ */
+const REVEAL_CHUNK_BARS = 20_000;
 import type { ThemeMode } from "./constants";
 import {
   atr,
@@ -380,7 +387,25 @@ export class ChartEngine {
 
   setType(t: ChartType) {
     if (this.type === t) return;
+    const wasHollowSwap =
+      (this.type === "candle" || this.type === "hollow") &&
+      (t === "candle" || t === "hollow");
     this.type = t;
+    if (wasHollowSwap && this.main) {
+      // candle <-> hollow share the CandlestickSeries type; recolor in place
+      // instead of destroying + re-setting 100k bars.
+      const { up, down } = this.colors();
+      const hollow = t === "hollow";
+      this.main.applyOptions({
+        upColor: hollow ? "transparent" : up,
+        downColor: down,
+        borderUpColor: up,
+        borderDownColor: down,
+        wickUpColor: up,
+        wickDownColor: down,
+      });
+      return;
+    }
     this.rebuildMain();
   }
 
@@ -416,6 +441,17 @@ export class ChartEngine {
     const drawn = this.bars;
     if (growsLeft(drawn, bars) && (frozen || this.interacting)) {
       this.pending = bars;
+      // Progressive reveal: a left-grow fill can take minutes to finish, so
+      // once enough new bars have accumulated (and the pointer is idle) land
+      // them instead of making the user wait for the whole history. The big
+      // final pass then only fills the small remaining gap.
+      if (
+        this.pending.length - drawn.length >= REVEAL_CHUNK_BARS &&
+        !this.interacting
+      ) {
+        this.commit(bars);
+        return;
+      }
       this.maybeRevealPending();
       return;
     }
@@ -809,13 +845,26 @@ export class ChartEngine {
     });
   }
 
-  private source(): Candle[] {
-    return this.type === "ha" ? heikinAshi(this.bars) : this.bars;
+  /**
+   * Heikin-Ashi over the resident series, memoized: WS ticks mutate the tail
+   * via updateSeriesBar (lastHeikinAshi over indTail), so a full O(n) recompute
+   * is only owed when the series reference actually changes (commit/reveal).
+   */
+  private haSource(bars: Candle[]): Candle[] {
+    if (this.type !== "ha") return bars;
+    if (this.haCacheBars !== bars) {
+      this.haCache = heikinAshi(bars);
+      this.haCacheBars = bars;
+    }
+    return this.haCache;
   }
+
+  private haCache: Candle[] = [];
+  private haCacheBars: Candle[] | null = null;
 
   private applyBars() {
     if (!this.main) return;
-    const src = this.source();
+    const src = this.haSource(this.bars);
     if (this.type === "line" || this.type === "area") {
       const line = src.map((b) => ({
         time: b.time as UTCTimestamp,

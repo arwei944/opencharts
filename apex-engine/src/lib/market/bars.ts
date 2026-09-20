@@ -23,9 +23,16 @@ export function closedOnly(bars: Candle[], liveOpenTime?: number): Candle[] {
   return bars.filter((b) => b.time < liveOpenTime);
 }
 
-export function mergeBars(existing: Candle[], incoming: Candle[], cap: number, liveOpenTime?: number): Candle[] {
+export function mergeBars(
+  existing: Candle[],
+  incoming: Candle[],
+  cap: number,
+  liveOpenTime?: number,
+): Candle[] {
   if (!incoming.length) return existing;
-  const filtered = liveOpenTime ? incoming.filter((b) => b.time < liveOpenTime) : incoming;
+  const filtered = liveOpenTime
+    ? incoming.filter((b) => b.time < liveOpenTime)
+    : incoming;
   if (!existing.length) return filtered.slice(-cap);
   const map = new Map<number, Candle>();
   for (const b of existing) map.set(b.time, b);
@@ -42,19 +49,32 @@ export function mergeBars(existing: Candle[], incoming: Candle[], cap: number, l
  * us the page adjacent to what is already loaded, so the fast path is a plain
  * concat — no Map rebuild and no sort over a 100k-bar series.
  */
-export function prependBars(existing: Candle[], incoming: Candle[], cap: number, liveOpenTime?: number): Candle[] {
+export function prependBars(
+  existing: Candle[],
+  incoming: Candle[],
+  cap: number,
+  liveOpenTime?: number,
+): Candle[] {
   if (!incoming.length) return existing;
   const first = existing[0];
   if (!first) return incoming.slice(-cap);
   const newest = incoming[incoming.length - 1];
-  const contiguous = newest.time < first.time && newest.time < (liveOpenTime ?? Infinity);
+  const contiguous =
+    newest.time < first.time && newest.time < (liveOpenTime ?? Infinity);
   if (!contiguous) return mergeBars(existing, incoming, cap, liveOpenTime);
   const next = [...incoming, ...existing];
   return next.length > cap ? next.slice(next.length - cap) : next;
 }
 
 export type PlotPoint =
-  | { time: number; open: number; high: number; low: number; close: number; volume: number }
+  | {
+      time: number;
+      open: number;
+      high: number;
+      low: number;
+      close: number;
+      volume: number;
+    }
   | { time: number };
 
 export function withTimeGaps(bars: Candle[], step: number): PlotPoint[] {
@@ -67,9 +87,32 @@ export function withTimeGaps(bars: Candle[], step: number): PlotPoint[] {
     const cur = bars[i];
     const dt = cur.time - prev.time;
     if (dt >= minHole && dt <= maxHole) {
-      for (let t = prev.time + step; t < cur.time; t += step) out.push({ time: t });
+      for (let t = prev.time + step; t < cur.time; t += step)
+        out.push({ time: t });
     }
     out.push(cur);
   }
   return out;
+}
+
+/**
+ * Append one bar with a single copy. `slice(-cap)` after a spread is a second
+ * full pass over a 100k array for nothing when it is still under the cap, so
+ * only trim when the cap would actually be exceeded.
+ */
+export function appendCapped(
+  cur: Candle[],
+  bar: Candle,
+  cap: number,
+): Candle[] {
+  // Copy-on-write: never mutate the resident array (React/zustand depend on
+  // a fresh reference). One slice pass, then push.
+  if (cur.length >= cap) {
+    const next = cur.slice(1); // drop the oldest, cap-1 elements
+    next.push(bar);
+    return next;
+  }
+  const next = cur.slice();
+  next.push(bar);
+  return next;
 }
