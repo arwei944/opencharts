@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Build output
 dist/
@@ -49,3 +48,8 @@ public/storybook/
 # Misc
 *.pem
 *.key
+
+# Build output (vercel/nitro)
+.vercel/
+.nitro/
+.output/
