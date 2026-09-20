@@ -56,6 +56,10 @@ interface TerminalState {
   removeCustomFn: (id: string) => void;
   drawings: Drawing[];
   bars: Candle[];
+  /** Tail of `bars` (live, still-open bar) — updated in place on WS ticks so
+   * the 100k array reference stays stable and only lightweight subscribers
+   * (chart legend / engine live path) re-render. */
+  lastBar: Candle | null;
   layout: ChartLayout;
   panes: ChartPaneConfig[];
   paneBars: Record<string, Candle[]>;
@@ -157,6 +161,7 @@ export const useTerminal = create<TerminalState>()(
       ],
       drawings: [],
       bars: [],
+      lastBar: null,
       layout: "1",
       panes: makePanes("1", []),
       paneBars: {},
@@ -188,6 +193,7 @@ export const useTerminal = create<TerminalState>()(
         set({
           market,
           bars: [],
+          lastBar: null,
           paneBars: {},
           compareBars: {},
           liveOpenTime: 0,
@@ -196,6 +202,7 @@ export const useTerminal = create<TerminalState>()(
         set({
           symbol: symbol.toUpperCase(),
           bars: [],
+          lastBar: null,
           paneBars: {},
           compareBars: {},
           trades: [],
@@ -207,6 +214,7 @@ export const useTerminal = create<TerminalState>()(
         set({
           interval,
           bars: [],
+          lastBar: null,
           compareBars: {},
           liveOpenTime: 0,
           panes: get().panes.map((p, i) => (i === 0 ? { ...p, interval } : p)),
@@ -255,6 +263,7 @@ export const useTerminal = create<TerminalState>()(
       setBars: (bars) =>
         set({
           bars: bars.slice(-BAR_CAP),
+          lastBar: bars.at(-1) ?? null,
           liveOpenTime: bars.at(-1)?.time ?? 0,
         }),
       appendOlderBars: (incoming) => {
@@ -270,17 +279,19 @@ export const useTerminal = create<TerminalState>()(
         // If we have nothing yet (history still loading or failed), accept the
         // live bar as a seed — otherwise a blank store swallows every update.
         if (!last) {
-          set({ bars: [bar].slice(-BAR_CAP), liveOpenTime: bar.time });
+          set({ bars: [bar].slice(-BAR_CAP), lastBar: bar, liveOpenTime: bar.time });
           return;
         }
 
         if (bar.time < last.time) return; // Outdated
 
         if (last.time === bar.time) {
-          // Update current open bar
-          const next = cur.slice();
-          next[next.length - 1] = bar;
-          set({ bars: next, liveOpenTime: bar.time });
+          // Same open bar ticking: update the tail IN PLACE — the resident
+          // array reference stays stable, so heavy `bars` subscribers don't
+          // re-render; only the lightweight lastBar path (legend + engine
+          // live update) fires.
+          cur[cur.length - 1] = bar;
+          set({ lastBar: bar, liveOpenTime: bar.time });
           return;
         }
 
@@ -288,7 +299,7 @@ export const useTerminal = create<TerminalState>()(
         const stepSec = intervalSec(get().interval);
         // Allow small tolerance for network jitter
         if (Math.abs(bar.time - (last.time + stepSec)) <= stepSec * 0.5) {
-          set({ bars: [...cur, bar].slice(-BAR_CAP), liveOpenTime: bar.time });
+          set({ bars: [...cur, bar].slice(-BAR_CAP), lastBar: bar, liveOpenTime: bar.time });
         } else if (bar.time > last.time + stepSec) {
           console.warn('[Store] Skipped gap in bar times:', last.time, '->', bar.time);
           // Don't add intermediate fake bars
@@ -305,16 +316,16 @@ export const useTerminal = create<TerminalState>()(
         const panes = get().panes.map((p) => (p.id === paneId ? { ...p, interval } : p));
         const paneBars = { ...get().paneBars, [paneId]: [] };
         if (paneId === "p0") {
-          // Apply chart settings when switching intervals to maintain barSpacing
-          const settings = get().chartSettings;
+          // Switching the master pane's interval resets its series; chart
+          // settings stay as-is (engine re-applies barSpacing on next render).
           set({ 
             panes, 
             paneBars, 
             interval, 
             bars: [], 
+            lastBar: null,
             compareBars: {}, 
             liveOpenTime: 0,
-            // Keep chart settings applied
           });
           
           // If engine exists, it will apply settings automatically on next render
@@ -460,6 +471,6 @@ export const useTerminal = create<TerminalState>()(
 
 // Expose store to window for debugging (dev only)
 if (typeof window !== 'undefined') {
-  // @ts-ignore
+  // @ts-expect-error expose for dev tooling
   window.useTerminal = useTerminal;
 }

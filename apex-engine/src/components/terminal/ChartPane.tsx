@@ -27,6 +27,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   const applyingRemote = useRef(false);
   const [ready, setReady] = useState(false);
   const bars = useTerminal((s) => (master ? s.bars : (s.paneBars[paneId] ?? NO_BARS)));
+  const lastBar = useTerminal((s) => (master ? s.lastBar : (s.paneBars[paneId] ?? NO_BARS).at(-1) ?? null));
   const chartType = useTerminal((s) => s.chartType);
   const invert = useTerminal((s) => s.invert);
   const mirrorAxis = useTerminal((s) => s.mirrorAxis);
@@ -36,7 +37,6 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   const indicators = useTerminal((s) => s.indicators);
   const customFns = useTerminal((s) => s.customFns);
   const overlayBar = useTerminal((s) => s.overlay);
-  const last = bars.at(-1);
   const symbol = useTerminal((s) => s.symbol);
   const market = useTerminal((s) => s.market);
   const masterInterval = useTerminal((s) => s.interval);
@@ -180,6 +180,12 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   useEffect(() => {
     eng.current?.setFullData(bars, historyPhase !== "complete");
   }, [bars, historyPhase]);
+
+  // Live path: in-place tail updates repaint via the engine's cheap
+  // updateLastBar instead of re-committing the whole series.
+  useEffect(() => {
+    if (lastBar) eng.current?.updateLastBar(lastBar);
+  }, [lastBar]);
   
   useEffect(() => {
     const ref = refFor(useTerminal.getState(), paneId, master);
@@ -236,7 +242,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
     return () => clearInterval(id);
   }, []);
 
-  const shown: Candle | null = (master ? overlayBar : null) ?? last ?? null;
+  const shown: Candle | null = (master ? overlayBar : null) ?? lastBar ?? null;
   const up = shown ? (invert ? shown.close < shown.open : shown.close >= shown.open) : true;
 
   return (

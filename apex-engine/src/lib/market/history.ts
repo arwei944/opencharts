@@ -3,12 +3,12 @@ import { intervalSec } from "./bars";
 import {
   BAR_CAP,
   HISTORY_PAGE,
-  INTERVAL_HORIZON,
   PREFILL_CACHE_CHECKPOINT,
   PREFILL_CONCURRENCY,
   PREFILL_RETRY_MS,
   VIEWPORT_LOOKAHEAD_BARS,
 } from "./constants";
+import { horizonOf, type Horizon } from "./horizon";
 import { decodeBars, pruneKlineCache, readKlineCache, writeKlineCache } from "./kline-cache";
 import { useTerminal } from "./store";
 import type { Candle, Interval, Market } from "./types";
@@ -119,15 +119,8 @@ function closedOnly(ref: SeriesRef, bars: Candle[]): Candle[] {
 }
 
 /** Depth we intend to reach for this series, and the bar count that represents. */
-function horizonOf(ref: SeriesRef): { floorTime: number; targetBars: number; stepSec: number } {
-  const stepSec = intervalSec(ref.interval);
-  const h = INTERVAL_HORIZON[ref.interval];
-  const nowSec = Math.floor(Date.now() / 1000);
-  const timeFloor = h.sinceMs ? Math.floor((Date.now() - h.sinceMs) / 1000) : 0;
-  const countFloor = nowSec - (h.bars - 1) * stepSec;
-  const floorTime = Math.max(timeFloor, countFloor, 0);
-  const spanBars = Math.floor((nowSec - floorTime) / stepSec) + 1;
-  return { floorTime, targetBars: Math.max(1, Math.min(h.bars, spanBars)), stepSec };
+function horizonFor(ref: SeriesRef): Horizon {
+  return horizonOf(ref.interval, Math.floor(Date.now() / 1000));
 }
 
 type Job = { gen: number; running: boolean };
@@ -171,7 +164,7 @@ export function cancelHistory(jobKey: string): void {
 }
 
 async function runFill(ref: SeriesRef, alive: () => boolean): Promise<void> {
-  const { floorTime, targetBars, stepSec } = horizonOf(ref);
+  const { floorTime, targetBars, stepSec } = horizonFor(ref);
   try {
     const completeFromCache = await hydrateFromCache(ref, alive);
     if (!alive()) return;

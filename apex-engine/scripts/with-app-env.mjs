@@ -117,7 +117,7 @@ function main(argv) {
   // everything else (node, arbitrary executables) keeps a plain spawn so
   // argument lists and exit codes stay exact.
   const inBinShim =
-    /^[\w@.\-]+$/.test(command) &&
+    /^[\w@.-]+$/.test(command) &&
     existsSync(join(projectRoot(), "node_modules", ".bin", command + (process.platform === "win32" ? ".cmd" : "")));
   const child = inBinShim
     ? spawn(command, args, { stdio: "inherit", env, shell: true })

@@ -15,7 +15,7 @@
     "build:dev": "node scripts/with-app-env.mjs vite build --mode development",
     "preview": "node scripts/with-app-env.mjs vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node --test scripts/*.test.mjs && node --experimental-strip-types --test src/lib/market/indicators.test.ts",
+    "test": "node --experimental-strip-types --test scripts/*.test.mjs src/lib/market/*.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

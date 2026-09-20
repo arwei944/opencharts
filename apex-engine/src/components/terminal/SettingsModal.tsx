@@ -1,17 +1,11 @@
 import { ChartSettings, DEFAULT_SETTINGS } from "@/lib/market/settings";
 import { useTerminal } from "@/lib/market/store";
-import { cn } from "@/lib/utils";
 
 export function SettingsModal() {
   const open = useTerminal((s) => s.settingsOpen);
   const close = () => useTerminal.getState().setSettingsOpen(false);
   const settings = useTerminal((s) => s.chartSettings);
   const setSettings = useTerminal((s) => s.setChartSettings);
-  
-  // Helper to open/close settings modal
-  const toggleSettings = () => {
-    useTerminal.getState().setSettingsOpen(!open);
-  };
 
   if (!open) return null;
 

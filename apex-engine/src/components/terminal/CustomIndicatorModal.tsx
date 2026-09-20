@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Plus, Save, Copy, Trash2, Play } from "lucide-react";
+import { X, Plus, Save, Play } from "lucide-react";
 import { INDICATOR_CATALOG } from "@/lib/market/constants";
 import { useTerminal } from "@/lib/market/store";
 import type { IndicatorInst } from "@/lib/market/types";
@@ -19,22 +19,17 @@ export function CustomIndicatorModal({
 }: CustomIndicatorModalProps) {
   const [activeTab, setActiveTab] = useState<"builtin" | "custom">("custom");
   const [customScript, setCustomScript] = useState("");
-  const [scriptParams, setScriptParams] = useState<Record<string, number>>({});
   const [testResult, setTestResult] = useState<{
     success: boolean;
     data?: Array<{ time: number; value: number }>;
     error?: string;
   } | null>(null);
-  
-  const indicators = useTerminal((s) => s.indicators);
   const addIndicator = useTerminal((s) => s.addIndicator);
-  const removeIndicator = useTerminal((s) => s.removeIndicator);
 
   useEffect(() => {
     if (isOpen && activeTab === "custom") {
       // Reset state when opening custom tab
       setCustomScript(`// @version=5\n// Write your custom indicator here\n\nlength = input.int(9, "Period", minval=1)\nresult = sma(close, length)\nplot(result)`);
-      setScriptParams({});
       setTestResult(null);
     }
   }, [isOpen, activeTab]);

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Camera, Download, Maximize2, MousePointer2, SlidersHorizontal } from "lucide-react";
+import { Camera, Maximize2, MousePointer2, SlidersHorizontal } from "lucide-react";
 import type { ChartEngine } from "@/lib/market/chart-engine";
 import { CHART_TYPES, INTERVALS, INTERVAL_MS, LAYOUTS, TOOLS } from "@/lib/market/constants";
 import { NO_BARS, useTerminal } from "@/lib/market/store";
-import type { ChartLayout, ChartType, Interval } from "@/lib/market/types";
+import type { ChartLayout, Interval } from "@/lib/market/types";
 import { cn } from "@/lib/utils";
 import { InvertedViewToggle } from "./InvertedViewToggle";
 

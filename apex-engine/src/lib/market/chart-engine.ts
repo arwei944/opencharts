@@ -17,6 +17,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { intervalSec } from "./bars";
+import { diffTail, growsLeft, initialLogicalRange, trimTail } from "./series-ops";
 import {
   CHART_THEME,
   COMPARE_COLORS,
@@ -276,8 +277,7 @@ export class ChartEngine {
     }
     if (this.applyTail(bars)) return;
     const drawn = this.bars;
-    const growsLeft = drawn.length > 0 && bars.length > 0 && bars[0].time < drawn[0].time;
-    if (growsLeft && (frozen || this.interacting)) {
+    if (growsLeft(drawn, bars) && (frozen || this.interacting)) {
       this.pending = bars;
       this.maybeRevealPending();
       return;
@@ -305,9 +305,7 @@ export class ChartEngine {
       this.suppressRange = true;
       
       // If there's no specific zoom preference, show recent ~150 bars
-      const showRecentBars = Math.min(150, bars.length);
-      const fromTime = Math.max(0, bars.length - showRecentBars);
-      const toTime = bars.length + 5;
+      const { from: fromTime, to: toTime } = initialLogicalRange(bars.length);
       
       this.chart.timeScale().setVisibleLogicalRange({
         from: fromTime as Logical,
@@ -399,15 +397,11 @@ export class ChartEngine {
   /** Live tick: the series gets one `update` — never a re-render, never a stutter. */
   private applyTail(next: Candle[]): boolean {
     const cur = this.bars;
-    if (!cur.length || !next.length) return false;
-    const appended = next.length === cur.length + 1;
-    if (!appended && next.length !== cur.length) return false;
-    if (cur[0].time !== next[0].time) return false;
-    const bar = next[next.length - 1];
-    if (appended && bar.time <= cur[cur.length - 1].time) return false;
+    const diff = diffTail(cur, next);
+    if (!diff || diff.kind === "none") return false;
     this.bars = next;
-    this.pushIndTail(bar, appended);
-    this.updateSeriesBar(bar);
+    this.pushIndTail(diff.bar, diff.kind === "append");
+    this.updateSeriesBar(diff.bar);
     return true;
   }
 
@@ -424,7 +418,7 @@ export class ChartEngine {
     if (appended || bar.time > this.indTail[this.indTail.length - 1].time) this.indTail.push(bar);
     else this.indTail[this.indTail.length - 1] = bar;
     if (this.indTail.length > IND_TAIL_BARS + IND_TAIL_GROW) {
-      this.indTail = this.indTail.slice(-IND_TAIL_BARS);
+      this.indTail = trimTail(this.indTail, IND_TAIL_BARS);
       this.applyIndicators();
     }
   }
@@ -451,6 +445,20 @@ export class ChartEngine {
       color: bar.close >= bar.open ? `${up}99` : `${down}99`,
     });
     this.applyIndicatorTail();
+  }
+
+  /**
+   * Lightweight in-place update of the live (still-open) bar — the hot path for
+   * WS ticks. Unlike setFullData it never re-commits the 100k array; it only
+   * replaces the resident last bar and repaints that single point.
+   */
+  updateLastBar(bar: Candle) {
+    if (this.dead) return;
+    const cur = this.bars;
+    const last = cur[cur.length - 1];
+    if (!last || bar.time < last.time) return; // stale
+    cur[cur.length - 1] = bar;
+    this.updateSeriesBar(bar);
   }
 
   setIndicators(list: IndicatorInst[]) {

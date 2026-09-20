@@ -45,8 +45,8 @@ const r = await page.evaluate(async () => {
     const panes = eng.chart.panes();
     return panes.map((p, i) => {
       let right = null, left = null;
-      try { right = p.priceScale("right").options().invertScale; } catch {}
-      try { left = p.priceScale("left").options().invertScale; } catch {}
+      try { right = p.priceScale("right").options().invertScale; } catch { right = null; }
+      try { left = p.priceScale("left").options().invertScale; } catch { left = null; }
       return { pane: i, right, left };
     });
   };

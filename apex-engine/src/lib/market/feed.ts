@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { fetchDepth, fetchPremium, fetchTicker, fetchWatch } from "./api";
 import { cancelHistory, compareRef, ensureCompleteHistory } from "./history";
+import { parseKline } from "./kline-parser";
 import { useTerminal } from "./store";
-import type { Candle, Interval } from "./types";
+import type { Interval } from "./types";
 
 const WS_BASES = [
   "wss://data-stream.binance.vision/stream",
@@ -41,20 +42,6 @@ function takePooledSocket(query: string): WebSocket | null {
   return ws;
 }
 
-
-function parseKline(data: Record<string, unknown>): Candle | null {
-  const k = (data.k ?? data) as Record<string, string | boolean | number>;
-  if (k.t == null) return null;
-  return {
-    time: Math.floor(Number(k.t) / 1000),
-    open: Number(k.o),
-    high: Number(k.h),
-    low: Number(k.l),
-    close: Number(k.c),
-    volume: Number(k.v),
-    closed: Boolean(k.x),
-  };
-}
 
 export function useMarketFeed() {
   const symbol = useTerminal((s) => s.symbol);
@@ -266,7 +253,7 @@ export function useMarketFeed() {
       sock.onerror = () => {
         // Let onclose drive the reconnect; keep the socket state honest.
       };
-      sock.onclose = (e) => {
+      sock.onclose = (_e) => {
         // A stale socket (from a previous effect run) closing later must NOT
         // flip live=false over a fresh socket that already set it true.
         if (closed) return;
@@ -326,5 +313,8 @@ export function useMarketFeed() {
       document.removeEventListener("visibilitychange", onVisibility);
       teardown();
     };
+    // panes/compareSymbols are only read to build the stream list; the derived
+    // strings below are the real identities, so they are the dependencies.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, interval, market, panes.map((p) => p.interval).join("|"), compareSymbols.join("|")]);
 }

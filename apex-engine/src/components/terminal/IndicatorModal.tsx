@@ -1,7 +1,7 @@
 import { INDICATOR_CATALOG } from "@/lib/market/constants";
 import { useTerminal } from "@/lib/market/store";
 import { useState } from "react";
-import { Pencil, Settings } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { CustomIndicatorModal } from "./CustomIndicatorModal";
 
 export function IndicatorModal() {

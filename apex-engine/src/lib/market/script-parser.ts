@@ -22,7 +22,7 @@ export class ScriptParser {
     const errors: string[] = [];
     
     // Remove comments
-    let cleanedScript = script.replace(/\/\/.*$/gm, "");
+    const cleanedScript = script.replace(/\/\/.*$/gm, "");
     
     // Extract parameters
     const params: Record<string, number | boolean | string> = {};
@@ -30,11 +30,7 @@ export class ScriptParser {
     let match;
     
     while ((match = paramRegex.exec(cleanedScript)) !== null) {
-      const defaultValue = parseInt(match[1]);
-      const minVal = match[3] ? parseInt(match[3]) : undefined;
-      const maxVal = match[4] ? parseInt(match[4]) : undefined;
-      
-      params[match[2]] = defaultValue;
+      params[match[2]] = parseInt(match[1]);
     }
     
     // Detect indicator type from function calls
