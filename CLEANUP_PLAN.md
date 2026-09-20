@@ -181,3 +181,21 @@ Step 4  第四批（仅用户确认后）→ 同上
 - `src/lib/auth`、`src/lib/app-data`、`src/lib/db.ts`、`server/`、`public/__grok/`（基建，除非用户确认第四批）
 - `vite.config.ts` 各插件（grok-pwa/app-env/auth-popup 均被引用）
 - 上一轮修复的 K 线渲染逻辑
+
+---
+
+## ✅ 执行结果（2025-09-20，分支 cleanup/slim-down）
+
+| 批次 | 内容 | 结果 |
+|------|------|------|
+| 准备 | cleanup/slim-down 分支；提交 K线修复 + 新功能文件 | ✅ b67b374 |
+| 第一批 | 删除死代码（ApexChart/data/multiplayer/旧引擎/.trash/17 个 MD/根 src+docs）+ 死 e2e | ✅ 169b740 |
+| 第二批 | 卸载 33 个未用依赖（含 16 个 radix、playwright、recharts 等） | ✅ 70acfb2，node_modules 359M→274M |
+| 第三批 | tsc 157→0 错误；删 TimeRangeSelector 死代码；清调试日志 | ✅ af475df |
+| 第四批 | 删 11 个模板 QA 脚本 + preview:restart/stop；保留 auth/app-data/db/migrations 基建 | ✅ 4a7aa86 |
+
+**最终验证**：tsc 0 错误；npm test 55/55 通过；dev server 冒烟（bars 105k、phase complete、live、canvas 绘制、盘口/ticker 正常、零页面错误）。
+
+**未执行项（保留）**：
+- auth/app-data/db/migrations/19 个 auth 文件：与 vite.config 插件、server middleware、__root 深度耦合，属平台基建（未来若确定完全不需要登录可再评估）
+- server/、public/__grok/（PWA 基建）、grok-pwa-plugin/app-env-plugin（vite.config 引用）
