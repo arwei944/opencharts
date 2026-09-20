@@ -14,6 +14,8 @@ export interface ChartSettings {
   priceScaleMargins: [number, number];
   /** Volume panel height fraction (bottom portion of main pane). */
   volumeHeight: number;
+  /** Also flip the volume panel when inverted view is on (default: keep anchored). */
+  mirrorVolume: boolean;
   /** Default indicators to show on load. */
   defaultIndicators: { kind: string; params?: number[] }[];
   /** Compare series colors. */
@@ -45,6 +47,7 @@ export const DEFAULT_SETTINGS: ChartSettings = {
   timeRightOffset: 8,
   priceScaleMargins: [0.06, 0.2],
   volumeHeight: 0.82,
+  mirrorVolume: false,
   defaultIndicators: [{ kind: "MA", params: [9] }, { kind: "BOLL" }],
   compareColors: ["#f0b90b", "#00d4ff"],
   lineWidths: { MA: 1, BOLL: 1, MACD_DIF: 1, RSI: 1 },

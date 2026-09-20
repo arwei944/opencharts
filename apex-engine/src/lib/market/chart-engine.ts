@@ -68,6 +68,8 @@ export class ChartEngine {
   private invert = false;
   /** 倒垂视角：价格轴翻转。与 `invert`（红绿互换）是两件事，各开各的。 */
   private mirror = false;
+  /** 倒垂时是否连成交量一起翻（默认不翻，保持贴底）。 */
+  private mirrorVolume = false;
   /**
    * What the series actually hold. In steady state this is the *complete*
    * resident history, so panning and zooming are pure canvas repaints: no
@@ -288,6 +290,10 @@ export class ChartEngine {
     this.pending = null;
     this.indTail = bars.slice(-IND_TAIL_BARS);
     this.applyBars();
+    // Data arriving after the pane was created (layout switch, lazy fill) can
+    // materialize the main series and its brand-new scales — re-assert the
+    // mirror so a toggled-on inverted view never comes back un-flipped.
+    this.syncMirror();
     
     if (hadData && view && typeof view.from === "number" && typeof view.to === "number") {
       // Same candles stay under the cursor: only bars the viewport cannot see were added.
@@ -825,6 +831,14 @@ export class ChartEngine {
     this.syncMirror();
   }
 
+  /** 是否把成交量面板也纳入倒垂翻转（独立于主标尺，随设置联动）。 */
+  setMirrorVolume(v: boolean) {
+    if (this.mirrorVolume === v) return;
+    this.mirrorVolume = v;
+    this.applyVol();
+    this.syncMirror();
+  }
+
   get isMirrored() {
     return this.mirror;
   }
@@ -846,6 +860,12 @@ export class ChartEngine {
           /* 这个 pane 没有该标尺（例如没有对比线时的 left） */
         }
       }
+    }
+    // 成交量独立 vol 标尺：默认不翻（贴底），mirrorVolume 打开时随倒垂一起翻。
+    try {
+      this.chart.priceScale("vol").applyOptions({ invertScale: this.mirror && this.mirrorVolume });
+    } catch {
+      /* 成交量未创建时没有 vol 标尺 */
     }
   }
 

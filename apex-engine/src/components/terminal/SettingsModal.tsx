@@ -72,6 +72,15 @@ export function SettingsModal() {
               />
               <span className="col-span-2 text-right text-micro text-muted">{(settings.volumeHeight * 100).toFixed(0)}%</span>
             </div>
+            <label className="mt-3 flex cursor-pointer items-center gap-2 text-micro text-muted">
+              <input
+                type="checkbox"
+                checked={!!settings.mirrorVolume}
+                onChange={(e) => update("mirrorVolume", e.target.checked)}
+                className="accent-gold"
+              />
+              倒垂时成交量一起翻转（默认关闭，保持贴底）
+            </label>
           </section>
 
           {/* Compare Colors */}

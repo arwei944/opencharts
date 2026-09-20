@@ -32,6 +32,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   const mirrorAxis = useTerminal((s) => s.mirrorAxis);
   const logScale = useTerminal((s) => s.logScale);
   const showVol = useTerminal((s) => s.showVol);
+  const mirrorVolume = useTerminal((s) => !!s.chartSettings.mirrorVolume);
   const indicators = useTerminal((s) => s.indicators);
   const overlayBar = useTerminal((s) => s.overlay);
   const last = bars.at(-1);
@@ -74,6 +75,11 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
       }
       engine = e;
       eng.current = e;
+      // dev-only hook: expose live engines for headless regression probes
+      if (import.meta.env.DEV) {
+        const win = window as unknown as { __chartEngines?: ChartEngine[] };
+        (win.__chartEngines ??= []).push(e);
+      }
       setReady(true);
       // The only way a pan can need data is if the background fill has not reached
       // that far back yet; ensureCoverage restarts the fill in that case and does
@@ -159,6 +165,9 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
     eng.current?.setMirror(mirrorAxis);
   }, [mirrorAxis]);
   useEffect(() => {
+    eng.current?.setMirrorVolume(mirrorVolume);
+  }, [mirrorVolume]);
+  useEffect(() => {
     eng.current?.setLog(logScale);
   }, [logScale]);
   useEffect(() => {
@@ -236,6 +245,11 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
         </svg>
         {shown && (
           <div className="pointer-events-none absolute left-2 top-2 z-10 flex flex-wrap gap-2 text-micro text-muted">
+            {master && mirrorAxis && (
+              <span className="text-gold" title="价格轴已上下翻转">
+                ↕ 倒垂
+              </span>
+            )}
             <span>
               {symbol} {interval}
             </span>
