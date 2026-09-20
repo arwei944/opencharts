@@ -31,6 +31,35 @@ export interface KlineCacheMeta {
   complete: boolean;
 }
 
+/**
+ * In-memory mirror of the IDB cache, so switching symbol/interval twice in one
+ * session resolves instantly instead of re-hydrating (and re-decoding 3 years
+ * of typed-array columns) from IndexedDB every time. Keeps the same capacity
+ * as the on-disk prune window. Entries are snapshots: the owner may replace
+ * them on completion, never mutate the record in place.
+ */
+const memCache = new Map<string, KlineCacheRecord>();
+const MEM_CACHE_MAX = 8;
+
+function memGet(key: string): KlineCacheRecord | null {
+  const rec = memCache.get(key);
+  return rec ?? null;
+}
+
+function memSet(key: string, rec: KlineCacheRecord): void {
+  memCache.set(key, rec);
+  if (memCache.size > MEM_CACHE_MAX) {
+    const oldest = memCache.keys().next().value;
+    if (oldest !== undefined) memCache.delete(oldest);
+  }
+}
+
+/** Drop the in-memory copy for a key (e.g. after an explicit invalidation). */
+export function forgetKlineCache(key: string): void {
+  memCache.delete(key);
+}
+
+
 let dbPromise: Promise<IDBDatabase | null> | null = null;
 
 function openDb(): Promise<IDBDatabase | null> {
@@ -112,13 +141,17 @@ export function decodeBars(rec: KlineCacheRecord): Candle[] {
 }
 
 export async function readKlineCache(key: string): Promise<KlineCacheRecord | null> {
+  const hit = memGet(key);
+  if (hit) return hit;
   const db = await openDb();
   if (!db) return null;
   try {
     const tx = db.transaction(STORE, "readonly");
     const rec = await wrap<KlineCacheRecord>(tx.objectStore(STORE).get(key));
     await done(tx);
-    return rec && rec.times && rec.times.length === rec.count ? rec : null;
+    const ok = rec && rec.times && rec.times.length === rec.count ? rec : null;
+    if (ok) memSet(key, ok);
+    return ok;
   } catch {
     return null;
   }
@@ -142,6 +175,7 @@ export async function writeKlineCache(
       ...meta,
       ...encodeBars(bars),
     };
+    memSet(key, rec);
     const tx = db.transaction(STORE, "readwrite");
     tx.objectStore(STORE).put(rec);
     await done(tx);

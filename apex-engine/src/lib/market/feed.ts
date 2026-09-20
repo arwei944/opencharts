@@ -11,6 +11,37 @@ const WS_BASES = [
   "wss://fstream.binance.com/stream",
 ];
 
+/**
+ * Single-slot socket pool: when a feed effect tears down (symbol/interval
+ * switch), a still-open socket is parked here instead of being closed, so
+ * switching back to the same symbol/interval reuses the live connection with
+ * zero handshake latency. Capacity 1 keeps the extra connection budget to one.
+ */
+let pooledQuery: string | null = null;
+let pooledWs: WebSocket | null = null;
+
+function parkSocket(query: string, ws: WebSocket) {
+  if (pooledWs && pooledWs !== ws && (pooledWs.readyState === WebSocket.OPEN || pooledWs.readyState === WebSocket.CONNECTING)) {
+    pooledWs.close();
+  }
+  pooledQuery = query;
+  pooledWs = ws;
+}
+
+function takePooledSocket(query: string): WebSocket | null {
+  if (!pooledWs || pooledQuery !== query) return null;
+  if (pooledWs.readyState !== WebSocket.OPEN) {
+    pooledWs = null;
+    pooledQuery = null;
+    return null;
+  }
+  const ws = pooledWs;
+  pooledWs = null;
+  pooledQuery = null;
+  return ws;
+}
+
+
 function parseKline(data: Record<string, unknown>): Candle | null {
   const k = (data.k ?? data) as Record<string, string | boolean | number>;
   if (k.t == null) return null;
@@ -179,7 +210,11 @@ export function useMarketFeed() {
       if (retry) clearTimeout(retry);
       if (heartbeat) clearInterval(heartbeat);
       if (ws) {
-        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CLOSING) {
+        if (ws.readyState === WebSocket.OPEN) {
+          // Park the live socket for instant reuse on the next switch back,
+          // instead of dropping the connection and paying a handshake later.
+          parkSocket(query, ws);
+        } else if (ws.readyState === WebSocket.CLOSING) {
           ws.close();
         } else if (ws.readyState === WebSocket.CONNECTING) {
           // Closing a CONNECTING socket makes the browser log
@@ -195,6 +230,14 @@ export function useMarketFeed() {
 
     const open = () => {
       if (closed) return;
+      // Switch back to a symbol/interval we just left: reuse its parked socket
+      // (still OPEN) instead of reconnecting from scratch.
+      const pooled = takePooledSocket(query);
+      if (pooled) {
+        ws = pooled;
+        bindSocket(pooled);
+        return;
+      }
       const base = WS_BASES[host % WS_BASES.length];
       let sock: WebSocket | null = null;
       try {
@@ -204,6 +247,10 @@ export function useMarketFeed() {
         return;
       }
       ws = sock;
+      bindSocket(sock);
+    };
+
+    const bindSocket = (sock: WebSocket) => {
       sock.onopen = () => {
         if (abandoned) {
           // Effect was torn down while the handshake was in flight: close
@@ -227,6 +274,12 @@ export function useMarketFeed() {
         host += 1;
         scheduleReconnect();
       };
+      // A parked socket is already OPEN when rebinding: mark live immediately.
+      if (sock.readyState === WebSocket.OPEN) {
+        attempts = 0;
+        lastMsgAt = Date.now();
+        useTerminal.getState().setLive(true);
+      }
     };
 
     /** Exponential backoff with jitter, capped at 30s, forever. */
