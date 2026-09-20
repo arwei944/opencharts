@@ -6,7 +6,6 @@
  */
 
 import { z } from "zod";
-import { CONNECTOR_TOKEN_READY_EVENT } from "./app-data/types";
 import { resolveParentEmbedderOrigin } from "./preview-embedder-origin";
 
 export {
@@ -206,7 +205,7 @@ export function installPreviewHostBridge(
 
   const onConnectorTokenReady = (data: unknown) => {
     if (!ConnectorTokenReadySchema.safeParse(data).success) return;
-    window.dispatchEvent(new Event(CONNECTOR_TOKEN_READY_EVENT));
+    window.dispatchEvent(new Event("grok:connector-token-ready"));
   };
 
   const hostMessageHandlers = new Map<string, (data: unknown) => void>([

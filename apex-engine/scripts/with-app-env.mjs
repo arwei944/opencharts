@@ -20,7 +20,7 @@
  * `process.env`, which is why the merge has to happen before Vite starts.
  */
 import { spawn } from "node:child_process";
-import { readFileSync, realpathSync } from "node:fs";
+import { readFileSync, realpathSync, existsSync } from "node:fs";
 import { constants as osConstants } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -111,7 +111,17 @@ function main(argv) {
     process.exit(2);
   }
   const env = mergeAppEnv(readAppEnv(projectRoot()), process.env);
-  const child = spawn(command, args, { stdio: "inherit", env });
+  // `node_modules/.bin/vite` is a platform shim (vite.cmd on Windows, shell
+  // script on POSIX). Spawning it directly fails on Windows ("spawn vite
+  // ENOENT"), so route .bin shims through the platform shell like npm does;
+  // everything else (node, arbitrary executables) keeps a plain spawn so
+  // argument lists and exit codes stay exact.
+  const inBinShim =
+    /^[\w@.\-]+$/.test(command) &&
+    existsSync(join(projectRoot(), "node_modules", ".bin", command + (process.platform === "win32" ? ".cmd" : "")));
+  const child = inBinShim
+    ? spawn(command, args, { stdio: "inherit", env, shell: true })
+    : spawn(command, args, { stdio: "inherit", env });
   // The dev server is long-running and is stopped by signalling this wrapper.
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     process.on(signal, () => child.kill(signal));
