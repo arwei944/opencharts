@@ -22,7 +22,12 @@ let pooledQuery: string | null = null;
 let pooledWs: WebSocket | null = null;
 
 function parkSocket(query: string, ws: WebSocket) {
-  if (pooledWs && pooledWs !== ws && (pooledWs.readyState === WebSocket.OPEN || pooledWs.readyState === WebSocket.CONNECTING)) {
+  if (
+    pooledWs &&
+    pooledWs !== ws &&
+    (pooledWs.readyState === WebSocket.OPEN ||
+      pooledWs.readyState === WebSocket.CONNECTING)
+  ) {
     pooledWs.close();
   }
   pooledQuery = query;
@@ -41,7 +46,6 @@ function takePooledSocket(query: string): WebSocket | null {
   pooledQuery = null;
   return ws;
 }
-
 
 export function useMarketFeed() {
   const symbol = useTerminal((s) => s.symbol);
@@ -67,7 +71,8 @@ export function useMarketFeed() {
         useTerminal.getState().setBook(depth.bids, depth.asks);
         if (market === "usdm") {
           const p = await fetchPremium({ data: { symbol } });
-          if (!dead) useTerminal.getState().setPremium(p.mark, p.funding, p.next);
+          if (!dead)
+            useTerminal.getState().setPremium(p.mark, p.funding, p.next);
         }
       } catch {
         if (!dead) useTerminal.getState().setLive(false);
@@ -102,7 +107,11 @@ export function useMarketFeed() {
 
   useEffect(() => {
     const sym = symbol.toLowerCase();
-    const extraIv = [...new Set(panes.filter((p) => p.interval !== interval).map((p) => p.interval))];
+    const extraIv = [
+      ...new Set(
+        panes.filter((p) => p.interval !== interval).map((p) => p.interval),
+      ),
+    ];
     const streams = [
       `${sym}@kline_${interval}`,
       `${sym}@depth20@100ms`,
@@ -124,7 +133,10 @@ export function useMarketFeed() {
     const handle = (ev: MessageEvent) => {
       lastMsgAt = Date.now();
       try {
-        const msg = JSON.parse(ev.data as string) as { stream?: string; data?: unknown };
+        const msg = JSON.parse(ev.data as string) as {
+          stream?: string;
+          data?: unknown;
+        };
         const stream = msg.stream ?? "";
         const data = (msg.data ?? msg) as Record<string, unknown>;
         if (stream.includes("@kline_") || (data.e === "kline" && data.k)) {
@@ -143,13 +155,17 @@ export function useMarketFeed() {
                 high: Math.max(t.high, bar.high),
                 low: Math.min(t.low, bar.low),
                 change: bar.close - t.open,
-                changePct: t.open ? ((bar.close - t.open) / t.open) * 100 : t.changePct,
+                changePct: t.open
+                  ? ((bar.close - t.open) / t.open) * 100
+                  : t.changePct,
               });
             }
             return;
           }
           if (streamSym === symbol) {
-            const pane = useTerminal.getState().panes.find((p) => p.interval === iv && p.id !== "p0");
+            const pane = useTerminal
+              .getState()
+              .panes.find((p) => p.interval === iv && p.id !== "p0");
             if (pane) useTerminal.getState().updatePaneBar(pane.id, bar);
             return;
           }
@@ -157,14 +173,18 @@ export function useMarketFeed() {
             useTerminal.getState().updateCompareBar(streamSym, bar);
           }
         } else if (stream.includes("@depth") || data.bids || data.b) {
-          const bids = ((data.b ?? data.bids) as string[][] | undefined)?.map(([p, q]) => ({
-            price: Number(p),
-            qty: Number(q),
-          }));
-          const asks = ((data.a ?? data.asks) as string[][] | undefined)?.map(([p, q]) => ({
-            price: Number(p),
-            qty: Number(q),
-          }));
+          const bids = ((data.b ?? data.bids) as string[][] | undefined)?.map(
+            ([p, q]) => ({
+              price: Number(p),
+              qty: Number(q),
+            }),
+          );
+          const asks = ((data.a ?? data.asks) as string[][] | undefined)?.map(
+            ([p, q]) => ({
+              price: Number(p),
+              qty: Number(q),
+            }),
+          );
           if (bids && asks) useTerminal.getState().setBook(bids, asks);
         } else if (stream.includes("@trade") || data.e === "trade") {
           useTerminal.getState().pushTrade({
@@ -276,12 +296,14 @@ export function useMarketFeed() {
     const scheduleReconnect = () => {
       if (closed) return;
       if (retry) clearTimeout(retry);
-      const delay = Math.min(30000, 500 * 2 ** Math.min(attempts, 6)) * (0.7 + Math.random() * 0.6);
+      const delay =
+        Math.min(30000, 500 * 2 ** Math.min(attempts, 6)) *
+        (0.7 + Math.random() * 0.6);
       attempts += 1;
       retry = setTimeout(open, delay);
     };
 
-    /** Stale-connection watchdog: no message for 45s means the socket died
+    /** Stale-connection watchdog: no message for 20s means the socket died
      * silently (NAT drop, laptop sleep, proxy timeout) — force a reconnect
      * instead of waiting for a close event that may never arrive. */
     const startHeartbeat = () => {
@@ -289,7 +311,7 @@ export function useMarketFeed() {
       heartbeat = setInterval(() => {
         if (closed) return;
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        if (Date.now() - lastMsgAt > 45000) {
+        if (Date.now() - lastMsgAt > 20000) {
           useTerminal.getState().setLive(false);
           useTerminal.getState().setConn("degraded");
           ws.close();
@@ -301,11 +323,16 @@ export function useMarketFeed() {
     // the socket is usually dead by the time the user returns.
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
-        if (!ws || ws.readyState !== WebSocket.OPEN || Date.now() - lastMsgAt > 15000) {
+        if (
+          !ws ||
+          ws.readyState !== WebSocket.OPEN ||
+          Date.now() - lastMsgAt > 15000
+        ) {
           useTerminal.getState().setLive(false);
           useTerminal.getState().setConn("degraded");
           if (ws && ws.readyState === WebSocket.OPEN) ws.close();
-          else if (ws && ws.readyState === WebSocket.CONNECTING) abandoned = true;
+          else if (ws && ws.readyState === WebSocket.CONNECTING)
+            abandoned = true;
         }
       }
     };
@@ -321,5 +348,11 @@ export function useMarketFeed() {
     // panes/compareSymbols are only read to build the stream list; the derived
     // strings below are the real identities, so they are the dependencies.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, interval, market, panes.map((p) => p.interval).join("|"), compareSymbols.join("|")]);
+  }, [
+    symbol,
+    interval,
+    market,
+    panes.map((p) => p.interval).join("|"),
+    compareSymbols.join("|"),
+  ]);
 }

@@ -497,12 +497,10 @@ export class ChartEngine {
 
     // Volume, compares and indicator lines each cost another full-history
     // `setData`, so they follow on their own frames. The candles — the answer to
-    // "where are my bars" — are already on screen.
-    this.owed = [
-      () => this.applyVol(),
-      () => this.applyCompares(),
-      () => this.dropExtras(),
-    ];
+    // "where are my bars" — are already on screen. Extra series are reused
+    // across commits (see indicatorJobs) so a progressive reveal only refreshes
+    // their data instead of destroying + recreating every pane.
+    this.owed = [() => this.applyVol(), () => this.applyCompares()];
     this.restJobs = [...this.owed, ...this.indicatorJobs()];
     this.pumpRest();
   }
@@ -950,14 +948,22 @@ export class ChartEngine {
         this.customFns,
         sub,
       )) {
+        // Reuse a series that already exists for this key: progressive reveals
+        // re-run indicatorJobs while the panes/lines are still live, so rebuilt
+        // them means dropping and recreating every pane per commit.
+        const existing = this.extra(spec.key);
         if (spec.type === "hist") {
           jobs.push(() => {
-            const h = this.chart.addSeries(
-              HistogramSeries,
-              { priceLineVisible: false },
-              spec.pane,
-            );
-            this.addExtra(spec.key, h);
+            const h =
+              existing?.series &&
+              (existing.series as ISeriesApi<"Histogram">).applyOptions
+                ? (existing.series as ISeriesApi<"Histogram">)
+                : this.chart.addSeries(
+                    HistogramSeries,
+                    { priceLineVisible: false },
+                    spec.pane,
+                  );
+            if (!existing) this.addExtra(spec.key, h as unknown as AnySeries);
             h.setData(
               spec.data.map((x) => ({
                 time: x.time as UTCTimestamp,
@@ -967,14 +973,19 @@ export class ChartEngine {
             );
           });
         } else {
-          jobs.push(() =>
-            this.line(spec.key, spec.color, spec.pane).setData(
+          jobs.push(() => {
+            const s =
+              existing?.series &&
+              (existing.series as ISeriesApi<"Line">).setData
+                ? (existing.series as ISeriesApi<"Line">)
+                : this.line(spec.key, spec.color, spec.pane);
+            s.setData(
               spec.data.map((x) => ({
                 time: x.time as UTCTimestamp,
                 value: x.value,
               })),
-            ),
-          );
+            );
+          });
         }
       }
     }

@@ -170,6 +170,9 @@ export interface TerminalState {
  * in a selector re-renders the pane forever instead of once. */
 export const NO_BARS: Candle[] = [];
 
+/** Monotonic counter making WS trade ids unique as React list keys. */
+let tradeSeq = 0;
+
 export const useTerminal = create<TerminalState>()(
   persist(
     (set, get) => ({
@@ -487,7 +490,15 @@ export const useTerminal = create<TerminalState>()(
       setLinkedCrosshair: (linkedCrosshair) => set({ linkedCrosshair }),
       setTicker: (ticker) => set({ ticker }),
       setBook: (bids, asks) => set({ bids, asks }),
-      pushTrade: (t) => set({ trades: [t, ...get().trades].slice(0, 80) }),
+      // Monotonic id so a replayed WS trade (same exchange id + time) never
+      // collides as a React list key.
+      pushTrade: (t) =>
+        set({
+          trades: [
+            { ...t, id: `${t.id}-${tradeSeq++}` },
+            ...get().trades,
+          ].slice(0, 80),
+        }),
       setWatch: (watch) => set({ watch }),
       addWatch: (s) => {
         const symbol = s.toUpperCase();
