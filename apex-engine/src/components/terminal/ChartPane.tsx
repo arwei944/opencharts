@@ -34,6 +34,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   const showVol = useTerminal((s) => s.showVol);
   const mirrorVolume = useTerminal((s) => !!s.chartSettings.mirrorVolume);
   const indicators = useTerminal((s) => s.indicators);
+  const customFns = useTerminal((s) => s.customFns);
   const overlayBar = useTerminal((s) => s.overlay);
   const last = bars.at(-1);
   const symbol = useTerminal((s) => s.symbol);
@@ -188,6 +189,9 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   useEffect(() => {
     eng.current?.setIndicators(master ? indicators : []);
   }, [indicators, master]);
+  useEffect(() => {
+    eng.current?.setCustomFns(master ? customFns : {});
+  }, [customFns, master]);
 
   useEffect(() => {
     const engine = eng.current;

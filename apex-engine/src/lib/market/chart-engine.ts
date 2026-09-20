@@ -89,6 +89,8 @@ export class ChartEngine {
   private indTail: Candle[] = [];
   private showVol = true;
   private indicators: IndicatorInst[] = [];
+  /** Runtime-only custom calculators keyed by indicator id (see store.customFns). */
+  private customFns: Record<string, (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>> = {};
   private interval: Interval = "15m";
   private step = 60;
   private suppressRange = false;
@@ -456,6 +458,12 @@ export class ChartEngine {
     this.applyIndicators();
   }
 
+  /** Adopt the session custom calculators; re-render CUSTOM indicators. */
+  setCustomFns(fns: Record<string, (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>>) {
+    this.customFns = fns;
+    this.applyIndicators();
+  }
+
   setCompare(symbol: string, bars: Candle[], color?: string) {
     if (!bars.length) {
       this.removeCompare(symbol);
@@ -736,6 +744,14 @@ export class ChartEngine {
         line(`${ind.id}-obv`, "#b7bdc6", sub++, obv(bars));
       } else if (ind.kind === "ATR") {
         line(`${ind.id}-atr`, "#f0b90b", sub++, atr(bars, ind.params[0] ?? 14));
+      } else if (ind.kind === "CUSTOM") {
+        const fn = this.customFns[ind.id];
+        if (!fn) continue;
+        try {
+          line(`${ind.id}-custom`, "#00d4ff", undefined, fn(bars));
+        } catch {
+          /* a broken script must never take the chart down */
+        }
       }
     }
     return jobs;

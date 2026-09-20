@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { X, Plus, Save, Copy, Trash2, Play } from "lucide-react";
+import { INDICATOR_CATALOG } from "@/lib/market/constants";
 import { useTerminal } from "@/lib/market/store";
 import type { IndicatorInst } from "@/lib/market/types";
-import { indicatorEngine } from "@/lib/market/indicator-engine";
 import { scriptParser } from "@/lib/market/script-parser";
 import type { Candle } from "@/lib/market/types";
 
@@ -82,7 +82,11 @@ export function CustomIndicatorModal({
 
   const handleAddToChart = () => {
     if (!testResult?.success || !testResult.data) return;
-    // TODO: persist custom indicator into store catalog
+    const parsed = scriptParser.parse(customScript);
+    if (!parsed.success || !parsed.calculationFn) return;
+    const st = useTerminal.getState();
+    const id = st.addIndicator("CUSTOM");
+    st.addCustomFn(id, parsed.calculationFn);
     onClose();
   };
 
@@ -151,34 +155,31 @@ export function CustomIndicatorModal({
   );
 }
 
-/** Built-in indicators grid */
+/** Built-in indicators grid — sourced from the single INDICATOR_CATALOG. */
 function BuiltinsGrid({ onSelect }: { onSelect: (kind: string) => void }) {
-  const availableIndicators = indicatorEngine.getAvailableIndicators();
-
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {availableIndicators.map((indicator) => (
+      {INDICATOR_CATALOG.map((indicator) => (
         <button
-          key={indicator.id}
-          onClick={() => onSelect(indicator.id)}
+          key={indicator.kind}
+          onClick={() => onSelect(indicator.kind)}
           className="rounded-lg border border-border bg-surface p-4 text-left hover:border-gold hover:bg-surface-hover transition-colors"
         >
           <div className="mb-2 flex items-center justify-between">
             <span className="font-semibold text-fg">{indicator.name}</span>
             <span className="rounded-full bg-gold/20 px-2 py-0.5 text-xs text-gold">
-              {indicator.category}
+              {indicator.group === "main" ? "主图" : "副图"}
             </span>
           </div>
-          <p className="text-sm text-muted">{indicator.description}</p>
-          
-          <div className="mt-3 flex flex-wrap gap-2">
-            {indicator.params.slice(0, 3).map((param) => (
-              <span key={param.name} className="text-xs text-subtle">
-                {param.label}: {param.defaultValue}
-              </span>
-            ))}
-            {indicator.params.length > 3 && (
-              <span className="text-xs text-subtle">+{indicator.params.length - 3} more</span>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {indicator.labels.length > 0 ? (
+              indicator.labels.map((label, i) => (
+                <span key={label} className="text-xs text-subtle">
+                  {label}: {indicator.defaults[i] ?? "—"}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs text-subtle">无参数</span>
             )}
           </div>
         </button>

@@ -50,6 +50,10 @@ interface TerminalState {
   tool: Tool;
   theme: ThemeMode;
   indicators: IndicatorInst[];
+  /** Parsed custom-indicator calculators, keyed by indicator id (session-only). */
+  customFns: Record<string, (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>>;
+  addCustomFn: (id: string, fn: (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>) => void;
+  removeCustomFn: (id: string) => void;
   drawings: Drawing[];
   bars: Candle[];
   layout: ChartLayout;
@@ -90,7 +94,7 @@ interface TerminalState {
   setTool: (t: Tool) => void;
   setTheme: (t: ThemeMode) => void;
   toggleTheme: () => void;
-  addIndicator: (kind: IndicatorInst["kind"]) => void;
+  addIndicator: (kind: IndicatorInst["kind"]) => string;
   removeIndicator: (id: string) => void;
   setBars: (b: Candle[]) => void;
   appendOlderBars: (b: Candle[]) => number;
@@ -216,16 +220,38 @@ export const useTerminal = create<TerminalState>()(
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set({ theme: get().theme === "dark" ? "light" : "dark" }),
       addIndicator: (kind) => {
+        // CUSTOM indicators are registered by id with a runtime calculator
+        // (addCustomFn) rather than a catalog spec — emit a placeholder
+        // instance so chart-engine picks up the id.
+        if (kind === "CUSTOM") {
+          const id = uid();
+          set({
+            indicators: [...get().indicators, { id, kind, params: [], visible: true }],
+          });
+          return id;
+        }
         const spec = INDICATOR_CATALOG.find((x) => x.kind === kind);
-        if (!spec) return;
+        if (!spec) return uid();
+        const id = uid();
         set({
-          indicators: [
-            ...get().indicators,
-            { id: uid(), kind, params: [...spec.defaults], visible: true },
-          ],
+          indicators: [...get().indicators, { id, kind, params: [...spec.defaults], visible: true }],
         });
+        return id;
       },
-      removeIndicator: (id) => set({ indicators: get().indicators.filter((i) => i.id !== id) }),
+      removeIndicator: (id) => {
+        const next = { ...get().customFns };
+        delete next[id];
+        set({ indicators: get().indicators.filter((i) => i.id !== id), customFns: next });
+      },
+      // Custom indicators: runtime-only registry of parsed script functions. Not
+      // persisted (functions are not serializable); refs live for the session.
+      customFns: {},
+      addCustomFn: (id, fn) => set({ customFns: { ...get().customFns, [id]: fn } }),
+      removeCustomFn: (id) => {
+        const next = { ...get().customFns };
+        delete next[id];
+        set({ customFns: next });
+      },
       setBars: (bars) =>
         set({
           bars: bars.slice(-BAR_CAP),
