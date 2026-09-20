@@ -98,6 +98,7 @@ export function useMarketFeed() {
     let retry: ReturnType<typeof setTimeout> | undefined;
     let heartbeat: ReturnType<typeof setInterval> | undefined;
     let closed = false;
+    let abandoned = false;
     let host = 0;
     let attempts = 0;
     let lastMsgAt = Date.now();
@@ -177,7 +178,16 @@ export function useMarketFeed() {
     const teardown = () => {
       if (retry) clearTimeout(retry);
       if (heartbeat) clearInterval(heartbeat);
-      ws?.close();
+      if (ws) {
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CLOSING) {
+          ws.close();
+        } else if (ws.readyState === WebSocket.CONNECTING) {
+          // Closing a CONNECTING socket makes the browser log
+          // "closed before the connection is established". Flag it instead
+          // and let onopen close it cleanly once the handshake lands.
+          abandoned = true;
+        }
+      }
       ws = null;
       retry = undefined;
       heartbeat = undefined;
@@ -186,24 +196,34 @@ export function useMarketFeed() {
     const open = () => {
       if (closed) return;
       const base = WS_BASES[host % WS_BASES.length];
+      let sock: WebSocket | null = null;
       try {
-        ws = new WebSocket(base + query);
+        sock = new WebSocket(base + query);
       } catch {
         scheduleReconnect();
         return;
       }
-      ws.onopen = () => {
+      ws = sock;
+      sock.onopen = () => {
+        if (abandoned) {
+          // Effect was torn down while the handshake was in flight: close
+          // THIS socket directly (the closure `ws` was nulled by teardown).
+          sock?.close();
+          return;
+        }
         attempts = 0;
         lastMsgAt = Date.now();
         useTerminal.getState().setLive(true);
       };
-      ws.onmessage = handle;
-      ws.onerror = () => {
+      sock.onmessage = handle;
+      sock.onerror = () => {
         // Let onclose drive the reconnect; keep the socket state honest.
       };
-      ws.onclose = () => {
-        useTerminal.getState().setLive(false);
+      sock.onclose = (e) => {
+        // A stale socket (from a previous effect run) closing later must NOT
+        // flip live=false over a fresh socket that already set it true.
         if (closed) return;
+        useTerminal.getState().setLive(false);
         host += 1;
         scheduleReconnect();
       };
@@ -239,7 +259,8 @@ export function useMarketFeed() {
       if (document.visibilityState === "visible") {
         if (!ws || ws.readyState !== WebSocket.OPEN || Date.now() - lastMsgAt > 15000) {
           useTerminal.getState().setLive(false);
-          ws?.close();
+          if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+          else if (ws && ws.readyState === WebSocket.CONNECTING) abandoned = true;
         }
       }
     };
