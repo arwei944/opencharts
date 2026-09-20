@@ -17,7 +17,12 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { intervalSec } from "./bars";
-import { diffTail, growsLeft, initialLogicalRange, trimTail } from "./series-ops";
+import {
+  diffTail,
+  growsLeft,
+  initialLogicalRange,
+  trimTail,
+} from "./series-ops";
 import { computeIndicator, lastHeikinAshi } from "./indicator-compute";
 import {
   CHART_THEME,
@@ -48,7 +53,9 @@ import {
 import type { Candle, ChartType, IndicatorInst, Interval } from "./types";
 import { DEFAULT_SETTINGS } from "./settings";
 
-type AnySeries = ISeriesApi<"Candlestick" | "Bar" | "Line" | "Area" | "Histogram">;
+type AnySeries = ISeriesApi<
+  "Candlestick" | "Bar" | "Line" | "Area" | "Histogram"
+>;
 
 type Extra = {
   key: string;
@@ -92,7 +99,10 @@ export class ChartEngine {
   private showVol = true;
   private indicators: IndicatorInst[] = [];
   /** Runtime-only custom calculators keyed by indicator id (see store.customFns). */
-  private customFns: Record<string, (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>> = {};
+  private customFns: Record<
+    string,
+    (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>
+  > = {};
   private interval: Interval = "15m";
   private step = 60;
   private suppressRange = false;
@@ -111,7 +121,8 @@ export class ChartEngine {
   };
   private readonly onPointerUp = () => {
     this.dragging = false;
-    this.markInteracting();
+    clearTimeout(this.interactTimer);
+    this.releaseInteracting();
   };
   private readonly onWheel = () => {
     this.markInteracting();
@@ -130,7 +141,11 @@ export class ChartEngine {
   /** Settings from Zustand store, applied once at construction then never again (for performance). */
   private readonly settings: typeof DEFAULT_SETTINGS;
 
-  constructor(host: HTMLElement, mode: ThemeMode = "dark", settings: typeof DEFAULT_SETTINGS = DEFAULT_SETTINGS) {
+  constructor(
+    host: HTMLElement,
+    mode: ThemeMode = "dark",
+    settings: typeof DEFAULT_SETTINGS = DEFAULT_SETTINGS,
+  ) {
     this.mode = mode;
     this.settings = settings;
     this.host = host;
@@ -149,12 +164,57 @@ export class ChartEngine {
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: pal.text, width: settings.crosshairWidth as LineWidth, style: settings.crosshairLineStyle as any, labelBackgroundColor: settings.crosshairLabelBg },
-        horzLine: { color: pal.text, width: settings.crosshairWidth as LineWidth, style: settings.crosshairLineStyle as any, labelBackgroundColor: settings.crosshairLabelBg },
+        vertLine: {
+          color: pal.text,
+          width: settings.crosshairWidth as LineWidth,
+          style: settings.crosshairLineStyle as any,
+          labelBackgroundColor: settings.crosshairLabelBg,
+        },
+        horzLine: {
+          color: pal.text,
+          width: settings.crosshairWidth as LineWidth,
+          style: settings.crosshairLineStyle as any,
+          labelBackgroundColor: settings.crosshairLabelBg,
+        },
       },
-      rightPriceScale: { borderColor: pal.grid, scaleMargins: { top: settings.priceScaleMargins[0], bottom: settings.priceScaleMargins[1] } },
-      leftPriceScale: { visible: false, borderColor: pal.grid, scaleMargins: { top: settings.priceScaleMargins[0], bottom: settings.priceScaleMargins[1] } },
-      timeScale: { borderColor: pal.grid, timeVisible: true, secondsVisible: false, rightOffset: settings.timeRightOffset, barSpacing: settings.barSpacing },
+      // Zero-latency mouse interaction: 1:1 drag-to-pan while the button is
+      // held (pressedMouseMove), wheel zoom, and axis-drag scale — all
+      // explicit so a chart option default change can never silently throttle
+      // the feel again.
+      handleScroll: {
+        pressedMouseMove: true,
+        mouseWheel: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        axisPressedMouseMove: true,
+        axisDoubleClickReset: true,
+        mouseWheel: true,
+        pinch: true,
+      },
+      rightPriceScale: {
+        borderColor: pal.grid,
+        scaleMargins: {
+          top: settings.priceScaleMargins[0],
+          bottom: settings.priceScaleMargins[1],
+        },
+      },
+      leftPriceScale: {
+        visible: false,
+        borderColor: pal.grid,
+        scaleMargins: {
+          top: settings.priceScaleMargins[0],
+          bottom: settings.priceScaleMargins[1],
+        },
+      },
+      timeScale: {
+        borderColor: pal.grid,
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: settings.timeRightOffset,
+        barSpacing: settings.barSpacing,
+      },
       autoSize: true,
     });
     this.rebuildMain();
@@ -164,6 +224,10 @@ export class ChartEngine {
         this.rangeRaf = requestAnimationFrame(() => {
           this.rangeRaf = 0;
           if (this.suppressRange) return;
+          // While the pointer is dragging, forwarding every frame to React
+          // (linked-range sync, coverage checks) is pure latency: the pan is
+          // already canvas-side. Defer until the drag finishes.
+          if (this.dragging) return;
           const tr = this.chart.timeScale().getVisibleRange();
           if (tr && typeof tr.from === "number" && typeof tr.to === "number") {
             this.onRange?.(tr.from as number, tr.to as number);
@@ -181,7 +245,8 @@ export class ChartEngine {
       const time = typeof param.time === "number" ? param.time : null;
       let price: number | null = null;
       if (this.main && param.seriesData) {
-        const raw = param.seriesData.get(this.main) as { close?: number; value?: number } | undefined;
+        const raw = param.seriesData.get(this.main) as
+          { close?: number; value?: number } | undefined;
         price = raw?.close ?? raw?.value ?? null;
       }
       if (price == null && param.point && this.main) {
@@ -190,10 +255,18 @@ export class ChartEngine {
       }
       this.onCrosshair?.(time, price);
     });
-    host.addEventListener("pointerdown", this.onPointerDown, { capture: true, passive: false });
-    host.addEventListener("wheel", this.onWheel, { passive: true, capture: true });
+    host.addEventListener("pointerdown", this.onPointerDown, {
+      capture: true,
+      passive: false,
+    });
+    host.addEventListener("wheel", this.onWheel, {
+      passive: true,
+      capture: true,
+    });
     window.addEventListener("pointerup", this.onPointerUp, { capture: true }); // ✅ Match with pointerdown
-    window.addEventListener("pointercancel", this.onPointerUp, { capture: true }); // ✅ Match with pointerdown
+    window.addEventListener("pointercancel", this.onPointerUp, {
+      capture: true,
+    }); // ✅ Match with pointerdown
   }
 
   /** True from `pointerdown` until the button is lifted: the DOM must keep out of the way. */
@@ -217,7 +290,10 @@ export class ChartEngine {
     if (this.main) this.chart.removeSeries(this.main);
     const { up, down } = this.colors();
     if (this.type === "bar") {
-      this.main = this.chart.addSeries(BarSeries, { upColor: up, downColor: down });
+      this.main = this.chart.addSeries(BarSeries, {
+        upColor: up,
+        downColor: down,
+      });
     } else if (this.type === "line") {
       this.main = this.chart.addSeries(LineSeries, { color: up, lineWidth: 2 });
     } else if (this.type === "area") {
@@ -297,31 +373,40 @@ export class ChartEngine {
     // materialize the main series and its brand-new scales — re-assert the
     // mirror so a toggled-on inverted view never comes back un-flipped.
     this.syncMirror();
-    
-    if (hadData && view && typeof view.from === "number" && typeof view.to === "number") {
+
+    if (
+      hadData &&
+      view &&
+      typeof view.from === "number" &&
+      typeof view.to === "number"
+    ) {
       // Same candles stay under the cursor: only bars the viewport cannot see were added.
       this.setVisibleTimeRange(view.from, view.to);
     } else {
       // New data loaded - default to showing latest bars at right edge
       this.suppressRange = true;
-      
+
       // If there's no specific zoom preference, show recent ~150 bars
       const { from: fromTime, to: toTime } = initialLogicalRange(bars.length);
-      
+
       this.chart.timeScale().setVisibleLogicalRange({
         from: fromTime as Logical,
         to: toTime as Logical,
       });
-      
+
       requestAnimationFrame(() => {
         this.suppressRange = false;
       });
     }
-    
+
     // Volume, compares and indicator lines each cost another full-history
     // `setData`, so they follow on their own frames. The candles — the answer to
     // "where are my bars" — are already on screen.
-    this.owed = [() => this.applyVol(), () => this.applyCompares(), () => this.dropExtras()];
+    this.owed = [
+      () => this.applyVol(),
+      () => this.applyCompares(),
+      () => this.dropExtras(),
+    ];
     this.restJobs = [...this.owed, ...this.indicatorJobs()];
     this.pumpRest();
   }
@@ -360,7 +445,8 @@ export class ChartEngine {
     }
     const view = this.chart.timeScale().getVisibleRange();
     const drawnFirst = this.bars[0]?.time;
-    if (view && drawnFirst != null && (view.from as number) < drawnFirst) this.scheduleCommit();
+    if (view && drawnFirst != null && (view.from as number) < drawnFirst)
+      this.scheduleCommit();
   }
 
   /**
@@ -379,20 +465,41 @@ export class ChartEngine {
     clearTimeout(this.interactTimer);
     this.interactTimer = setTimeout(() => {
       if (this.dragging) {
+        // Still mid-drag: keep the pointer-priority window alive.
         this.markInteracting();
         return;
       }
-      this.interacting = false;
-      // Long enough that a click-drag-release cannot sandwich a 100k `setData`
-      // between its down and up, short enough that the bars land before the
-      // user starts the next pan.
-      this.maybeRevealPending();
+      this.releaseInteracting();
     }, 150);
+  }
+
+  /**
+   * Zero-latency release: once the pointer is up, stop hiding work behind the
+   * 150 ms debounce — the very next animation frame resumes commits (and the
+   * restJobs pump). A rAF here is still one frame of safety against a click
+   * re-arming dragging before paint.
+   */
+  private releaseInteracting() {
+    this.interacting = false;
+    requestAnimationFrame(() => {
+      if (this.dead || this.dragging) return;
+      // Re-forward the (deferred) viewport change so coverage checks and
+      // linked-range sync catch up after the drag.
+      const tr = this.chart.timeScale().getVisibleRange();
+      if (tr && typeof tr.from === "number" && typeof tr.to === "number") {
+        this.onRange?.(tr.from as number, tr.to as number);
+        this.onViewport?.(tr.from as number, tr.to as number);
+      }
+      this.maybeRevealPending();
+      this.pumpRest();
+    });
   }
 
   private visibleSpan(): number {
     const lr = this.chart.timeScale().getVisibleLogicalRange();
-    return lr && Number.isFinite(lr.to - lr.from) ? Math.max(20, lr.to - lr.from) : 300;
+    return lr && Number.isFinite(lr.to - lr.from)
+      ? Math.max(20, lr.to - lr.from)
+      : 300;
   }
 
   /** Live tick: the series gets one `update` — never a re-render, never a stutter. */
@@ -416,7 +523,8 @@ export class ChartEngine {
       this.indTail = [bar];
       return;
     }
-    if (appended || bar.time > this.indTail[this.indTail.length - 1].time) this.indTail.push(bar);
+    if (appended || bar.time > this.indTail[this.indTail.length - 1].time)
+      this.indTail.push(bar);
     else this.indTail[this.indTail.length - 1] = bar;
     if (this.indTail.length > IND_TAIL_BARS + IND_TAIL_GROW) {
       this.indTail = trimTail(this.indTail, IND_TAIL_BARS);
@@ -429,7 +537,10 @@ export class ChartEngine {
     const src = this.type === "ha" ? lastHeikinAshi(this.indTail) : bar;
     if (!src) return;
     if (this.type === "line" || this.type === "area") {
-      (this.main as ISeriesApi<"Line">).update({ time: src.time as UTCTimestamp, value: src.close });
+      (this.main as ISeriesApi<"Line">).update({
+        time: src.time as UTCTimestamp,
+        value: src.close,
+      });
     } else {
       (this.main as ISeriesApi<"Candlestick">).update({
         time: src.time as UTCTimestamp,
@@ -468,7 +579,12 @@ export class ChartEngine {
   }
 
   /** Adopt the session custom calculators; re-render CUSTOM indicators. */
-  setCustomFns(fns: Record<string, (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>>) {
+  setCustomFns(
+    fns: Record<
+      string,
+      (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>
+    >,
+  ) {
     this.customFns = fns;
     this.applyIndicators();
   }
@@ -479,7 +595,9 @@ export class ChartEngine {
       return;
     }
     const col =
-      color ?? this.compareData.get(symbol)?.color ?? COMPARE_COLORS[this.compareData.size % COMPARE_COLORS.length];
+      color ??
+      this.compareData.get(symbol)?.color ??
+      COMPARE_COLORS[this.compareData.size % COMPARE_COLORS.length];
     this.compareData.set(symbol, { bars, color: col });
     if (!this.compares.has(symbol)) {
       const series = this.chart.addSeries(LineSeries, {
@@ -508,7 +626,12 @@ export class ChartEngine {
         series.setData([]);
         continue;
       }
-      series.setData(holder.bars.map((b) => ({ time: b.time as UTCTimestamp, value: b.close })));
+      series.setData(
+        holder.bars.map((b) => ({
+          time: b.time as UTCTimestamp,
+          value: b.close,
+        })),
+      );
     }
   }
 
@@ -585,7 +708,9 @@ export class ChartEngine {
     if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return;
     this.suppressRange = true;
     try {
-      this.chart.timeScale().setVisibleRange({ from: from as Time, to: to as Time });
+      this.chart
+        .timeScale()
+        .setVisibleRange({ from: from as Time, to: to as Time });
     } catch {
       /* range may not exist on this interval yet */
     }
@@ -615,7 +740,12 @@ export class ChartEngine {
     if (this.pending) this.commit(this.pending);
     if (!this.bars.length) return;
     this.suppressRange = true;
-    this.chart.timeScale().setVisibleLogicalRange({ from: -4, to: this.bars.length + 4 } as LogicalRange);
+    this.chart
+      .timeScale()
+      .setVisibleLogicalRange({
+        from: -4,
+        to: this.bars.length + 4,
+      } as LogicalRange);
     requestAnimationFrame(() => {
       this.suppressRange = false;
     });
@@ -629,7 +759,10 @@ export class ChartEngine {
     if (!this.main) return;
     const src = this.source();
     if (this.type === "line" || this.type === "area") {
-      const line = src.map((b) => ({ time: b.time as UTCTimestamp, value: b.close }));
+      const line = src.map((b) => ({
+        time: b.time as UTCTimestamp,
+        value: b.close,
+      }));
       (this.main as ISeriesApi<"Line">).setData(line);
       return;
     }
@@ -654,7 +787,11 @@ export class ChartEngine {
       priceFormat: { type: "volume" },
       priceScaleId: "vol",
     });
-    this.chart.priceScale("vol").applyOptions({ scaleMargins: { top: this.settings.volumeHeight, bottom: 0 } });
+    this.chart
+      .priceScale("vol")
+      .applyOptions({
+        scaleMargins: { top: this.settings.volumeHeight, bottom: 0 },
+      });
     this.vol.setData(
       this.bars.map((b) => ({
         time: b.time as UTCTimestamp,
@@ -672,7 +809,13 @@ export class ChartEngine {
   private line(key: string, color: string, pane?: number) {
     const s = this.chart.addSeries(
       LineSeries,
-      { color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false },
+      {
+        color,
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      },
       pane,
     );
     return this.addExtra(key, s);
@@ -694,17 +837,37 @@ export class ChartEngine {
     const sub = { value: 1 };
     for (const ind of this.indicators) {
       if (!ind.visible || ind.kind === "VOL") continue;
-      for (const spec of computeIndicator(ind.kind, ind.id, ind.params, bars, this.customFns, sub)) {
+      for (const spec of computeIndicator(
+        ind.kind,
+        ind.id,
+        ind.params,
+        bars,
+        this.customFns,
+        sub,
+      )) {
         if (spec.type === "hist") {
           jobs.push(() => {
-            const h = this.chart.addSeries(HistogramSeries, { priceLineVisible: false }, spec.pane);
+            const h = this.chart.addSeries(
+              HistogramSeries,
+              { priceLineVisible: false },
+              spec.pane,
+            );
             this.addExtra(spec.key, h);
-            h.setData(spec.data.map((x) => ({ time: x.time as UTCTimestamp, value: x.value, color: x.color })));
+            h.setData(
+              spec.data.map((x) => ({
+                time: x.time as UTCTimestamp,
+                value: x.value,
+                color: x.color,
+              })),
+            );
           });
         } else {
           jobs.push(() =>
             this.line(spec.key, spec.color, spec.pane).setData(
-              spec.data.map((x) => ({ time: x.time as UTCTimestamp, value: x.value })),
+              spec.data.map((x) => ({
+                time: x.time as UTCTimestamp,
+                value: x.value,
+              })),
             ),
           );
         }
@@ -714,7 +877,11 @@ export class ChartEngine {
   }
 
   private applyIndicators() {
-    this.restJobs = [...this.owed, () => this.dropExtras(), ...this.indicatorJobs()];
+    this.restJobs = [
+      ...this.owed,
+      () => this.dropExtras(),
+      ...this.indicatorJobs(),
+    ];
     this.pumpRest();
   }
 
@@ -726,40 +893,72 @@ export class ChartEngine {
   private applyIndicatorTail() {
     const bars = this.indTail;
     if (!bars.length || !this.extras.length) return;
-    const push = (key: string, point?: { time: number; value: number; color?: string }) => {
+    const push = (
+      key: string,
+      point?: { time: number; value: number; color?: string },
+    ) => {
       if (!point) return;
       const e = this.extra(key);
       if (!e) return;
-      e.series.update({ time: point.time as UTCTimestamp, value: point.value, color: point.color });
+      e.series.update({
+        time: point.time as UTCTimestamp,
+        value: point.value,
+        color: point.color,
+      });
     };
     for (const ind of this.indicators) {
       if (!ind.visible || ind.kind === "VOL") continue;
       if (ind.kind === "MA") {
-        ind.params.forEach((p) => p && push(`${ind.id}-ma-${p}`, lastOf(sma(bars, p))));
+        ind.params.forEach(
+          (p) => p && push(`${ind.id}-ma-${p}`, lastOf(sma(bars, p))),
+        );
       } else if (ind.kind === "EMA") {
-        ind.params.forEach((p) => push(`${ind.id}-ema-${p}`, lastOf(ema(bars, p))));
+        ind.params.forEach((p) =>
+          push(`${ind.id}-ema-${p}`, lastOf(ema(bars, p))),
+        );
       } else if (ind.kind === "BOLL") {
-        const { mid, upper, lower } = boll(bars, ind.params[0] ?? 20, ind.params[1] ?? 2);
+        const { mid, upper, lower } = boll(
+          bars,
+          ind.params[0] ?? 20,
+          ind.params[1] ?? 2,
+        );
         push(`${ind.id}-mid`, lastOf(mid));
         push(`${ind.id}-up`, lastOf(upper));
         push(`${ind.id}-dn`, lastOf(lower));
       } else if (ind.kind === "SAR") {
-        push(`${ind.id}-sar`, lastOf(sar(bars, ind.params[0] ?? 0.02, ind.params[1] ?? 0.2)));
+        push(
+          `${ind.id}-sar`,
+          lastOf(sar(bars, ind.params[0] ?? 0.02, ind.params[1] ?? 0.2)),
+        );
       } else if (ind.kind === "VWAP") {
         push(`${ind.id}-vwap`, lastOf(vwap(bars)));
       } else if (ind.kind === "SUPER") {
-        const { up, dn } = supertrend(bars, ind.params[0] ?? 10, ind.params[1] ?? 3);
+        const { up, dn } = supertrend(
+          bars,
+          ind.params[0] ?? 10,
+          ind.params[1] ?? 3,
+        );
         push(`${ind.id}-su`, lastOf(up));
         push(`${ind.id}-sd`, lastOf(dn));
       } else if (ind.kind === "MACD") {
-        const { dif, dea, hist } = macd(bars, ind.params[0] ?? 12, ind.params[1] ?? 26, ind.params[2] ?? 9);
+        const { dif, dea, hist } = macd(
+          bars,
+          ind.params[0] ?? 12,
+          ind.params[1] ?? 26,
+          ind.params[2] ?? 9,
+        );
         push(`${ind.id}-hist`, lastOf(hist));
         push(`${ind.id}-dif`, lastOf(dif));
         push(`${ind.id}-dea`, lastOf(dea));
       } else if (ind.kind === "RSI") {
         push(`${ind.id}-rsi`, lastOf(rsi(bars, ind.params[0] ?? 14)));
       } else if (ind.kind === "KDJ") {
-        const { k, d, j } = kdj(bars, ind.params[0] ?? 9, ind.params[1] ?? 3, ind.params[2] ?? 3);
+        const { k, d, j } = kdj(
+          bars,
+          ind.params[0] ?? 9,
+          ind.params[1] ?? 3,
+          ind.params[2] ?? 3,
+        );
         push(`${ind.id}-k`, lastOf(k));
         push(`${ind.id}-d`, lastOf(d));
         push(`${ind.id}-j`, lastOf(j));
@@ -835,7 +1034,9 @@ export class ChartEngine {
     }
     // 成交量独立 vol 标尺：默认不翻（贴底），mirrorVolume 打开时随倒垂一起翻。
     try {
-      this.chart.priceScale("vol").applyOptions({ invertScale: this.mirror && this.mirrorVolume });
+      this.chart
+        .priceScale("vol")
+        .applyOptions({ invertScale: this.mirror && this.mirrorVolume });
     } catch {
       /* 成交量未创建时没有 vol 标尺 */
     }
@@ -848,10 +1049,16 @@ export class ChartEngine {
     this.restRaf = 0;
     this.restJobs = [];
     // ✅ P0 Bug Fix: Use matching options when removing event listeners
-    this.host.removeEventListener("pointerdown", this.onPointerDown, { capture: true });
+    this.host.removeEventListener("pointerdown", this.onPointerDown, {
+      capture: true,
+    });
     this.host.removeEventListener("wheel", this.onWheel, { capture: true });
-    window.removeEventListener("pointerup", this.onPointerUp, { capture: true });
-    window.removeEventListener("pointercancel", this.onPointerUp, { capture: true });
+    window.removeEventListener("pointerup", this.onPointerUp, {
+      capture: true,
+    });
+    window.removeEventListener("pointercancel", this.onPointerUp, {
+      capture: true,
+    });
     if (this.rangeRaf) cancelAnimationFrame(this.rangeRaf);
     this.rangeRaf = 0;
     this.chart.remove();

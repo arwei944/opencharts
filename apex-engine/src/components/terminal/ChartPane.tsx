@@ -143,27 +143,23 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
         if (time == null || price == null) return;
         const pt = { time, price };
         if (cur === "hline" || cur === "vline") {
-          useTerminal
-            .getState()
-            .addDrawing({
-              id: uid(),
-              tool: cur,
-              points: [pt],
-              color: "#f0b90b",
-            });
+          useTerminal.getState().addDrawing({
+            id: uid(),
+            tool: cur,
+            points: [pt],
+            color: "#f0b90b",
+          });
           return;
         }
         draft.current = [...draft.current, pt];
         const need = cur === "parallel" ? 3 : 2;
         if (draft.current.length >= need) {
-          useTerminal
-            .getState()
-            .addDrawing({
-              id: uid(),
-              tool: cur,
-              points: draft.current,
-              color: "#f0b90b",
-            });
+          useTerminal.getState().addDrawing({
+            id: uid(),
+            tool: cur,
+            points: draft.current,
+            color: "#f0b90b",
+          });
           draft.current = [];
         }
         tick((n) => n + 1);
@@ -266,11 +262,6 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
       applyingRemote.current = false;
     });
   }, [linkedCrosshair, paneId, syncCrosshair]);
-
-  useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   const shown: Candle | null = (master ? overlayBar : null) ?? lastBar ?? null;
 
