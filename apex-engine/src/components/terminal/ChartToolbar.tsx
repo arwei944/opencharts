@@ -7,7 +7,6 @@ import type { ChartLayout, ChartType, Interval, TimeRange } from "@/lib/market/t
 import { cn } from "@/lib/utils";
 import type { ChartSettings } from "@/lib/market/settings";
 import { IndicatorInst } from "@/lib/market/types";
-import { TimeRangeSelector } from "./TimeRangeSelector";
 import { InvertedViewToggle } from "./InvertedViewToggle";
 
 interface ChartToolbarProps {
@@ -19,8 +18,6 @@ interface ChartToolbarProps {
   onSymbolSelect?: (symbol: string) => void;
   interval?: Interval;
   onIntervalChange?: (interval: Interval) => void;
-  timeRange?: TimeRange;
-  onTimeRangeChange?: (range: TimeRange) => void;
   chartType?: ChartType;
   onChartTypeChange?: (chartType: ChartType) => void;
   invert?: boolean;
@@ -47,8 +44,6 @@ export function ChartToolbar({
   onSymbolSelect,
   interval: externalInterval,
   onIntervalChange,
-  timeRange,
-  onTimeRangeChange,
   chartType: externalChartType,
   onChartTypeChange,
   invert: externalInvert,
@@ -304,16 +299,6 @@ export function ChartToolbar({
           >
             CSV
           </button>
-          
-          {/* Time Range Selector */}
-          {onTimeRangeChange && onTimeRangeChange !== undefined && (
-            <div className="ml-4 border-l pl-4">
-              <TimeRangeSelector
-                range={timeRange || "7D"}
-                onChange={onTimeRangeChange}
-              />
-            </div>
-          )}
           
           <button
             type="button"

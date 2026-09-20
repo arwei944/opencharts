@@ -122,6 +122,7 @@ interface TerminalState {
   setSearchOpen: (v: boolean) => void;
   setIndicatorOpen: (v: boolean) => void;
   setSettingsOpen: (v: boolean) => void;
+  setChartSettings: (settings: ChartSettings) => void;
   setMobileTab: (t: TerminalState["mobileTab"]) => void;
   setPremium: (mark: number, funding: number, next: number) => void;
   addDrawing: (d: Drawing) => void;

@@ -856,8 +856,8 @@ export class ChartEngine {
     this.restRaf = 0;
     this.restJobs = [];
     // ✅ P0 Bug Fix: Use matching options when removing event listeners
-    this.host.removeEventListener("pointerdown", this.onPointerDown, { capture: true, passive: false });
-    this.host.removeEventListener("wheel", this.onWheel, { passive: true, capture: true });
+    this.host.removeEventListener("pointerdown", this.onPointerDown, { capture: true });
+    this.host.removeEventListener("wheel", this.onWheel, { capture: true });
     window.removeEventListener("pointerup", this.onPointerUp, { capture: true });
     window.removeEventListener("pointercancel", this.onPointerUp, { capture: true });
     if (this.rangeRaf) cancelAnimationFrame(this.rangeRaf);

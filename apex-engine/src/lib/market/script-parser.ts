@@ -9,7 +9,7 @@ import { sma, ema } from "./indicators";
 export interface ScriptParseResult {
   success: boolean;
   indicatorKind: string;
-  params: Record<string, number | boolean>;
+  params: Record<string, number | boolean | string>;
   calculationFn?: (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>;
   overlay?: boolean;
   paneIndex?: number;
@@ -25,7 +25,7 @@ export class ScriptParser {
     let cleanedScript = script.replace(/\/\/.*$/gm, "");
     
     // Extract parameters
-    const params: Record<string, number | boolean> = {};
+    const params: Record<string, number | boolean | string> = {};
     const paramRegex = /input\.int\((\d+),\s*"([^"]+)"(?:,\s*minval=(\d+))?(?:,\s*maxval=(\d+))?/g;
     let match;
     

@@ -185,13 +185,6 @@ export function DrawingOverlayV2({
   return (
     <div ref={containerRef} className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
       <svg className="h-full w-full" viewBox={`0 0 ${containerRef.current?.clientWidth || 800} ${containerRef.current?.clientHeight || 500}`}>
-        <defs>
-          {/* Pattern for rectangle fills */}
-          <pattern id="diagonal-lines" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="4" stroke={drawing.color} strokeWidth="1" opacity="0.3" />
-          </pattern>
-        </defs>
-
         {drawings.map((drawing) => (
           <g key={drawing.id}>
             {renderPath(drawing)}

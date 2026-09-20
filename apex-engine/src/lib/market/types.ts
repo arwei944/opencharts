@@ -65,7 +65,8 @@ export type IndicatorKind =
   | "CCI"
   | "OBV"
   | "ATR"
-  | "STOCH";
+  | "STOCH"
+  | "CUSTOM";
 
 export interface Candle {
   time: number;

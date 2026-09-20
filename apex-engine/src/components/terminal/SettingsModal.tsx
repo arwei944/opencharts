@@ -265,7 +265,7 @@ function Field({
   min: number;
   max: number;
   step?: number;
-  options?: string[];
+  options?: Array<string | number>;
   map?: Record<string, string>;
   onChange: (v: number) => void;
 }) {

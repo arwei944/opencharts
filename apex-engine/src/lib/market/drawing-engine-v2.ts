@@ -4,8 +4,8 @@
  */
 
 import { uid } from "@/lib/utils";
-import type { DrawPoint, Drawing, Tool, ThemeMode } from "./types";
-import { CHART_THEME } from "./constants";
+import type { DrawPoint, Drawing, Tool } from "./types";
+import { CHART_THEME, type ThemeMode } from "./constants";
 import type { ChartEngine } from "./chart-engine";
 
 // Enhanced tool types

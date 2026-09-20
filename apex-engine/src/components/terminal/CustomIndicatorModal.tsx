@@ -42,7 +42,7 @@ export function CustomIndicatorModal({
   if (!isOpen) return null;
 
   const handleBuiltinIndicatorSelect = (kind: string) => {
-    addIndicator(kind);
+    addIndicator(kind as IndicatorInst["kind"]);
     onClose();
   };
 
@@ -82,16 +82,7 @@ export function CustomIndicatorModal({
 
   const handleAddToChart = () => {
     if (!testResult?.success || !testResult.data) return;
-    
-    const instance: IndicatorInst = {
-      id: `custom-${Date.now()}`,
-      kind: "CUSTOM",
-      params: { ...scriptParams, source: customScript },
-      visible: true
-    };
-    
-    // Store in terminal state (you may want to create a custom indicator store action)
-    console.log("Adding custom indicator:", instance);
+    // TODO: persist custom indicator into store catalog
     onClose();
   };
 
