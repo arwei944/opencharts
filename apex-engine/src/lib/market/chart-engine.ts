@@ -18,6 +18,7 @@ import {
 } from "lightweight-charts";
 import { intervalSec } from "./bars";
 import { diffTail, growsLeft, initialLogicalRange, trimTail } from "./series-ops";
+import { computeIndicator, lastHeikinAshi } from "./indicator-compute";
 import {
   CHART_THEME,
   COMPARE_COLORS,
@@ -425,7 +426,7 @@ export class ChartEngine {
 
   private updateSeriesBar(bar: Candle) {
     if (!this.main) return;
-    const src = this.type === "ha" ? lastOf(heikinAshi(this.indTail)) : bar;
+    const src = this.type === "ha" ? lastHeikinAshi(this.indTail) : bar;
     if (!src) return;
     if (this.type === "line" || this.type === "area") {
       (this.main as ISeriesApi<"Line">).update({ time: src.time as UTCTimestamp, value: src.close });
@@ -690,75 +691,22 @@ export class ChartEngine {
     const bars = this.bars;
     const jobs: Array<() => void> = [];
     if (!bars.length) return jobs;
-    let sub = 1;
+    const sub = { value: 1 };
     for (const ind of this.indicators) {
       if (!ind.visible || ind.kind === "VOL") continue;
-      const line = (key: string, color: string, pane: number | undefined, data: { time: number; value: number }[]) =>
-        jobs.push(() =>
-          this.line(key, color, pane).setData(data.map((x) => ({ time: x.time as UTCTimestamp, value: x.value }))),
-        );
-      if (ind.kind === "MA") {
-        const colors = ["#f0b90b", "#b7bdc6", "#00d4ff"];
-        ind.params.forEach((p, i) => {
-          if (!p) return;
-          line(`${ind.id}-ma-${p}`, colors[i % 3], undefined, sma(bars, p));
-        });
-      } else if (ind.kind === "EMA") {
-        const colors = ["#f0b90b", "#00d4ff"];
-        ind.params.forEach((p, i) => {
-          line(`${ind.id}-ema-${p}`, colors[i % 2], undefined, ema(bars, p));
-        });
-      } else if (ind.kind === "BOLL") {
-        const { mid, upper, lower } = boll(bars, ind.params[0] ?? 20, ind.params[1] ?? 2);
-        line(`${ind.id}-mid`, "#f0b90b", undefined, mid);
-        line(`${ind.id}-up`, "#848e9c", undefined, upper);
-        line(`${ind.id}-dn`, "#848e9c", undefined, lower);
-      } else if (ind.kind === "SAR") {
-        line(`${ind.id}-sar`, "#f6465d", undefined, sar(bars, ind.params[0] ?? 0.02, ind.params[1] ?? 0.2));
-      } else if (ind.kind === "VWAP") {
-        line(`${ind.id}-vwap`, "#fcd535", undefined, vwap(bars));
-      } else if (ind.kind === "SUPER") {
-        const { up, dn } = supertrend(bars, ind.params[0] ?? 10, ind.params[1] ?? 3);
-        line(`${ind.id}-su`, UP, undefined, up);
-        line(`${ind.id}-sd`, DOWN, undefined, dn);
-      } else if (ind.kind === "MACD") {
-        const pane = sub++;
-        const { dif, dea, hist } = macd(bars, ind.params[0] ?? 12, ind.params[1] ?? 26, ind.params[2] ?? 9);
-        jobs.push(() => {
-          const h = this.chart.addSeries(HistogramSeries, { priceLineVisible: false }, pane);
-          this.addExtra(`${ind.id}-hist`, h);
-          h.setData(hist.map((x) => ({ time: x.time as UTCTimestamp, value: x.value, color: x.color })));
-        });
-        line(`${ind.id}-dif`, "#f0b90b", pane, dif);
-        line(`${ind.id}-dea`, "#00d4ff", pane, dea);
-      } else if (ind.kind === "RSI") {
-        line(`${ind.id}-rsi`, "#f0b90b", sub++, rsi(bars, ind.params[0] ?? 14));
-      } else if (ind.kind === "KDJ") {
-        const pane = sub++;
-        const { k, d, j } = kdj(bars, ind.params[0] ?? 9, ind.params[1] ?? 3, ind.params[2] ?? 3);
-        line(`${ind.id}-k`, "#f0b90b", pane, k);
-        line(`${ind.id}-d`, "#00d4ff", pane, d);
-        line(`${ind.id}-j`, "#f6465d", pane, j);
-      } else if (ind.kind === "STOCH") {
-        const pane = sub++;
-        const { k, d } = stoch(bars, ind.params[0] ?? 14, ind.params[1] ?? 3);
-        line(`${ind.id}-sk`, "#f0b90b", pane, k);
-        line(`${ind.id}-sd`, "#00d4ff", pane, d);
-      } else if (ind.kind === "WR") {
-        line(`${ind.id}-wr`, "#00d4ff", sub++, wr(bars, ind.params[0] ?? 14));
-      } else if (ind.kind === "CCI") {
-        line(`${ind.id}-cci`, "#f0b90b", sub++, cci(bars, ind.params[0] ?? 14));
-      } else if (ind.kind === "OBV") {
-        line(`${ind.id}-obv`, "#b7bdc6", sub++, obv(bars));
-      } else if (ind.kind === "ATR") {
-        line(`${ind.id}-atr`, "#f0b90b", sub++, atr(bars, ind.params[0] ?? 14));
-      } else if (ind.kind === "CUSTOM") {
-        const fn = this.customFns[ind.id];
-        if (!fn) continue;
-        try {
-          line(`${ind.id}-custom`, "#00d4ff", undefined, fn(bars));
-        } catch {
-          /* a broken script must never take the chart down */
+      for (const spec of computeIndicator(ind.kind, ind.id, ind.params, bars, this.customFns, sub)) {
+        if (spec.type === "hist") {
+          jobs.push(() => {
+            const h = this.chart.addSeries(HistogramSeries, { priceLineVisible: false }, spec.pane);
+            this.addExtra(spec.key, h);
+            h.setData(spec.data.map((x) => ({ time: x.time as UTCTimestamp, value: x.value, color: x.color })));
+          });
+        } else {
+          jobs.push(() =>
+            this.line(spec.key, spec.color, spec.pane).setData(
+              spec.data.map((x) => ({ time: x.time as UTCTimestamp, value: x.value })),
+            ),
+          );
         }
       }
     }
