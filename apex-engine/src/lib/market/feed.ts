@@ -96,10 +96,14 @@ export function useMarketFeed() {
     const query = `?streams=${streams.join("/")}`;
     let ws: WebSocket | null = null;
     let retry: ReturnType<typeof setTimeout> | undefined;
+    let heartbeat: ReturnType<typeof setInterval> | undefined;
     let closed = false;
     let host = 0;
+    let attempts = 0;
+    let lastMsgAt = Date.now();
 
     const handle = (ev: MessageEvent) => {
+      lastMsgAt = Date.now();
       try {
         const msg = JSON.parse(ev.data as string) as { stream?: string; data?: unknown };
         const stream = msg.stream ?? "";
@@ -170,25 +174,83 @@ export function useMarketFeed() {
       }
     };
 
+    const teardown = () => {
+      if (retry) clearTimeout(retry);
+      if (heartbeat) clearInterval(heartbeat);
+      ws?.close();
+      ws = null;
+      retry = undefined;
+      heartbeat = undefined;
+    };
+
     const open = () => {
+      if (closed) return;
       const base = WS_BASES[host % WS_BASES.length];
-      ws = new WebSocket(base + query);
-      ws.onopen = () => useTerminal.getState().setLive(true);
+      try {
+        ws = new WebSocket(base + query);
+      } catch {
+        scheduleReconnect();
+        return;
+      }
+      ws.onopen = () => {
+        attempts = 0;
+        lastMsgAt = Date.now();
+        useTerminal.getState().setLive(true);
+      };
+      ws.onmessage = handle;
+      ws.onerror = () => {
+        // Let onclose drive the reconnect; keep the socket state honest.
+      };
       ws.onclose = () => {
         useTerminal.getState().setLive(false);
-        if (!closed) {
-          host += 1;
-          retry = setTimeout(open, 800);
-        }
+        if (closed) return;
+        host += 1;
+        scheduleReconnect();
       };
-      ws.onerror = () => ws?.close();
-      ws.onmessage = handle;
     };
+
+    /** Exponential backoff with jitter, capped at 30s, forever. */
+    const scheduleReconnect = () => {
+      if (closed) return;
+      if (retry) clearTimeout(retry);
+      const delay = Math.min(30000, 500 * 2 ** Math.min(attempts, 6)) * (0.7 + Math.random() * 0.6);
+      attempts += 1;
+      retry = setTimeout(open, delay);
+    };
+
+    /** Stale-connection watchdog: no message for 45s means the socket died
+     * silently (NAT drop, laptop sleep, proxy timeout) — force a reconnect
+     * instead of waiting for a close event that may never arrive. */
+    const startHeartbeat = () => {
+      if (heartbeat) clearInterval(heartbeat);
+      heartbeat = setInterval(() => {
+        if (closed) return;
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        if (Date.now() - lastMsgAt > 45000) {
+          useTerminal.getState().setLive(false);
+          ws.close();
+        }
+      }, 5000);
+    };
+
+    // Reconnect when the tab comes back: browsers freeze background tabs and
+    // the socket is usually dead by the time the user returns.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        if (!ws || ws.readyState !== WebSocket.OPEN || Date.now() - lastMsgAt > 15000) {
+          useTerminal.getState().setLive(false);
+          ws?.close();
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     open();
+    startHeartbeat();
     return () => {
       closed = true;
-      if (retry) clearTimeout(retry);
-      ws?.close();
+      document.removeEventListener("visibilitychange", onVisibility);
+      teardown();
     };
   }, [symbol, interval, market, panes.map((p) => p.interval).join("|"), compareSymbols.join("|")]);
 }

@@ -146,7 +146,7 @@ export const useTerminal = create<TerminalState>()(
       logScale: false,
       showVol: true,
       tool: "cursor",
-      theme: "dark",
+      theme: "light",
       indicators: [
         { id: "ma-default", kind: "MA", params: [7, 25, 99], visible: true },
         { id: "vol-default", kind: "VOL", params: [], visible: true },
@@ -398,7 +398,8 @@ export const useTerminal = create<TerminalState>()(
         return {
           ...current,
           ...p,
-          theme: p.theme === "light" || p.theme === "dark" ? p.theme : current.theme,
+          // Theme is not persisted: the app always boots in the light theme.
+          theme: "light",
           layout: p.layout ?? current.layout,
           panes: p.panes?.length ? p.panes : current.panes,
           compareSymbols: p.compareSymbols ?? [],
@@ -418,7 +419,6 @@ export const useTerminal = create<TerminalState>()(
         mirrorAxis: s.mirrorAxis,
         logScale: s.logScale,
         showVol: s.showVol,
-        theme: s.theme,
         indicators: s.indicators,
         drawings: s.drawings,
         watchSymbols: s.watchSymbols,
