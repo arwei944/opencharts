@@ -24,18 +24,20 @@ export interface ChartSettings {
   lineWidths: Partial<Record<string, number>>;
   /** Crosshair vertical line style. */
   crosshairLineStyle: 0 | 1 | 2 | 3; // LineStyle.None/Normal/Dashed/Dotted
-  
+
   // 📱 Mobile Touch Gesture Settings
-  touchPanSensitivity?: number;     // Horizontal pan sensitivity multiplier (default: 1)
-  touchDoubleTapDelay?: number;      // Double tap detection delay in ms (default: 300)
-  touchLongPressDelay?: number;      // Long press detection delay in ms (default: 500)
-  
+  touchPanSensitivity?: number; // Horizontal pan sensitivity multiplier (default: 1)
+  touchDoubleTapDelay?: number; // Double tap detection delay in ms (default: 300)
+  touchLongPressDelay?: number; // Long press detection delay in ms (default: 500)
+  /** Mouse drag pan sensitivity multiplier (1 = 1:1, >1 faster, <1 slower). */
+  mousePanSensitivity?: number;
+
   // ✨ Candle Visual Customization
-  candleThickness?: number;          // Width of each candle/bar (px) - overrides barSpacing
-  candleColorUp?: string;            // Up candle/wick color (hex)
-  candleColorDown?: string;          // Down candle/wick color (hex)
-  wickColorUp?: string;              // Wick up color only (overrides candleColorUp)
-  wickColorDown?: string;            // Wick down color only (overrides candleColorDown)
+  candleThickness?: number; // Width of each candle/bar (px) - overrides barSpacing
+  candleColorUp?: string; // Up candle/wick color (hex)
+  candleColorDown?: string; // Down candle/wick color (hex)
+  wickColorUp?: string; // Wick up color only (overrides candleColorUp)
+  wickColorDown?: string; // Wick down color only (overrides candleColorDown)
   initialZoom?: "fit" | "tight" | "wide"; // Initial view range ("fit" = auto, "tight" = recent bars, "wide" = all bars)
 }
 
@@ -52,17 +54,18 @@ export const DEFAULT_SETTINGS: ChartSettings = {
   compareColors: ["#f0b90b", "#00d4ff"],
   lineWidths: { MA: 1, BOLL: 1, MACD_DIF: 1, RSI: 1 },
   crosshairLineStyle: 2, // Dashed
-  
+
   // 📱 Mobile Touch Gesture Defaults
-  touchPanSensitivity: 1,       // 1:1 ratio
-  touchDoubleTapDelay: 300,     // 300ms
-  touchLongPressDelay: 500,     // 500ms
-  
+  touchPanSensitivity: 1, // 1:1 ratio
+  touchDoubleTapDelay: 300, // 300ms
+  touchLongPressDelay: 500, // 500ms
+  mousePanSensitivity: 1, // 1:1 mouse drag ratio
+
   // ✨ Candle Visual Defaults
-  candleThickness: undefined,   // Will auto-calculate based on barSpacing
-  candleColorUp: undefined,     // Uses chart theme default
-  candleColorDown: undefined,   // Uses chart theme default
-  wickColorUp: undefined,       // No override
-  wickColorDown: undefined,     // No override
-  initialZoom: "fit",           // Auto-fit to visible data
+  candleThickness: undefined, // Will auto-calculate based on barSpacing
+  candleColorUp: undefined, // Uses chart theme default
+  candleColorDown: undefined, // Uses chart theme default
+  wickColorUp: undefined, // No override
+  wickColorDown: undefined, // No override
+  initialZoom: "fit", // Auto-fit to visible data
 };

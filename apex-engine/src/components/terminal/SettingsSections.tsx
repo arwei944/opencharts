@@ -98,7 +98,7 @@ export function CrosshairSection({ settings, update }: SectionProps) {
 export function TimeScaleSection({ settings, update }: SectionProps) {
   return (
     <section>
-      <h3 className="mb-3 text-sm font-medium text-subtle">时间轴</h3>
+      <h3 className="mb-3 text-sm font-medium text-subtle">时间轴 / 拖拽</h3>
       <div className="grid grid-cols-2 gap-4">
         <Field
           label="柱间距 (px)"
@@ -116,6 +116,34 @@ export function TimeScaleSection({ settings, update }: SectionProps) {
           step={1}
           onChange={(v) => update("timeRightOffset", v)}
         />
+      </div>
+      <div className="mt-4">
+        <label
+          className="mb-1 block text-micro text-subtle"
+          htmlFor="mouse-pan"
+        >
+          鼠标拖拽灵敏度
+        </label>
+        <div className="flex items-center gap-3">
+          <input
+            id="mouse-pan"
+            type="range"
+            min={0.5}
+            max={3}
+            step={0.1}
+            value={settings.mousePanSensitivity ?? 1}
+            onChange={(e) =>
+              update("mousePanSensitivity", Number(e.target.value))
+            }
+            className="w-full accent-gold"
+          />
+          <span className="w-14 text-right font-mono text-micro text-muted">
+            {(settings.mousePanSensitivity ?? 1).toFixed(1)}×
+          </span>
+        </div>
+        <p className="mt-1 text-micro text-muted">
+          1× 为 1:1 跟手；调大可让图表移动快于鼠标，调小更精细。
+        </p>
       </div>
     </section>
   );

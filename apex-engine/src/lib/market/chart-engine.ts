@@ -110,23 +110,75 @@ export class ChartEngine {
   /** True while the pointer owns the chart — the moment a repaint must not happen. */
   private interacting = false;
   private dragging = false;
+  private panSensitivity = 1;
+  private dragStartX = 0;
+  private dragStartRange: { from: number; to: number } | null = null;
   private interactTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly host: HTMLElement;
   private mode: ThemeMode = "dark";
   private dead = false;
 
-  private readonly onPointerDown = () => {
-    this.dragging = true;
+  private readonly onPointerDown = (e: PointerEvent) => {
+    // Ignore right-click / touch (touch pan is handled natively). Only the
+    // left button drags.
+    if (e.button !== 0) return;
+    const lr = this.chart.timeScale().getVisibleLogicalRange();
+    this.dragStartX = e.clientX;
+    this.dragStartRange =
+      lr && Number.isFinite(lr.from) && Number.isFinite(lr.to)
+        ? { from: lr.from, to: lr.to }
+        : null;
+    this.dragging = this.dragStartRange !== null;
+    this.host.style.cursor = "grabbing";
+    try {
+      this.host.setPointerCapture?.(e.pointerId);
+    } catch {
+      /* capture is best-effort */
+    }
     this.markInteracting();
   };
-  private readonly onPointerUp = () => {
+  private readonly onPointerMove = (e: PointerEvent) => {
+    if (!this.dragging || !this.dragStartRange) return;
+    const lr = this.chart.timeScale().getVisibleLogicalRange();
+    if (!lr || !Number.isFinite(lr.from) || !Number.isFinite(lr.to)) return;
+    const span = lr.to - lr.from;
+    const pxPerLogical = span / Math.max(1, this.host.clientWidth);
+    // Sensitivity >1 means the chart follows the cursor faster than 1:1.
+    const dx = (e.clientX - this.dragStartX) * this.panSensitivity;
+    const deltaLogical = dx * pxPerLogical;
+    this.chart.timeScale().setVisibleLogicalRange({
+      from: this.dragStartRange.from - deltaLogical,
+      to: this.dragStartRange.to - deltaLogical,
+    });
+    // keep lock-alive while the pointer moves (same as the timer's intent)
+    clearTimeout(this.interactTimer);
+    this.interactTimer = setTimeout(() => this.markInteracting(), 150);
+  };
+  private readonly onPointerUp = (e: PointerEvent) => {
     this.dragging = false;
+    this.dragStartRange = null;
+    this.host.style.cursor = "grab";
+    try {
+      this.host.releasePointerCapture?.(e.pointerId);
+    } catch {
+      /* best-effort */
+    }
     clearTimeout(this.interactTimer);
     this.releaseInteracting();
   };
   private readonly onWheel = () => {
     this.markInteracting();
   };
+  /** Mouse-drag pan sensitivity multiplier (1 = 1:1); >1 faster, <1 slower. */
+  setPanSensitivity(v: number) {
+    this.panSensitivity = Math.max(0.2, Math.min(5, v || 1));
+    this.host.style.cursor = "grab";
+  }
+
+  /** Cursor hint per active tool: grab for pan, crosshair for drawing. */
+  setCursor(cursor: "grab" | "crosshair") {
+    this.host.style.cursor = cursor;
+  }
   /** Full-history `setData` calls still owed after the candles: one per frame. */
   private restJobs: Array<() => void> = [];
   /** The not-yet-run tail of the last commit's cosmetic queue. An indicator
@@ -177,12 +229,11 @@ export class ChartEngine {
           labelBackgroundColor: settings.crosshairLabelBg,
         },
       },
-      // Zero-latency mouse interaction: 1:1 drag-to-pan while the button is
-      // held (pressedMouseMove), wheel zoom, and axis-drag scale — all
-      // explicit so a chart option default change can never silently throttle
-      // the feel again.
+      // Mouse drag-pan is implemented here (custom sensitivity + grab/grabbing
+      // cursor), so disable the library's baked-in 1:1 drag; everything else
+      // (wheel, axis scale, pinch) stays native.
       handleScroll: {
-        pressedMouseMove: true,
+        pressedMouseMove: false,
         mouseWheel: true,
         horzTouchDrag: true,
         vertTouchDrag: false,
@@ -218,6 +269,7 @@ export class ChartEngine {
       autoSize: true,
     });
     this.rebuildMain();
+    this.host.style.cursor = "grab";
     this.chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
       if (!range || this.dead) return;
       if (!this.rangeRaf) {
@@ -258,6 +310,10 @@ export class ChartEngine {
     host.addEventListener("pointerdown", this.onPointerDown, {
       capture: true,
       passive: false,
+    });
+    host.addEventListener("pointermove", this.onPointerMove, {
+      capture: true,
+      passive: true,
     });
     host.addEventListener("wheel", this.onWheel, {
       passive: true,
@@ -740,12 +796,10 @@ export class ChartEngine {
     if (this.pending) this.commit(this.pending);
     if (!this.bars.length) return;
     this.suppressRange = true;
-    this.chart
-      .timeScale()
-      .setVisibleLogicalRange({
-        from: -4,
-        to: this.bars.length + 4,
-      } as LogicalRange);
+    this.chart.timeScale().setVisibleLogicalRange({
+      from: -4,
+      to: this.bars.length + 4,
+    } as LogicalRange);
     requestAnimationFrame(() => {
       this.suppressRange = false;
     });
@@ -787,11 +841,9 @@ export class ChartEngine {
       priceFormat: { type: "volume" },
       priceScaleId: "vol",
     });
-    this.chart
-      .priceScale("vol")
-      .applyOptions({
-        scaleMargins: { top: this.settings.volumeHeight, bottom: 0 },
-      });
+    this.chart.priceScale("vol").applyOptions({
+      scaleMargins: { top: this.settings.volumeHeight, bottom: 0 },
+    });
     this.vol.setData(
       this.bars.map((b) => ({
         time: b.time as UTCTimestamp,
@@ -1050,6 +1102,9 @@ export class ChartEngine {
     this.restJobs = [];
     // ✅ P0 Bug Fix: Use matching options when removing event listeners
     this.host.removeEventListener("pointerdown", this.onPointerDown, {
+      capture: true,
+    });
+    this.host.removeEventListener("pointermove", this.onPointerMove, {
       capture: true,
     });
     this.host.removeEventListener("wheel", this.onWheel, { capture: true });

@@ -48,6 +48,8 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   const logScale = useTerminal((s) => s.logScale);
   const showVol = useTerminal((s) => s.showVol);
   const mirrorVolume = useTerminal((s) => !!s.chartSettings.mirrorVolume);
+  const mousePan = useTerminal((s) => s.chartSettings.mousePanSensitivity ?? 1);
+  const tool = useTerminal((s) => s.tool);
   const indicators = useTerminal((s) => s.indicators);
   const customFns = useTerminal((s) => s.customFns);
   const overlayBar = useTerminal((s) => s.overlay);
@@ -194,6 +196,16 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   useEffect(() => {
     eng.current?.setMirrorVolume(mirrorVolume);
   }, [mirrorVolume]);
+  // Mouse drag sensitivity + grab/grabbing cursor. Drawing tools use a
+  // crosshair; the pan cursor (grab) applies only to the default/cross tools.
+  useEffect(() => {
+    eng.current?.setPanSensitivity(mousePan);
+  }, [mousePan]);
+  useEffect(() => {
+    eng.current?.setCursor(
+      tool === "cursor" || tool === "cross" ? "grab" : "crosshair",
+    );
+  }, [tool]);
   useEffect(() => {
     eng.current?.setLog(logScale);
   }, [logScale]);
