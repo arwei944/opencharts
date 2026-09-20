@@ -19,7 +19,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "check:bundle": "node scripts/check-bundle.mjs",
-    "prepare": "husky"
+    "prepare": "husky",
+    "preview:smoke": "node scripts/preview-smoke.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",

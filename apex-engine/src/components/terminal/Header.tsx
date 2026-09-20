@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { usePaper } from "@/lib/trading/paper";
+import { useConnection } from "@/lib/market/selectors";
 import { useTerminal } from "@/lib/market/store";
 import { fmtNum } from "@/lib/utils";
 
@@ -7,7 +8,7 @@ export function Header() {
   const market = useTerminal((s) => s.market);
   const setMarket = useTerminal((s) => s.setMarket);
   const quote = usePaper((s) => s.quote);
-  const conn = useTerminal((s) => s.conn);
+  const conn = useConnection();
   const theme = useTerminal((s) => s.theme);
   const toggleTheme = useTerminal((s) => s.toggleTheme);
 
@@ -20,20 +21,30 @@ export function Header() {
       <div className="flex items-center gap-2">
         <svg width="24" height="24" viewBox="0 0 100 100" aria-hidden>
           <defs>
-            <linearGradient id="chart-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient
+              id="chart-gradient"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
               <stop offset="0%" stopColor="#6366f1" stopOpacity="1" />
               <stop offset="100%" stopColor="#8b5cf6" stopOpacity="1" />
             </linearGradient>
           </defs>
-          <circle cx="50" cy="50" r="48" fill="url(#chart-gradient)"/>
-          <path d="M 20 70 L 35 50 L 50 55 L 65 30 L 80 40" 
-                stroke="white" 
-                strokeWidth="6" 
-                fill="none" 
-                strokeLinecap="round"
-                strokeLinejoin="round"/>
+          <circle cx="50" cy="50" r="48" fill="url(#chart-gradient)" />
+          <path
+            d="M 20 70 L 35 50 L 50 55 L 65 30 L 80 40"
+            stroke="white"
+            strokeWidth="6"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
-        <span className="text-base font-bold tracking-wide text-fg">OpenCharts</span>
+        <span className="text-base font-bold tracking-wide text-fg">
+          OpenCharts
+        </span>
       </div>
       <nav className="flex items-center gap-1 text-xs">
         <button
@@ -53,11 +64,20 @@ export function Header() {
       </nav>
       <div className="ml-auto flex items-center gap-3 text-micro">
         <span className="flex items-center gap-1.5 text-muted">
-          <span className={`size-1.5 rounded-full ${conn === "live" ? "bg-up" : conn === "degraded" ? "bg-gold" : "bg-subtle"}`} />
-          {conn === "live" ? "实时" : conn === "degraded" ? "重连中" : conn === "offline" ? "离线" : "连接中"}
+          <span
+            className={`size-1.5 rounded-full ${conn === "live" ? "bg-up" : conn === "degraded" ? "bg-gold" : "bg-subtle"}`}
+          />
+          {conn === "live"
+            ? "实时"
+            : conn === "degraded"
+              ? "重连中"
+              : conn === "offline"
+                ? "离线"
+                : "连接中"}
         </span>
         <span className="hidden text-muted sm:inline">
-          权益 <span className="font-mono text-fg">{fmtNum(quote, 2)} USDT</span>
+          权益{" "}
+          <span className="font-mono text-fg">{fmtNum(quote, 2)} USDT</span>
         </span>
         <button
           type="button"

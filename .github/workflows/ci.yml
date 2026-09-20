@@ -34,3 +34,11 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Preview smoke (production bundle renders)
+        run: |
+          npm run preview > /tmp/preview.log 2>&1 &
+          sleep 6
+          mkdir -p /tmp/pw && cd /tmp/pw && npm init -y >/dev/null 2>&1 && npm install playwright >/dev/null 2>&1
+          npx playwright install chromium >/dev/null 2>&1 || true
+          cd /tmp/pw && node $GITHUB_WORKSPACE/apex-engine/scripts/preview-smoke.mjs

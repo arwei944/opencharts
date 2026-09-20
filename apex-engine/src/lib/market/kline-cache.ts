@@ -59,7 +59,6 @@ export function forgetKlineCache(key: string): void {
   memCache.delete(key);
 }
 
-
 let dbPromise: Promise<IDBDatabase | null> | null = null;
 
 function openDb(): Promise<IDBDatabase | null> {
@@ -101,7 +100,9 @@ function done(tx: IDBTransaction): Promise<void> {
   });
 }
 
-export function encodeBars(bars: Candle[]): Pick<
+export function encodeBars(
+  bars: Candle[],
+): Pick<
   KlineCacheRecord,
   "count" | "times" | "opens" | "highs" | "lows" | "closes" | "volumes"
 > {
@@ -140,7 +141,9 @@ export function decodeBars(rec: KlineCacheRecord): Candle[] {
   return out;
 }
 
-export async function readKlineCache(key: string): Promise<KlineCacheRecord | null> {
+export async function readKlineCache(
+  key: string,
+): Promise<KlineCacheRecord | null> {
   const hit = memGet(key);
   if (hit) return hit;
   const db = await openDb();
@@ -181,6 +184,70 @@ export async function writeKlineCache(
     await done(tx);
   } catch {
     /* cache is an optimisation — never surface a write failure */
+  }
+}
+
+/**
+ * Incremental write: when the in-memory snapshot is a strict prefix of the
+ * resident series (the history fill grows leftward one page at a time), only
+ * the newly-fetched bars are encoded and spliced onto the old typed arrays —
+ * no full 100k-element re-encode per checkpoint.
+ */
+export async function appendKlineCache(
+  key: string,
+  ident: { symbol: string; market: Market; interval: Interval },
+  meta: KlineCacheMeta,
+  bars: Candle[],
+): Promise<void> {
+  const db = await openDb();
+  if (!db || !bars.length) return;
+  const prev = memGet(key);
+  const hasPrefix =
+    !!prev &&
+    prev.count <= bars.length &&
+    prev.times[0] === bars[bars.length - prev.count].time;
+  if (!hasPrefix) {
+    // No usable snapshot: fall back to a full write.
+    await writeKlineCache(key, ident, meta, bars);
+    return;
+  }
+  const p = prev as KlineCacheRecord;
+  const added = bars.slice(0, bars.length - p.count);
+  if (!added.length) return;
+  const enc = encodeBars(added);
+  const splice = <T extends Int32Array | Float64Array>(
+    oldArr: T,
+    newArr: T,
+  ): T => {
+    const out = new (oldArr.constructor as new (n: number) => T)(
+      oldArr.length + newArr.length,
+    );
+    (out as unknown as { set: (a: T, o?: number) => void }).set(newArr, 0);
+    (out as unknown as { set: (a: T, o?: number) => void }).set(
+      oldArr,
+      newArr.length,
+    );
+    return out;
+  };
+  const rec: KlineCacheRecord = {
+    ...p,
+    fetchedAt: Date.now(),
+    ...meta,
+    count: bars.length,
+    times: splice(p.times, enc.times),
+    opens: splice(p.opens, enc.opens),
+    highs: splice(p.highs, enc.highs),
+    lows: splice(p.lows, enc.lows),
+    closes: splice(p.closes, enc.closes),
+    volumes: splice(p.volumes, enc.volumes),
+  };
+  memSet(key, rec);
+  try {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).put(rec);
+    await done(tx);
+  } catch {
+    /* ignore */
   }
 }
 

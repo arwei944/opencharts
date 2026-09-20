@@ -20,7 +20,10 @@ import {
 
 export const GROK_OG_IDENTITY_ID = "virtual:grok-og-identity";
 
-const INSTALL_PAGE_PATH = join(dirname(fileURLToPath(import.meta.url)), "install-page.html");
+const INSTALL_PAGE_PATH = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "install-page.html",
+);
 
 function requestHost(req) {
   const forwarded = req.headers["x-forwarded-host"];
@@ -52,7 +55,10 @@ function serveGrokPwa(middlewares) {
       return;
     }
 
-    if (pathOnly === "/__grok/manifest.webmanifest" || pathOnly === "/__grok/manifest.json") {
+    if (
+      pathOnly === "/__grok/manifest.webmanifest" ||
+      pathOnly === "/__grok/manifest.json"
+    ) {
       const body = Buffer.from(renderWebManifest(requestHost(req)), "utf8");
       res.statusCode = 200;
       res.setHeader("content-type", "application/manifest+json; charset=utf-8");
@@ -62,7 +68,11 @@ function serveGrokPwa(middlewares) {
       return;
     }
 
-    if (isInstallQuery(rawUrl) && isDocumentPath(pathOnly) && acceptsHtml(req.headers.accept)) {
+    if (
+      isInstallQuery(rawUrl) &&
+      isDocumentPath(pathOnly) &&
+      acceptsHtml(req.headers.accept)
+    ) {
       try {
         sendHtml(res, renderInstallPage(requestHost(req), rawUrl));
       } catch (err) {
@@ -110,28 +120,36 @@ function wrapHtmlResponses(middlewares, cwd) {
 
     const decideMode = () => {
       if (mode) return mode;
-      const isHtml = String(res.getHeader("content-type") ?? "").includes("text/html");
+      const isHtml = String(res.getHeader("content-type") ?? "").includes(
+        "text/html",
+      );
       const encoded = Boolean(res.getHeader("content-encoding"));
       mode = isHtml && !encoded ? "inject" : "passthrough";
       // Streaming SSR flushes headers before the first body chunk, so the
       // header may no longer be removable — chunked responses don't carry one.
-      if (mode === "inject" && !res.headersSent) res.removeHeader("content-length");
+      if (mode === "inject" && !res.headersSent)
+        res.removeHeader("content-length");
       return mode;
     };
 
     const toBuffer = (chunk, encoding) => {
       if (Buffer.isBuffer(chunk)) return chunk;
       if (typeof chunk === "string") {
-        return Buffer.from(chunk, typeof encoding === "string" ? encoding : "utf8");
+        return Buffer.from(
+          chunk,
+          typeof encoding === "string" ? encoding : "utf8",
+        );
       }
       return Buffer.from(chunk);
     };
 
     res.write = (chunk, encoding, cb) => {
-      if (decideMode() === "passthrough") return originalWrite(chunk, encoding, cb);
+      if (decideMode() === "passthrough")
+        return originalWrite(chunk, encoding, cb);
       const done = typeof encoding === "function" ? encoding : cb;
       if (chunk) {
-        for (const out of injector.push(toBuffer(chunk, encoding))) originalWrite(out);
+        for (const out of injector.push(toBuffer(chunk, encoding)))
+          originalWrite(out);
       }
       if (typeof done === "function") done();
       return true;
@@ -139,9 +157,11 @@ function wrapHtmlResponses(middlewares, cwd) {
 
     res.end = (chunk, encoding, cb) => {
       const done = typeof encoding === "function" ? encoding : cb;
-      if (decideMode() === "passthrough") return originalEnd(chunk, encoding, cb);
+      if (decideMode() === "passthrough")
+        return originalEnd(chunk, encoding, cb);
       if (chunk) {
-        for (const out of injector.push(toBuffer(chunk, encoding))) originalWrite(out);
+        for (const out of injector.push(toBuffer(chunk, encoding)))
+          originalWrite(out);
       }
       for (const out of injector.flush()) originalWrite(out);
       return originalEnd(undefined, undefined, done);
@@ -152,6 +172,16 @@ function wrapHtmlResponses(middlewares, cwd) {
 }
 
 export function grokPwaPlugin() {
+  // Platform chrome is opt-in: unset GROK_PLATFORM, the plugin becomes a no-op
+  // so a standalone deploy ships without the grok PWA manifest/install chrome.
+  if (
+    process.env.GROK_PLATFORM === "0" ||
+    process.env.GROK_PLATFORM === "false"
+  ) {
+    return {
+      name: "app-builder:grok-pwa",
+    };
+  }
   let root = process.cwd();
   return {
     name: "app-builder:grok-pwa",

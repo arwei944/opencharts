@@ -2,7 +2,13 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { uid } from "@/lib/utils";
 import { prependBars as prependContiguous, intervalSec } from "./bars";
-import { BAR_CAP, DEFAULT_PANE_INTERVALS, DEFAULT_WATCH, INDICATOR_CATALOG, PANE_COUNT } from "./constants";
+import {
+  BAR_CAP,
+  DEFAULT_PANE_INTERVALS,
+  DEFAULT_WATCH,
+  INDICATOR_CATALOG,
+  PANE_COUNT,
+} from "./constants";
 import type { ThemeMode } from "./constants";
 import type { ChartSettings } from "./settings";
 import { DEFAULT_SETTINGS } from "./settings";
@@ -25,7 +31,10 @@ import type {
   WatchItem,
 } from "./types";
 
-function makePanes(layout: ChartLayout, prev: ChartPaneConfig[]): ChartPaneConfig[] {
+function makePanes(
+  layout: ChartLayout,
+  prev: ChartPaneConfig[],
+): ChartPaneConfig[] {
   const n = PANE_COUNT[layout];
   const next: ChartPaneConfig[] = [];
   for (let i = 0; i < n; i++) {
@@ -37,7 +46,7 @@ function makePanes(layout: ChartLayout, prev: ChartPaneConfig[]): ChartPaneConfi
   return next;
 }
 
-interface TerminalState {
+export interface TerminalState {
   market: Market;
   symbol: string;
   interval: Interval;
@@ -51,8 +60,16 @@ interface TerminalState {
   theme: ThemeMode;
   indicators: IndicatorInst[];
   /** Parsed custom-indicator calculators, keyed by indicator id (session-only). */
-  customFns: Record<string, (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>>;
-  addCustomFn: (id: string, fn: (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>) => void;
+  customFns: Record<
+    string,
+    (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>
+  >;
+  addCustomFn: (
+    id: string,
+    fn: (
+      bars: Candle[],
+    ) => Array<{ time: number; value: number; color?: string }>,
+  ) => void;
   removeCustomFn: (id: string) => void;
   drawings: Drawing[];
   bars: Candle[];
@@ -230,7 +247,8 @@ export const useTerminal = create<TerminalState>()(
       toggleVol: () => set({ showVol: !get().showVol }),
       setTool: (tool) => set({ tool }),
       setTheme: (theme) => set({ theme }),
-      toggleTheme: () => set({ theme: get().theme === "dark" ? "light" : "dark" }),
+      toggleTheme: () =>
+        set({ theme: get().theme === "dark" ? "light" : "dark" }),
       addIndicator: (kind) => {
         // CUSTOM indicators are registered by id with a runtime calculator
         // (addCustomFn) rather than a catalog spec — emit a placeholder
@@ -238,7 +256,10 @@ export const useTerminal = create<TerminalState>()(
         if (kind === "CUSTOM") {
           const id = uid();
           set({
-            indicators: [...get().indicators, { id, kind, params: [], visible: true }],
+            indicators: [
+              ...get().indicators,
+              { id, kind, params: [], visible: true },
+            ],
           });
           return id;
         }
@@ -246,19 +267,26 @@ export const useTerminal = create<TerminalState>()(
         if (!spec) return uid();
         const id = uid();
         set({
-          indicators: [...get().indicators, { id, kind, params: [...spec.defaults], visible: true }],
+          indicators: [
+            ...get().indicators,
+            { id, kind, params: [...spec.defaults], visible: true },
+          ],
         });
         return id;
       },
       removeIndicator: (id) => {
         const next = { ...get().customFns };
         delete next[id];
-        set({ indicators: get().indicators.filter((i) => i.id !== id), customFns: next });
+        set({
+          indicators: get().indicators.filter((i) => i.id !== id),
+          customFns: next,
+        });
       },
       // Custom indicators: runtime-only registry of parsed script functions. Not
       // persisted (functions are not serializable); refs live for the session.
       customFns: {},
-      addCustomFn: (id, fn) => set({ customFns: { ...get().customFns, [id]: fn } }),
+      addCustomFn: (id, fn) =>
+        set({ customFns: { ...get().customFns, [id]: fn } }),
       removeCustomFn: (id) => {
         const next = { ...get().customFns };
         delete next[id];
@@ -272,7 +300,12 @@ export const useTerminal = create<TerminalState>()(
         }),
       appendOlderBars: (incoming) => {
         const cur = get().bars;
-        const next = prependContiguous(cur, incoming, BAR_CAP, get().liveOpenTime || cur[0]?.time);
+        const next = prependContiguous(
+          cur,
+          incoming,
+          BAR_CAP,
+          get().liveOpenTime || cur[0]?.time,
+        );
         set({ bars: next });
         return next.length - cur.length;
       },
@@ -283,7 +316,11 @@ export const useTerminal = create<TerminalState>()(
         // If we have nothing yet (history still loading or failed), accept the
         // live bar as a seed — otherwise a blank store swallows every update.
         if (!last) {
-          set({ bars: [bar].slice(-BAR_CAP), lastBar: bar, liveOpenTime: bar.time });
+          set({
+            bars: [bar].slice(-BAR_CAP),
+            lastBar: bar,
+            liveOpenTime: bar.time,
+          });
           return;
         }
 
@@ -303,9 +340,18 @@ export const useTerminal = create<TerminalState>()(
         const stepSec = intervalSec(get().interval);
         // Allow small tolerance for network jitter
         if (Math.abs(bar.time - (last.time + stepSec)) <= stepSec * 0.5) {
-          set({ bars: [...cur, bar].slice(-BAR_CAP), lastBar: bar, liveOpenTime: bar.time });
+          set({
+            bars: [...cur, bar].slice(-BAR_CAP),
+            lastBar: bar,
+            liveOpenTime: bar.time,
+          });
         } else if (bar.time > last.time + stepSec) {
-          console.warn('[Store] Skipped gap in bar times:', last.time, '->', bar.time);
+          console.warn(
+            "[Store] Skipped gap in bar times:",
+            last.time,
+            "->",
+            bar.time,
+          );
           // Don't add intermediate fake bars
         }
       },
@@ -313,31 +359,38 @@ export const useTerminal = create<TerminalState>()(
         const panes = makePanes(layout, get().panes);
         if (panes[0]) panes[0] = { ...panes[0], interval: get().interval };
         const keep = new Set(panes.map((p) => p.id));
-        const paneBars = Object.fromEntries(Object.entries(get().paneBars).filter(([k]) => keep.has(k)));
+        const paneBars = Object.fromEntries(
+          Object.entries(get().paneBars).filter(([k]) => keep.has(k)),
+        );
         set({ layout, panes, paneBars });
       },
       setPaneInterval: (paneId, interval) => {
-        const panes = get().panes.map((p) => (p.id === paneId ? { ...p, interval } : p));
+        const panes = get().panes.map((p) =>
+          p.id === paneId ? { ...p, interval } : p,
+        );
         const paneBars = { ...get().paneBars, [paneId]: [] };
         if (paneId === "p0") {
           // Switching the master pane's interval resets its series; chart
           // settings stay as-is (engine re-applies barSpacing on next render).
-          set({ 
-            panes, 
-            paneBars, 
-            interval, 
-            bars: [], 
+          set({
+            panes,
+            paneBars,
+            interval,
+            bars: [],
             lastBar: null,
-            compareBars: {}, 
+            compareBars: {},
             liveOpenTime: 0,
           });
-          
+
           // If engine exists, it will apply settings automatically on next render
           return;
         }
         set({ panes, paneBars });
       },
-      setPaneBars: (paneId, bars) => set({ paneBars: { ...get().paneBars, [paneId]: bars.slice(-BAR_CAP) } }),
+      setPaneBars: (paneId, bars) =>
+        set({
+          paneBars: { ...get().paneBars, [paneId]: bars.slice(-BAR_CAP) },
+        }),
       appendOlderPaneBars: (paneId, incoming) => {
         const cur = get().paneBars[paneId] ?? [];
         const live = paneId === "p0" ? get().liveOpenTime : cur.at(-1)?.time;
@@ -360,7 +413,12 @@ export const useTerminal = create<TerminalState>()(
       },
       addCompare: (raw) => {
         const symbol = raw.toUpperCase();
-        if (!symbol || symbol === get().symbol || get().compareSymbols.includes(symbol)) return;
+        if (
+          !symbol ||
+          symbol === get().symbol ||
+          get().compareSymbols.includes(symbol)
+        )
+          return;
         if (get().compareSymbols.length >= 5) return;
         set({ compareSymbols: [...get().compareSymbols, symbol] });
       },
@@ -372,10 +430,18 @@ export const useTerminal = create<TerminalState>()(
           compareBars,
         });
       },
-      setCompareBars: (symbol, bars) => set({ compareBars: { ...get().compareBars, [symbol]: bars.slice(-BAR_CAP) } }),
+      setCompareBars: (symbol, bars) =>
+        set({
+          compareBars: { ...get().compareBars, [symbol]: bars.slice(-BAR_CAP) },
+        }),
       appendOlderCompareBars: (symbol, incoming) => {
         const cur = get().compareBars[symbol] ?? [];
-        const next = prependContiguous(cur, incoming, BAR_CAP, get().liveOpenTime || undefined);
+        const next = prependContiguous(
+          cur,
+          incoming,
+          BAR_CAP,
+          get().liveOpenTime || undefined,
+        );
         set({ compareBars: { ...get().compareBars, [symbol]: next } });
         return next.length - cur.length;
       },
@@ -419,22 +485,41 @@ export const useTerminal = create<TerminalState>()(
         if (get().watchSymbols.includes(symbol)) return;
         set({ watchSymbols: [symbol, ...get().watchSymbols] });
       },
-      removeWatch: (s) => set({ watchSymbols: get().watchSymbols.filter((x) => x !== s) }),
+      removeWatch: (s) =>
+        set({ watchSymbols: get().watchSymbols.filter((x) => x !== s) }),
       setLive: (live) => set({ live, conn: live ? "live" : "degraded" }),
       setConn: (conn) => set({ conn }),
       setOverlay: (overlay) => set({ overlay }),
       setSearchOpen: (searchOpen) => set({ searchOpen }),
       setIndicatorOpen: (indicatorOpen) => set({ indicatorOpen }),
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
-      setChartSettings: (settings: ChartSettings) => set({ chartSettings: settings }),
+      setChartSettings: (settings: ChartSettings) =>
+        set({ chartSettings: settings }),
       setMobileTab: (mobileTab) => set({ mobileTab }),
-      setPremium: (mark, funding, nextFunding) => set({ mark, funding, nextFunding }),
+      setPremium: (mark, funding, nextFunding) =>
+        set({ mark, funding, nextFunding }),
       addDrawing: (d) => set({ drawings: [...get().drawings, d] }),
       clearDrawings: () => set({ drawings: [] }),
       popDrawing: () => set({ drawings: get().drawings.slice(0, -1) }),
     }),
     {
       name: "apex-desk",
+      version: 2,
+      // v1 (no version field) persisted a stale `theme` key and may carry an
+      // empty paneBars/compareBars blob; v2 keeps theme out of storage and
+      // normalizes panes. Rehydration always runs this before merge.
+      migrate: (persisted) => {
+        const p = (persisted ?? {}) as Partial<TerminalState>;
+        const out: Record<string, unknown> = { ...p };
+        delete out.theme; // never persisted from now on
+        delete out.paneBars;
+        delete out.compareBars;
+        delete out.historyStatus;
+        if (!Array.isArray(out.panes) || !out.panes.length) {
+          out.panes = makePanes((p.layout as ChartLayout) ?? "1", []);
+        }
+        return out;
+      },
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<TerminalState>;
         return {
@@ -475,7 +560,7 @@ export const useTerminal = create<TerminalState>()(
 );
 
 // Expose store to window for debugging (dev only)
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   // @ts-expect-error expose for dev tooling
   window.useTerminal = useTerminal;
 }

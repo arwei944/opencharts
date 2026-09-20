@@ -9,7 +9,12 @@ import {
   VIEWPORT_LOOKAHEAD_BARS,
 } from "./constants";
 import { horizonOf, type Horizon } from "./horizon";
-import { decodeBars, pruneKlineCache, readKlineCache, writeKlineCache } from "./kline-cache";
+import {
+  decodeBars,
+  pruneKlineCache,
+  readKlineCache,
+  appendKlineCache,
+} from "./kline-cache";
 import { useTerminal } from "./store";
 import type { Candle, Interval, Market } from "./types";
 
@@ -29,16 +34,50 @@ export interface SeriesRef {
   interval: Interval;
 }
 
-export function masterRef(symbol: string, market: Market, interval: Interval, paneId = "p0"): SeriesRef {
-  return { jobKey: `${paneId}|${market}|${symbol}|${interval}`, kind: "master", paneId, symbol, market, interval };
+export function masterRef(
+  symbol: string,
+  market: Market,
+  interval: Interval,
+  paneId = "p0",
+): SeriesRef {
+  return {
+    jobKey: `${paneId}|${market}|${symbol}|${interval}`,
+    kind: "master",
+    paneId,
+    symbol,
+    market,
+    interval,
+  };
 }
 
-export function paneRef(paneId: string, symbol: string, market: Market, interval: Interval): SeriesRef {
-  return { jobKey: `${paneId}|${market}|${symbol}|${interval}`, kind: "pane", paneId, symbol, market, interval };
+export function paneRef(
+  paneId: string,
+  symbol: string,
+  market: Market,
+  interval: Interval,
+): SeriesRef {
+  return {
+    jobKey: `${paneId}|${market}|${symbol}|${interval}`,
+    kind: "pane",
+    paneId,
+    symbol,
+    market,
+    interval,
+  };
 }
 
-export function compareRef(symbol: string, market: Market, interval: Interval): SeriesRef {
-  return { jobKey: `cmp|${market}|${symbol}|${interval}`, kind: "compare", symbol, market, interval };
+export function compareRef(
+  symbol: string,
+  market: Market,
+  interval: Interval,
+): SeriesRef {
+  return {
+    jobKey: `cmp|${market}|${symbol}|${interval}`,
+    kind: "compare",
+    symbol,
+    market,
+    interval,
+  };
 }
 
 function dataKey(ref: SeriesRef): string {
@@ -46,7 +85,11 @@ function dataKey(ref: SeriesRef): string {
 }
 
 /** Identity of a filled series in the status map and the IndexedDB cache. */
-export function historyKey(market: Market, symbol: string, interval: Interval): string {
+export function historyKey(
+  market: Market,
+  symbol: string,
+  interval: Interval,
+): string {
   return `${market}:${symbol}:${interval}`;
 }
 
@@ -66,8 +109,10 @@ function setAll(ref: SeriesRef, bars: Candle[]): void {
 
 function commitOlder(ref: SeriesRef, older: Candle[]): number {
   const st = useTerminal.getState();
-  if (ref.kind === "compare") return st.appendOlderCompareBars(ref.symbol, older);
-  if (ref.kind === "pane") return st.appendOlderPaneBars(ref.paneId ?? "p0", older);
+  if (ref.kind === "compare")
+    return st.appendOlderCompareBars(ref.symbol, older);
+  if (ref.kind === "pane")
+    return st.appendOlderPaneBars(ref.paneId ?? "p0", older);
   return st.appendOlderBars(older);
 }
 
@@ -84,7 +129,12 @@ function appendNewer(ref: SeriesRef, newer: Candle[]): void {
   setAll(ref, [...cur, ...fresh].slice(-BAR_CAP));
 }
 
-function setStatus(ref: SeriesRef, patch: Parameters<ReturnType<typeof useTerminal.getState>["setHistoryStatus"]>[1]) {
+function setStatus(
+  ref: SeriesRef,
+  patch: Parameters<
+    ReturnType<typeof useTerminal.getState>["setHistoryStatus"]
+  >[1],
+) {
   useTerminal.getState().setHistoryStatus(dataKey(ref), patch);
 }
 
@@ -104,14 +154,17 @@ async function page(ref: SeriesRef, endTimeSec?: number): Promise<Candle[]> {
       },
     });
   } catch (error) {
-    console.error('[History] fetchKlines failed:', error);
+    console.error("[History] fetchKlines failed:", error);
     throw error;
   }
 }
 
 /** Drop the in-progress live bar: REST can hand back a bar the WS already owns. */
 function closedOnly(ref: SeriesRef, bars: Candle[]): Candle[] {
-  const live = ref.kind === "compare" || ref.kind === "master" ? useTerminal.getState().liveOpenTime : 0;
+  const live =
+    ref.kind === "compare" || ref.kind === "master"
+      ? useTerminal.getState().liveOpenTime
+      : 0;
   if (!live) return bars;
   const cur = readBars(ref);
   const oldestLoaded = cur[0]?.time ?? Infinity;
@@ -172,13 +225,17 @@ async function runFill(ref: SeriesRef, alive: () => boolean): Promise<void> {
     if (!alive()) return;
     setStatus(ref, { phase: "prefill", target: targetBars, floorTime });
     const added = await fillOlder(ref, alive, floorTime, targetBars, stepSec);
-    if (added > 0 || !completeFromCache) await snapshot(ref, readBars(ref)[0]?.time ?? floorTime, true);
+    if (added > 0 || !completeFromCache)
+      await snapshot(ref, readBars(ref)[0]?.time ?? floorTime, true);
   } catch {
     if (alive()) setStatus(ref, { phase: "error" });
   }
 }
 
-async function hydrateFromCache(ref: SeriesRef, alive: () => boolean): Promise<boolean> {
+async function hydrateFromCache(
+  ref: SeriesRef,
+  alive: () => boolean,
+): Promise<boolean> {
   if (readBars(ref).length) return false;
   const rec = await readKlineCache(dataKey(ref));
   if (!rec || !alive()) return false;
@@ -197,7 +254,11 @@ async function hydrateFromCache(ref: SeriesRef, alive: () => boolean): Promise<b
 }
 
 /** Close whatever gap a cached (or truncated first) tail left behind up to now. */
-async function fillTail(ref: SeriesRef, alive: () => boolean, stepSec: number): Promise<void> {
+async function fillTail(
+  ref: SeriesRef,
+  alive: () => boolean,
+  stepSec: number,
+): Promise<void> {
   let cur = readBars(ref);
   if (!cur.length) {
     const first = await page(ref);
@@ -304,10 +365,16 @@ async function fillOlder(
   return addedTotal;
 }
 
-async function snapshot(ref: SeriesRef, floorTime: number, complete: boolean): Promise<void> {
+async function snapshot(
+  ref: SeriesRef,
+  floorTime: number,
+  complete: boolean,
+): Promise<void> {
   const bars = readBars(ref);
   if (!bars.length) return;
-  await writeKlineCache(
+  // Incremental when the previous snapshot is a left-prefix of the resident
+  // series (the normal fill pattern); falls back to a full write otherwise.
+  await appendKlineCache(
     dataKey(ref),
     { symbol: ref.symbol, market: ref.market, interval: ref.interval },
     { stepSec: intervalSec(ref.interval), floorTime, complete },
