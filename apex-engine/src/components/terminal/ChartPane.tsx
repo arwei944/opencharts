@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { ChartEngine } from "@/lib/market/chart-engine";
 import { barAtTime } from "@/lib/market/bars";
-import { COMPARE_COLORS, FIB_LEVELS } from "@/lib/market/constants";
-import { cancelHistory, ensureCompleteHistory, ensureCoverage, historyKey, masterRef, paneRef } from "@/lib/market/history";
+import { COMPARE_COLORS } from "@/lib/market/constants";
+import {
+  cancelHistory,
+  ensureCompleteHistory,
+  ensureCoverage,
+  historyKey,
+  masterRef,
+  paneRef,
+} from "@/lib/market/history";
 import { NO_BARS, useTerminal } from "@/lib/market/store";
-import type { Candle, DrawPoint, Drawing, Interval } from "@/lib/market/types";
-import { fmtPx, uid } from "@/lib/utils";
+import type { Candle, DrawPoint, Interval } from "@/lib/market/types";
+import { uid } from "@/lib/utils";
 import { ChartToolbar } from "./ChartToolbar";
+import { DrawingOverlay } from "./DrawingOverlay";
 import { Legend } from "./Legend";
 
 type Props = {
@@ -17,18 +25,23 @@ type Props = {
 type Snapshot = ReturnType<typeof useTerminal.getState>;
 
 function refFor(st: Snapshot, paneId: string, master: boolean) {
-  const iv = (st.panes.find((p) => p.id === paneId)?.interval ?? st.interval) as Interval;
-  return master ? masterRef(st.symbol, st.market, iv, paneId) : paneRef(paneId, st.symbol, st.market, iv);
+  const iv = (st.panes.find((p) => p.id === paneId)?.interval ??
+    st.interval) as Interval;
+  return master
+    ? masterRef(st.symbol, st.market, iv, paneId)
+    : paneRef(paneId, st.symbol, st.market, iv);
 }
 
 export function ChartPane({ paneId = "p0", master = true }: Props) {
   const host = useRef<HTMLDivElement>(null);
-  const overlay = useRef<SVGSVGElement>(null);
   const eng = useRef<ChartEngine | null>(null);
   const applyingRemote = useRef(false);
-  const [ready, setReady] = useState(false);
-  const bars = useTerminal((s) => (master ? s.bars : (s.paneBars[paneId] ?? NO_BARS)));
-  const lastBar = useTerminal((s) => (master ? s.lastBar : (s.paneBars[paneId] ?? NO_BARS).at(-1) ?? null));
+  const bars = useTerminal((s) =>
+    master ? s.bars : (s.paneBars[paneId] ?? NO_BARS),
+  );
+  const lastBar = useTerminal((s) =>
+    master ? s.lastBar : ((s.paneBars[paneId] ?? NO_BARS).at(-1) ?? null),
+  );
   const chartType = useTerminal((s) => s.chartType);
   const invert = useTerminal((s) => s.invert);
   const mirrorAxis = useTerminal((s) => s.mirrorAxis);
@@ -43,7 +56,6 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   const masterInterval = useTerminal((s) => s.interval);
   const pane = useTerminal((s) => s.panes.find((p) => p.id === paneId));
   const interval: Interval = pane?.interval ?? masterInterval;
-  const drawings = useTerminal((s) => s.drawings);
   const compareSymbols = useTerminal((s) => s.compareSymbols);
   const compareBars = useTerminal((s) => s.compareBars);
   const syncTime = useTerminal((s) => s.syncTime);
@@ -82,7 +94,6 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
         const win = window as unknown as { __chartEngines?: ChartEngine[] };
         (win.__chartEngines ??= []).push(e);
       }
-      setReady(true);
       // The only way a pan can need data is if the background fill has not reached
       // that far back yet; ensureCoverage restarts the fill in that case and does
       // nothing at all while the array already spans the viewport.
@@ -118,23 +129,41 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
         const bar = barAtTime(useTerminal.getState().bars, t);
         useTerminal.getState().setOverlay(bar ?? null);
       });
-      const onClick = (param: { point?: { x: number; y: number }; time?: unknown }) => {
+      const onClick = (param: {
+        point?: { x: number; y: number };
+        time?: unknown;
+      }) => {
         if (!master) return;
         const engine = eng.current;
         const cur = useTerminal.getState().tool;
-        if (!engine || !param.point || cur === "cursor" || cur === "cross") return;
+        if (!engine || !param.point || cur === "cursor" || cur === "cross")
+          return;
         const time = engine.xToTime(param.point.x);
         const price = engine.yToPrice(param.point.y);
         if (time == null || price == null) return;
         const pt = { time, price };
         if (cur === "hline" || cur === "vline") {
-          useTerminal.getState().addDrawing({ id: uid(), tool: cur, points: [pt], color: "#f0b90b" });
+          useTerminal
+            .getState()
+            .addDrawing({
+              id: uid(),
+              tool: cur,
+              points: [pt],
+              color: "#f0b90b",
+            });
           return;
         }
         draft.current = [...draft.current, pt];
         const need = cur === "parallel" ? 3 : 2;
         if (draft.current.length >= need) {
-          useTerminal.getState().addDrawing({ id: uid(), tool: cur, points: draft.current, color: "#f0b90b" });
+          useTerminal
+            .getState()
+            .addDrawing({
+              id: uid(),
+              tool: cur,
+              points: draft.current,
+              color: "#f0b90b",
+            });
           draft.current = [];
         }
         tick((n) => n + 1);
@@ -187,7 +216,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   useEffect(() => {
     if (lastBar) eng.current?.updateLastBar(lastBar);
   }, [lastBar]);
-  
+
   useEffect(() => {
     const ref = refFor(useTerminal.getState(), paneId, master);
     ensureCompleteHistory(ref);
@@ -250,86 +279,19 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
       <ChartToolbar engine={eng.current} paneId={paneId} master={master} />
       <div className="relative min-h-0 flex-1">
         <div ref={host} className="absolute inset-0" />
-        <svg ref={overlay} className="pointer-events-none absolute inset-0 h-full w-full">
-          {ready && master && drawings.map((d) => <DrawShape key={d.id} d={d} engine={eng.current} />)}
-        </svg>
-        {shown && <Legend symbol={symbol} interval={interval} bar={shown} invert={invert} mirrorAxis={master && mirrorAxis} compareSymbols={compareSymbols} historyKey_={historyKey_} />}
+        <DrawingOverlay engine={eng.current} />
+        {shown && (
+          <Legend
+            symbol={symbol}
+            interval={interval}
+            bar={shown}
+            invert={invert}
+            mirrorAxis={master && mirrorAxis}
+            compareSymbols={compareSymbols}
+            historyKey_={historyKey_}
+          />
+        )}
       </div>
     </div>
   );
-}
-
-function DrawShape({ d, engine }: { d: Drawing; engine: ChartEngine | null }) {
-  if (!engine) return null;
-  const xy = (p: DrawPoint) => {
-    const x = engine.timeToX(p.time);
-    const y = engine.priceToY(p.price);
-    return x != null && y != null ? { x, y } : null;
-  };
-  const pts = d.points.map(xy);
-  if (pts.some((p) => !p)) return null;
-  const color = d.color;
-  if (d.tool === "hline" && pts[0]) {
-    return <line x1={0} x2="100%" y1={pts[0].y} y2={pts[0].y} stroke={color} strokeWidth={1} />;
-  }
-  if (d.tool === "vline" && pts[0]) {
-    return <line y1={0} y2="100%" x1={pts[0].x} x2={pts[0].x} stroke={color} strokeWidth={1} />;
-  }
-  if ((d.tool === "trend" || d.tool === "ray" || d.tool === "measure") && pts[0] && pts[1]) {
-    return (
-      <g>
-        <line x1={pts[0].x} y1={pts[0].y} x2={pts[1].x} y2={pts[1].y} stroke={color} strokeWidth={1} />
-        {d.tool === "measure" && (
-          <text x={(pts[0].x + pts[1].x) / 2} y={(pts[0].y + pts[1].y) / 2 - 6} fill={color} fontSize={10}>
-            {(((d.points[1].price - d.points[0].price) / d.points[0].price) * 100).toFixed(2)}%
-          </text>
-        )}
-      </g>
-    );
-  }
-  if (d.tool === "rect" && pts[0] && pts[1]) {
-    const x = Math.min(pts[0].x, pts[1].x);
-    const y = Math.min(pts[0].y, pts[1].y);
-    return (
-      <rect
-        x={x}
-        y={y}
-        width={Math.abs(pts[1].x - pts[0].x)}
-        height={Math.abs(pts[1].y - pts[0].y)}
-        fill={`${color}22`}
-        stroke={color}
-      />
-    );
-  }
-  if (d.tool === "fib" && pts[0] && pts[1]) {
-    const a0 = pts[0];
-    const a1 = pts[1];
-    return (
-      <g>
-        {FIB_LEVELS.map((lv) => {
-          const y = a0.y + (a1.y - a0.y) * lv;
-          const px = d.points[0].price + (d.points[1].price - d.points[0].price) * lv;
-          return (
-            <g key={lv}>
-              <line x1={0} x2="100%" y1={y} y2={y} stroke={color} strokeOpacity={0.6} />
-              <text x={8} y={y - 2} fill={color} fontSize={10}>
-                {lv} {fmtPx(px)}
-              </text>
-            </g>
-          );
-        })}
-      </g>
-    );
-  }
-  if (d.tool === "parallel" && pts[0] && pts[1] && pts[2]) {
-    const dx = pts[1].x - pts[0].x;
-    const dy = pts[1].y - pts[0].y;
-    return (
-      <g>
-        <line x1={pts[0].x} y1={pts[0].y} x2={pts[1].x} y2={pts[1].y} stroke={color} />
-        <line x1={pts[2].x} y1={pts[2].y} x2={pts[2].x + dx} y2={pts[2].y + dy} stroke={color} />
-      </g>
-    );
-  }
-  return null;
 }

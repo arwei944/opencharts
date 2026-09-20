@@ -72,6 +72,10 @@ export interface TerminalState {
   ) => void;
   removeCustomFn: (id: string) => void;
   drawings: Drawing[];
+  /** Currently selected drawing id (null = none); Delete removes it. */
+  selectedDrawingId: string | null;
+  selectDrawing: (id: string | null) => void;
+  removeDrawing: (id: string) => void;
   bars: Candle[];
   /** Tail of `bars` (live, still-open bar) — updated in place on WS ticks so
    * the 100k array reference stays stable and only lightweight subscribers
@@ -180,6 +184,7 @@ export const useTerminal = create<TerminalState>()(
         { id: "vol-default", kind: "VOL", params: [], visible: true },
       ],
       drawings: [],
+      selectedDrawingId: null,
       bars: [],
       lastBar: null,
       layout: "1",
@@ -499,8 +504,15 @@ export const useTerminal = create<TerminalState>()(
       setPremium: (mark, funding, nextFunding) =>
         set({ mark, funding, nextFunding }),
       addDrawing: (d) => set({ drawings: [...get().drawings, d] }),
-      clearDrawings: () => set({ drawings: [] }),
+      clearDrawings: () => set({ drawings: [], selectedDrawingId: null }),
       popDrawing: () => set({ drawings: get().drawings.slice(0, -1) }),
+      selectDrawing: (selectedDrawingId) => set({ selectedDrawingId }),
+      removeDrawing: (id) =>
+        set({
+          drawings: get().drawings.filter((d) => d.id !== id),
+          selectedDrawingId:
+            get().selectedDrawingId === id ? null : get().selectedDrawingId,
+        }),
     }),
     {
       name: "apex-desk",
