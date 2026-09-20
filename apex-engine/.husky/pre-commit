@@ -1,0 +1,5 @@
+#!/bin/sh
+# Pre-commit: lint + typecheck (run from repo root, package lives in apex-engine/)
+cd "$(dirname "$0")/.." || exit 1
+npx lint-staged
+npx tsc --noEmit

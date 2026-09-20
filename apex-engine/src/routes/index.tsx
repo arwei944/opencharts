@@ -1,5 +1,7 @@
 import { useEffect, lazy, Suspense } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { toast } from "sonner";
+import { searchSymbols } from "@/lib/market/api";
 import { useTerminal } from "@/lib/market/store";
 import type { ChartLayout, ChartType, Interval } from "@/lib/market/types";
 import type { ThemeMode } from "@/lib/market/constants";
@@ -12,19 +14,56 @@ const Terminal = lazy(async () => {
 });
 
 const INTERVAL_IDS = new Set([
-  "1s", "1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w",
+  "1s",
+  "1m",
+  "3m",
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "2h",
+  "4h",
+  "6h",
+  "8h",
+  "12h",
+  "1d",
+  "3d",
+  "1w",
 ]);
 const LAYOUT_IDS = new Set(["1", "1x2", "2x1", "2x2"]);
-const CHART_TYPE_IDS = new Set(["candle", "hollow", "bar", "line", "area", "ha"]);
+const CHART_TYPE_IDS = new Set([
+  "candle",
+  "hollow",
+  "bar",
+  "line",
+  "area",
+  "ha",
+]);
 const THEME_IDS = new Set(["light", "dark"]);
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => ({
-    symbol: typeof search.symbol === "string" && search.symbol ? search.symbol.toUpperCase() : undefined,
-    interval: typeof search.interval === "string" && INTERVAL_IDS.has(search.interval) ? (search.interval as Interval) : undefined,
-    layout: typeof search.layout === "string" && LAYOUT_IDS.has(search.layout) ? (search.layout as ChartLayout) : undefined,
-    chartType: typeof search.chartType === "string" && CHART_TYPE_IDS.has(search.chartType) ? (search.chartType as ChartType) : undefined,
-    theme: typeof search.theme === "string" && THEME_IDS.has(search.theme) ? (search.theme as ThemeMode) : undefined,
+    symbol:
+      typeof search.symbol === "string" && search.symbol
+        ? search.symbol.toUpperCase()
+        : undefined,
+    interval:
+      typeof search.interval === "string" && INTERVAL_IDS.has(search.interval)
+        ? (search.interval as Interval)
+        : undefined,
+    layout:
+      typeof search.layout === "string" && LAYOUT_IDS.has(search.layout)
+        ? (search.layout as ChartLayout)
+        : undefined,
+    chartType:
+      typeof search.chartType === "string" &&
+      CHART_TYPE_IDS.has(search.chartType)
+        ? (search.chartType as ChartType)
+        : undefined,
+    theme:
+      typeof search.theme === "string" && THEME_IDS.has(search.theme)
+        ? (search.theme as ThemeMode)
+        : undefined,
   }),
   component: Home,
 });
@@ -33,17 +72,45 @@ function Home() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
 
-  // Hydrate store from URL once on mount.
+  // Hydrate store from URL once on mount. Symbols are validated against the
+  // exchangeInfo-derived search index; an unknown one falls back to the
+  // default with a toast instead of a silent blank chart.
   useEffect(() => {
     const st = useTerminal.getState();
-    if (search.symbol && search.symbol !== st.symbol) st.setSymbol(search.symbol);
-    if (search.interval && search.interval !== st.interval) st.setInterval(search.interval);
-    if (search.layout && search.layout !== st.layout) st.setLayout(search.layout);
-    if (search.chartType && search.chartType !== st.chartType) st.setChartType(search.chartType);
+    if (search.interval && search.interval !== st.interval)
+      st.setInterval(search.interval);
+    if (search.layout && search.layout !== st.layout)
+      st.setLayout(search.layout);
+    if (search.chartType && search.chartType !== st.chartType)
+      st.setChartType(search.chartType);
     const theme = search.theme ?? st.theme;
-    const htmlTheme = (document.documentElement.dataset.theme ?? "light") as ThemeMode;
+    const htmlTheme = (document.documentElement.dataset.theme ??
+      "light") as ThemeMode;
     if (theme !== htmlTheme) st.setTheme(theme);
-  }, [search.symbol, search.interval, search.layout, search.chartType, search.theme]);
+    if (search.symbol && search.symbol !== st.symbol) {
+      searchSymbols({ data: { q: search.symbol, market: st.market } })
+        .then((hits) => {
+          const ok = hits.some((s) => s === search.symbol);
+          const target = ok ? (search.symbol as string) : "BTCUSDT";
+          const s2 = useTerminal.getState();
+          if (s2.symbol !== target) s2.setSymbol(target);
+          if (!ok && search.symbol)
+            toast.error(`交易对 ${search.symbol} 不存在，已切换到 ${target}`);
+        })
+        .catch(() => {
+          // Search unavailable (offline): trust the URL, history fill will surface errors.
+          const s2 = useTerminal.getState();
+          if (s2.symbol !== search.symbol)
+            s2.setSymbol(search.symbol as string);
+        });
+    }
+  }, [
+    search.symbol,
+    search.interval,
+    search.layout,
+    search.chartType,
+    search.theme,
+  ]);
 
   // Keep the URL in sync with the store (replaceState: no history spam).
   useEffect(() => {
