@@ -203,7 +203,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   }, [mousePan]);
   useEffect(() => {
     eng.current?.setCursor(
-      tool === "cursor" || tool === "cross" ? "grab" : "crosshair",
+      tool === "cursor" || tool === "cross" ? "default" : "crosshair",
     );
   }, [tool]);
   useEffect(() => {

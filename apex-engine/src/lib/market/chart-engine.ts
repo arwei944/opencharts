@@ -111,6 +111,7 @@ export class ChartEngine {
   private interacting = false;
   private dragging = false;
   private panSensitivity = 1;
+  private cursorHint: "default" | "crosshair" = "default";
   private dragStartX = 0;
   private dragStartRange: { from: number; to: number } | null = null;
   private interactTimer: ReturnType<typeof setTimeout> | undefined;
@@ -157,7 +158,7 @@ export class ChartEngine {
   private readonly onPointerUp = (e: PointerEvent) => {
     this.dragging = false;
     this.dragStartRange = null;
-    this.host.style.cursor = "grab";
+    this.host.style.cursor = this.cursorHint;
     try {
       this.host.releasePointerCapture?.(e.pointerId);
     } catch {
@@ -172,12 +173,15 @@ export class ChartEngine {
   /** Mouse-drag pan sensitivity multiplier (1 = 1:1); >1 faster, <1 slower. */
   setPanSensitivity(v: number) {
     this.panSensitivity = Math.max(0.2, Math.min(5, v || 1));
-    this.host.style.cursor = "grab";
   }
 
-  /** Cursor hint per active tool: grab for pan, crosshair for drawing. */
-  setCursor(cursor: "grab" | "crosshair") {
-    this.host.style.cursor = cursor;
+  /**
+   * Cursor hint per active tool: default arrow when idle (drag shows the hand
+   * automatically), crosshair while a drawing tool is active.
+   */
+  setCursor(cursor: "default" | "crosshair") {
+    this.cursorHint = cursor;
+    if (!this.dragging) this.host.style.cursor = cursor;
   }
   /** Full-history `setData` calls still owed after the candles: one per frame. */
   private restJobs: Array<() => void> = [];
@@ -269,7 +273,7 @@ export class ChartEngine {
       autoSize: true,
     });
     this.rebuildMain();
-    this.host.style.cursor = "grab";
+    this.host.style.cursor = "default";
     this.chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
       if (!range || this.dead) return;
       if (!this.rangeRaf) {
