@@ -661,6 +661,10 @@ export const useTerminal = create<TerminalState>()(
           historyStatus: {},
           linkedRange: null,
           linkedCrosshair: null,
+          // Merge persisted chart settings onto defaults so older saves (which
+          // lacked newer keys) never lose new options.
+          chartSettings: { ...DEFAULT_SETTINGS, ...(p.chartSettings ?? {}) },
+          tpsl: p.tpsl ?? { tp: null, sl: null },
         };
       },
       partialize: (s) => ({
@@ -680,6 +684,8 @@ export const useTerminal = create<TerminalState>()(
         compareSymbols: s.compareSymbols,
         syncTime: s.syncTime,
         syncCrosshair: s.syncCrosshair,
+        chartSettings: s.chartSettings,
+        tpsl: s.tpsl,
       }),
     },
   ),

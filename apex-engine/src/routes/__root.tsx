@@ -1,5 +1,11 @@
-import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  HeadContent,
+  Outlet,
+  Scripts,
+} from "@tanstack/react-router";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { I18nProvider } from "@/lib/i18n";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "OpenCharts";
@@ -11,7 +17,11 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: APP_NAME },
       { name: "theme-color", content: "#6366f1" },
-      { name: "description", content: "OpenCharts — Professional crypto trading chart engine with customizable visualization." },
+      {
+        name: "description",
+        content:
+          "OpenCharts — Professional crypto trading chart engine with customizable visualization.",
+      },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
@@ -19,7 +29,11 @@ export const Route = createRootRoute({
       { rel: "manifest", href: "/__grok/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossOrigin: "anonymous",
+      },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap",
@@ -33,7 +47,9 @@ export const Route = createRootRoute({
       </head>
       <body className="bg-bg text-fg">
         <PreviewHostBridge />
-        <Outlet />
+        <I18nProvider>
+          <Outlet />
+        </I18nProvider>
         <Scripts />
       </body>
     </html>
