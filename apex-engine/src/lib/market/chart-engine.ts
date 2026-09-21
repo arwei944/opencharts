@@ -28,7 +28,7 @@ import {
 import { diffTail, initialLogicalRange, trimTail } from "./series-ops";
 import { lastHeikinAshi, type CustomFn } from "./indicator-compute";
 import { IndicatorRenderer } from "./indicator-render";
-import { decideCommit, REVEAL_CHUNK_BARS } from "./data-pipeline";
+import { decideCommit } from "./data-pipeline";
 import { clampPanSensitivity, dragDelta, panRange } from "./events";
 import { RestQueue } from "./rest-queue";
 import {

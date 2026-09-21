@@ -113,14 +113,18 @@ Phase 3  交易与生态（~10%）—— 订单流/杠杆模式/OCO + 云端同�
 
 **验收**：拆分后跑通全量回归（含倒垂 16 断言、像素 4 主题、batch1-12 冒烟），无行为 diff。
 
-### P0-B store 分层（809 行 → 3 store）
-| store | 内容 | 理由 |
+### P0-B store 分层（809 行 → slices 重组）✅ 已落地
+| slice | 内容 | persist |
 |------|------|------|
-| `useMarketStore` | bars/paneBars/compareBars/ticker/book/trades/watch/historyStatus（非持久化） | 大数组高频写 |
-| `useUIStore` | 各弹窗开关/tool/mobileTab/面板折叠（非持久化） | 低频但全组件订阅 |
-| `useChartConfigStore` | symbol/interval/layout/chartType/theme/indicators/drawings/chartSettings/brokerMode（persist v2 + migrate） | 持久化 + 版本迁移 |
+| `stores/config-slice.ts` (383 行) | symbol/interval/layout/chartType/theme/indicators/drawings/undo/chartSettings/brokerMode/tpsl/面板折叠/compareSymbols/sync* | ✅ partialize 只存此层 + version2/migrate（旧 apex-desk 兼容） |
+| `stores/market-slice.ts` (262 行) | bars/paneBars/compareBars/ticker/book/trades/watch/historyStatus/okx 双源/溢价 | ❌ 高频永不持久化 |
+| `stores/ui-slice.ts` (68 行) | 弹窗开关/tool/mobileTab | ❌ |
+| `stores/trading-slice.ts` (42 行) | 点图下单价/feedStats/overlay | ❌ |
+| `store.ts` (99 行) | 组合层 `create<TerminalState>()(persist(...))`，`useTerminal` 单出口零组件改动 + window 调试暴露恢复 | |
 
-**关键动作**：persist 加 `version: 2` + `migrate`（旧 apex-desk 数据兼容）；高频 ticker/updateBar 继续走 in-place 尾段更新 + selector 隔离（已有基础，保持）。
+**关键动作（全部完成）**：persist `version: 2` + `migrate`（theme 不入存储、panes 归一化、旧数据合并到 DEFAULT_SETTINGS）；partialize 只持久化配置层（bars/ticker 永不落盘）；高频路径继续 in-place 尾段更新（updateBar 同 bar 原地改引用）；selectors.ts 补全高频订阅具名导出（paneBars/compareBars/book/trades/watch/dataWarnings/okx 等，9 组 hook）。
+
+> 决策记录：未拆成 3 个独立 zustand store——zustand 的 selector 订阅已天然隔离渲染（`useTerminal(s => s.x)` 只在 x 变化时重渲染），且跨层 action（setSymbol 清 bars、setLayout 裁 paneBars）在独立 store 间会引入新复杂度；slices 模式达到分层组织的全部收益，外部 29 个调用文件零改动。与 events 模块同理（见 P0-A）。
 
 ### P0-C 数据存储列式化（性能地基）
 - bars 由 `Candle[]`（对象数组）改为列式 typed-array（time/open/high/low/close/volume 五列 Float64Array），与 kline-cache 的 encodeBars 编码对齐
