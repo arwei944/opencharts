@@ -6,6 +6,29 @@ import type { IndicatorInst } from "@/lib/market/types";
 import { CustomIndicatorModal } from "./CustomIndicatorModal";
 import { Modal } from "./Modal";
 
+const INDICATOR_COLORS = [
+  "#f0b90b",
+  "#00d4ff",
+  "#f6465d",
+  "#0ecb81",
+  "#c084fc",
+  "#f7931a",
+  "#848e9c",
+  "#e0e0e0",
+];
+const INDICATOR_WIDTHS = [1, 2, 3, 4];
+const INDICATOR_STYLES = [
+  { id: 0, label: "─" },
+  { id: 1, label: "⡀" },
+  { id: 2, label: "╌" },
+  { id: 3, label: "╍" },
+] as const;
+const INDICATOR_SCALES = [
+  { id: "right", label: "右" },
+  { id: "left", label: "左" },
+  { id: "overlay", label: "叠加" },
+] as const;
+
 export function IndicatorModal() {
   const open = useTerminal((s) => s.indicatorOpen);
   const setIndicatorOpen = useTerminal((s) => s.setIndicatorOpen);
@@ -191,6 +214,113 @@ export function IndicatorModal() {
                       >
                         ✕
                       </button>
+                      <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/60 pt-1.5">
+                        <div className="flex items-center gap-1">
+                          <span className="text-subtle">色</span>
+                          {INDICATOR_COLORS.map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              aria-label={`颜色 ${c}`}
+                              className={`h-3.5 w-3.5 rounded-full border ${
+                                i.color === c
+                                  ? "border-gold ring-1 ring-gold"
+                                  : "border-border"
+                              }`}
+                              style={{ background: c }}
+                              onClick={() =>
+                                updateIndicator(i.id, {
+                                  color: i.color === c ? undefined : c,
+                                })
+                              }
+                            />
+                          ))}
+                          {i.color && (
+                            <button
+                              type="button"
+                              aria-label="重置颜色"
+                              className="text-subtle hover:text-fg"
+                              onClick={() =>
+                                updateIndicator(i.id, { color: undefined })
+                              }
+                            >
+                              ↺
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-subtle">宽</span>
+                          {INDICATOR_WIDTHS.map((w) => (
+                            <button
+                              key={w}
+                              type="button"
+                              aria-label={`线宽 ${w}`}
+                              className={`rounded-sm px-1.5 text-micro ${
+                                (i.width ?? 1) === w
+                                  ? "bg-gold text-bg"
+                                  : "bg-surface text-muted hover:text-fg"
+                              }`}
+                              onClick={() =>
+                                updateIndicator(i.id, {
+                                  width: (i.width ?? 1) === w ? undefined : w,
+                                })
+                              }
+                            >
+                              {w}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-subtle">型</span>
+                          {INDICATOR_STYLES.map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              aria-label={`线型 ${s.label}`}
+                              className={`rounded-sm px-1.5 font-mono text-micro ${
+                                (i.style ?? 0) === s.id
+                                  ? "bg-gold text-bg"
+                                  : "bg-surface text-muted hover:text-fg"
+                              }`}
+                              onClick={() =>
+                                updateIndicator(i.id, {
+                                  style:
+                                    (i.style ?? 0) === s.id
+                                      ? undefined
+                                      : (s.id as 0 | 1 | 2 | 3),
+                                })
+                              }
+                            >
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-subtle">轴</span>
+                          {INDICATOR_SCALES.map((sc) => (
+                            <button
+                              key={sc.id}
+                              type="button"
+                              aria-label={`刻度 ${sc.label}`}
+                              className={`rounded-sm px-1.5 text-micro ${
+                                (i.scale ?? "right") === sc.id
+                                  ? "bg-gold text-bg"
+                                  : "bg-surface text-muted hover:text-fg"
+                              }`}
+                              onClick={() =>
+                                updateIndicator(i.id, {
+                                  scale:
+                                    (i.scale ?? "right") === sc.id
+                                      ? undefined
+                                      : sc.id,
+                                })
+                              }
+                            >
+                              {sc.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <>

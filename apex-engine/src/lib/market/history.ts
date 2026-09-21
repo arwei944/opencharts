@@ -9,6 +9,7 @@ import {
   VIEWPORT_LOOKAHEAD_BARS,
 } from "./constants";
 import { horizonOf, type Horizon } from "./horizon";
+import { needsOlderData, olderWaveEnds } from "./history-paging";
 import {
   decodeBars,
   pruneKlineCache,
@@ -395,11 +396,94 @@ export function ensureCoverage(ref: SeriesRef, fromTime: number): void {
     ensureCompleteHistory(ref);
     return;
   }
-  const lookahead = VIEWPORT_LOOKAHEAD_BARS * intervalSec(ref.interval);
-  if (fromTime > oldest + lookahead) return;
+  const stepSec = intervalSec(ref.interval);
+  if (!needsOlderData(fromTime, oldest, stepSec, VIEWPORT_LOOKAHEAD_BARS))
+    return;
   const status = getStatus(ref);
-  if (status?.phase === "complete") return;
   const job = jobs.get(ref.jobKey);
   if (job?.running) return;
+  if (status?.phase === "complete") {
+    // Interval horizon reached — the viewport wants more. Walk further back
+    // on demand (infinite scroll) instead of giving up at the 3y budget.
+    extendHistory(ref, fromTime);
+    return;
+  }
   ensureCompleteHistory(ref);
+}
+
+/**
+ * Extend the left frontier past the interval horizon on demand (infinite
+ * scroll). Page-by-page walk from the resident front; the window is capped by
+ * `prependBars` (oldest bars fall off the BAR_CAP budget), so memory stays
+ * fixed while the visible window keeps sliding left.
+ */
+export function extendHistory(ref: SeriesRef, untilTime: number): void {
+  const job = jobFor(ref.jobKey);
+  if (job.running) return;
+  const oldest = readBars(ref)[0]?.time;
+  if (oldest == null || oldest <= untilTime) return;
+  job.running = true;
+  const gen = ++job.gen;
+  const alive = () => job.gen === gen;
+  void runExtend(ref, alive, untilTime).finally(() => {
+    if (alive()) job.running = false;
+  });
+}
+
+async function runExtend(
+  ref: SeriesRef,
+  alive: () => boolean,
+  untilTime: number,
+): Promise<void> {
+  const stepSec = intervalSec(ref.interval);
+  let failures = 0;
+  while (alive()) {
+    const cur = readBars(ref);
+    const oldest = cur[0]?.time;
+    if (oldest == null || oldest <= untilTime) break;
+    const ends = olderWaveEnds(
+      oldest,
+      stepSec,
+      HISTORY_PAGE,
+      PREFILL_CONCURRENCY,
+    );
+    const pages = await Promise.all(
+      ends.map((end) => page(ref, end).catch(() => null)),
+    );
+    if (!alive()) break;
+    let addedThisWave = 0;
+    let short = false;
+    for (const raw of pages) {
+      if (!raw) {
+        failures += 1;
+        continue;
+      }
+      if (raw.length < HISTORY_PAGE) short = true;
+      const older = closedOnly(ref, raw);
+      if (!older.length) {
+        short = true;
+        continue;
+      }
+      addedThisWave += commitOlder(ref, older);
+    }
+    if (!addedThisWave) {
+      if (failures >= 3) {
+        setStatus(ref, { phase: "error" });
+        break;
+      }
+      await sleep(PREFILL_RETRY_MS * Math.max(1, failures));
+      continue;
+    }
+    failures = 0;
+    const after = readBars(ref);
+    setStatus(ref, {
+      phase: "prefill",
+      bars: after.length,
+      target: after.length,
+      oldest: after[0]?.time ?? 0,
+      newest: after[after.length - 1]?.time ?? 0,
+      floorTime: untilTime,
+    });
+    if (short) break;
+  }
 }

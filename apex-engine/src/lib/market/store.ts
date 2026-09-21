@@ -162,7 +162,12 @@ export interface TerminalState {
   applyIndicatorPreset: (list: { kind: string; params?: number[] }[]) => void;
   updateIndicator: (
     id: string,
-    patch: Partial<Pick<IndicatorInst, "params" | "visible" | "pane">>,
+    patch: Partial<
+      Pick<
+        IndicatorInst,
+        "params" | "visible" | "pane" | "color" | "width" | "style" | "scale"
+      >
+    >,
   ) => void;
   removeIndicator: (id: string) => void;
   setBars: (b: Candle[]) => void;

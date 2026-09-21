@@ -122,6 +122,9 @@ export interface TapeTrade {
   isBuyerMaker: boolean;
 }
 
+/** Sub-pane price-scale id a per-indicator line can attach to. */
+export type IndicatorScale = "right" | "left" | "overlay";
+
 export interface IndicatorInst {
   id: string;
   kind: IndicatorKind;
@@ -129,6 +132,14 @@ export interface IndicatorInst {
   visible: boolean;
   /** Target sub-pane number (1-based). Undefined = default (auto / main overlay). */
   pane?: number;
+  /** Per-instance line color (defaults to the catalog palette). */
+  color?: string;
+  /** Per-instance line width in px (defaults to 1). */
+  width?: number;
+  /** Per-instance line style, lw-charts LineStyle: 0 solid / 1 dotted / 2 dashed / 3 large-dashed. */
+  style?: 0 | 1 | 2 | 3;
+  /** Per-instance price-scale id (defaults to the pane default: right). */
+  scale?: IndicatorScale;
 }
 
 export interface DrawPoint {

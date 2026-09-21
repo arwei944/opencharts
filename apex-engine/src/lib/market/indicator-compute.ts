@@ -41,6 +41,20 @@ export interface IndicatorSeriesSpec {
   pane?: number;
   type: "line" | "hist";
   data: Array<{ time: number; value: number; color?: string }>;
+  /** Per-instance line width (px). */
+  width?: number;
+  /** Per-instance line style (lw-charts LineStyle: 0..3). */
+  lineStyle?: number;
+  /** Per-instance price-scale id for sub-pane lines. */
+  scale?: string;
+}
+
+/** Per-instance presentation overrides carried through `computeIndicator`. */
+export interface IndicatorStyleOpts {
+  color?: string;
+  width?: number;
+  lineStyle?: number;
+  scale?: string;
 }
 
 export interface CustomFn {
@@ -66,6 +80,7 @@ export function computeIndicator(
   customFns: Record<string, CustomFn>,
   sub: { value: number },
   forcePane?: number,
+  opts?: IndicatorStyleOpts,
 ): IndicatorSeriesSpec[] {
   const out: IndicatorSeriesSpec[] = [];
   // An explicit pane assignment (overlay main = 0, sub-pane = N) overrides the
@@ -76,12 +91,24 @@ export function computeIndicator(
   if (forcePane !== undefined) {
     sub.value = Math.max(sub.value, forcePane + 1);
   }
+  // Per-instance presentation: user color wins over the catalog palette.
+  const col = (auto: string) => opts?.color ?? auto;
   const line = (
     key: string,
     color: string,
     pane: number | undefined,
     data: Array<{ time: number; value: number }>,
-  ) => out.push({ key, color, pane: paneOf(pane), type: "line", data });
+  ) =>
+    out.push({
+      key,
+      color: col(color),
+      pane: paneOf(pane),
+      type: "line",
+      data,
+      ...(opts?.width ? { width: opts.width } : {}),
+      ...(opts?.lineStyle ? { lineStyle: opts.lineStyle } : {}),
+      ...(opts?.scale ? { scale: opts.scale } : {}),
+    });
 
   if (kind === "MA") {
     const colors = ["#f0b90b", "#b7bdc6", "#00d4ff"];

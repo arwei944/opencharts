@@ -6,7 +6,6 @@ import {
   CrosshairMode,
   HistogramSeries,
   LineSeries,
-  PriceScaleMode,
   createChart,
   type IChartApi,
   type ISeriesApi,
@@ -17,6 +16,14 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { intervalSec } from "./bars";
+import { CompareManager } from "./compare";
+import {
+  priceToY as coordPriceToY,
+  takeScreenshot,
+  timeToX as coordTimeToX,
+  xToTime as coordXToTime,
+  yToPrice as coordYToPrice,
+} from "./export";
 import {
   diffTail,
   growsLeft,
@@ -30,7 +37,6 @@ import {
 } from "./indicator-compute";
 import {
   CHART_THEME,
-  COMPARE_COLORS,
   DOWN,
   IND_TAIL_BARS,
   IND_TAIL_GROW,
@@ -100,8 +106,7 @@ export class ChartEngine {
   private main: AnySeries | null = null;
   private vol: ISeriesApi<"Histogram"> | null = null;
   private extras: Extra[] = [];
-  private compares = new Map<string, ISeriesApi<"Line">>();
-  private compareData = new Map<string, { bars: Candle[]; color: string }>();
+  private cmp: CompareManager;
   private type: ChartType = "candle";
   private invert = false;
   /** 倒垂视角：价格轴翻转。与 `invert`（红绿互换）是两件事，各开各的。 */
@@ -300,6 +305,11 @@ export class ChartEngine {
       },
       autoSize: true,
     });
+    this.cmp = new CompareManager(
+      this.chart,
+      () => this.mode,
+      () => this.syncMirror(),
+    );
     this.rebuildMain();
     this.host.style.cursor = "default";
     this.chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
@@ -585,7 +595,7 @@ export class ChartEngine {
     // "where are my bars" — are already on screen. Extra series are reused
     // across commits (see indicatorJobs) so a progressive reveal only refreshes
     // their data instead of destroying + recreating every pane.
-    this.owed = [() => this.applyVol(), () => this.applyCompares()];
+    this.owed = [() => this.applyVol(), () => this.cmp.apply()];
     this.restJobs = [...this.owed, ...this.indicatorJobs()];
     this.pumpRest();
   }
@@ -764,97 +774,27 @@ export class ChartEngine {
   }
 
   setCompare(symbol: string, bars: Candle[], color?: string) {
-    if (!bars.length) {
-      this.removeCompare(symbol);
-      return;
-    }
-    const col =
-      color ??
-      this.compareData.get(symbol)?.color ??
-      COMPARE_COLORS[this.compareData.size % COMPARE_COLORS.length];
-    this.compareData.set(symbol, { bars, color: col });
-    if (!this.compares.has(symbol)) {
-      const series = this.chart.addSeries(LineSeries, {
-        color: col,
-        lineWidth: 1,
-        priceScaleId: "left",
-        lastValueVisible: true,
-        priceLineVisible: false,
-        title: symbol.replace("USDT", ""),
-      });
-      this.compares.set(symbol, series);
-    }
-    this.applyCompares();
-    this.syncLeftScale();
-  }
-
-  /**
-   * Compare lines carry absolute closes and the left scale runs in percentage
-   * mode, so the library re-anchors the ratio to the visible range itself. That
-   * keeps the lines aligned while panning without ever re-feeding their data.
-   */
-  private applyCompares() {
-    for (const [symbol, series] of [...this.compares]) {
-      const holder = this.compareData.get(symbol);
-      if (!holder) {
-        series.setData([]);
-        continue;
-      }
-      series.setData(
-        holder.bars.map((b) => ({
-          time: b.time as UTCTimestamp,
-          value: b.close,
-        })),
-      );
-    }
+    this.cmp.set(symbol, bars, color);
   }
 
   updateCompare(symbol: string, bar: Candle, all: Candle[]) {
-    const series = this.compares.get(symbol);
-    const holder = this.compareData.get(symbol);
-    if (!series || !holder || !all.length) return;
-    const drawnLast = holder.bars[holder.bars.length - 1];
-    holder.bars = all;
-    // Backfill only lengthens the left side; the line is redrawn with the main
-    // series when that history is committed, so a pan never waits on it.
-    if (drawnLast && all[all.length - 1].time === drawnLast.time) {
-      series.update({ time: bar.time as UTCTimestamp, value: bar.close });
-    }
+    this.cmp.update(symbol, bar, all);
   }
 
   hasCompare(symbol: string) {
-    return this.compares.has(symbol);
+    return this.cmp.has(symbol);
   }
 
   compareKeys() {
-    return [...this.compares.keys()];
+    return this.cmp.keys();
   }
 
   removeCompare(symbol: string) {
-    const series = this.compares.get(symbol);
-    if (series) this.chart.removeSeries(series);
-    this.compares.delete(symbol);
-    this.compareData.delete(symbol);
-    this.syncLeftScale();
+    this.cmp.remove(symbol);
   }
 
   clearCompares() {
-    for (const s of this.compares.values()) this.chart.removeSeries(s);
-    this.compares.clear();
-    this.compareData.clear();
-    this.syncLeftScale();
-  }
-
-  private syncLeftScale() {
-    this.chart.applyOptions({
-      leftPriceScale: {
-        visible: this.compares.size > 0,
-        borderColor: CHART_THEME[this.mode].grid,
-        mode: PriceScaleMode.Percentage,
-      },
-    });
-    // 对比线的 left 标尺是此刻才存在的，倒垂要马上补上它。
-    this.syncMirror();
+    this.cmp.clear();
   }
 
   setTheme(mode: ThemeMode) {
@@ -875,7 +815,7 @@ export class ChartEngine {
       leftPriceScale: { borderColor: pal.grid },
       timeScale: { borderColor: pal.grid },
     });
-    this.syncLeftScale();
+    this.cmp.syncScale();
   }
 
   setVisibleTimeRange(from: number, to: number) {
@@ -922,7 +862,7 @@ export class ChartEngine {
   }
 
   screenshot() {
-    return this.chart.takeScreenshot();
+    return takeScreenshot(this.chart);
   }
 
   /** Show every resident bar — backfilled history is released first, so "all" means all. */
@@ -1005,12 +945,19 @@ export class ChartEngine {
     return series;
   }
 
-  private line(key: string, color: string, pane?: number) {
+  private line(
+    key: string,
+    color: string,
+    pane?: number,
+    opts?: { width?: number; lineStyle?: number; scale?: string },
+  ) {
     const s = this.chart.addSeries(
       LineSeries,
       {
         color,
-        lineWidth: 1,
+        lineWidth: Math.min(4, Math.max(1, opts?.width ?? 1)) as 1 | 2 | 3 | 4,
+        lineStyle: (opts?.lineStyle ?? 0) as any,
+        ...(opts?.scale ? { priceScaleId: opts.scale } : {}),
         priceLineVisible: false,
         lastValueVisible: false,
         crosshairMarkerVisible: false,
@@ -1044,6 +991,12 @@ export class ChartEngine {
         this.customFns,
         sub,
         ind.pane,
+        {
+          color: ind.color,
+          width: ind.width,
+          lineStyle: ind.style,
+          scale: ind.scale,
+        },
       )) {
         if (!spec.data.length) continue;
         // Reuse a series that already exists for this key: progressive reveals
@@ -1082,7 +1035,11 @@ export class ChartEngine {
                 existing?.series &&
                 (existing.series as ISeriesApi<"Line">).setData
                   ? (existing.series as ISeriesApi<"Line">)
-                  : this.line(spec.key, spec.color, spec.pane);
+                  : this.line(spec.key, spec.color, spec.pane, {
+                      width: spec.width,
+                      lineStyle: spec.lineStyle,
+                      scale: spec.scale,
+                    });
               s.setData(
                 spec.data.map((x) => ({
                   time: x.time as UTCTimestamp,
@@ -1272,16 +1229,16 @@ export class ChartEngine {
   }
 
   priceToY(price: number) {
-    return this.main?.priceToCoordinate(price) ?? null;
+    return coordPriceToY(this.main, price);
   }
   yToPrice(y: number) {
-    return this.main?.coordinateToPrice(y) ?? null;
+    return coordYToPrice(this.main, y);
   }
   timeToX(time: number) {
-    return this.chart.timeScale().timeToCoordinate(time as UTCTimestamp);
+    return coordTimeToX(this.chart, time);
   }
   xToTime(x: number) {
-    return this.chart.timeScale().coordinateToTime(x) as number | null;
+    return coordXToTime(this.chart, x);
   }
 
   /**
