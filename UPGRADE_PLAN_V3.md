@@ -108,8 +108,8 @@ Phase 3  交易与生态（~10%）—— 订单流/杠杆模式/OCO + 云端同�
 | `engine/data-pipeline.ts` | ✅ 已落地：decideCommit 纯决策（noop/schedule/tail/park/commit，6 单测），setFullData 全量接管 | 本轮，core 决策层 |
 | `engine/rest-queue.ts` | ✅ 已落地：RestQueue 一帧一个 setData 调度队列（refill/prepend/pump/cancel） | 本轮，core 调度层 |
 | `engine/core.ts` | 剩余薄层：commit/applyTail/pushIndTail/updateSeriesBar/updateLastBar（副作用） | 已足够薄，可与 events 合并收尾 |
-| `engine/events.ts` | 指针/滚轮/十字线/点击绘制事件绑定 | 依赖私有状态最多，最后拆 |
-| `chart-engine.ts` | 组合层 + 对外门面 | 1362 → 966 行 |
+| `engine/events.ts` | ✅ 已落地（纯函数层）：dragDelta/panRange/clampPanSensitivity（4 单测）；指针状态（interacting/dragging）与渲染管线共享故保持内聚，拆分会把状态引用扩散到 8 处 | 本轮收尾 |
+| `chart-engine.ts` | 组合层 + 对外门面 | 1362 → 966 行，P0-A 收官 ✅ |
 
 **验收**：拆分后跑通全量回归（含倒垂 16 断言、像素 4 主题、batch1-12 冒烟），无行为 diff。
 

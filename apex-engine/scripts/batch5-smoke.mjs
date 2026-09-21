@@ -86,24 +86,29 @@ const r = await page.evaluate(async () => {
     }
   }
 
-  // 4. DMI actually renders a sub-pane (engine panes grow)
-  try {
-    const eng = (window.__chartEngines || []).find(
-      (e) => (e.bars?.length || 0) > 0,
+  // 4. DMI actually renders a sub-pane (engine panes grow). The resident series
+  // must have real history first: while the prefill is frozen the dashboard
+  // parks bars at 1 and indicator panes never materialize (no data -> no series).
+  let eng = null;
+  for (let t = 0; t < 20; t++) {
+    eng = (window.__chartEngines || []).find(
+      (e) => (e.bars?.length || 0) > 1000,
     );
-    if (eng) {
-      const beforePanes = eng.chart.panes().length;
-      st.addIndicator("DMI");
-      await new Promise((res) => setTimeout(res, 800));
-      const afterPanes = eng.chart.panes().length;
-      out.dmiRenders = afterPanes > beforePanes;
-      const idx = st.indicators.findIndex((i) => i.kind === "DMI");
-      if (idx >= 0) st.removeIndicator(st.indicators[idx].id);
-    } else {
-      out.dmiRenders = "skipped (no live engine)";
-    }
-  } catch (e) {
-    out.dmiRenders = "error: " + String(e);
+    if (eng) break;
+    await new Promise((res) => setTimeout(res, 1000));
+  }
+  if (eng) {
+    const beforePanes = eng.chart.panes().length;
+    st.addIndicator("DMI");
+    // Full-history indicator compute + per-frame pane creation can exceed
+    // 800ms on a loaded page; 2s keeps the assertion stable under load.
+    await new Promise((res) => setTimeout(res, 2000));
+    const afterPanes = eng.chart.panes().length;
+    out.dmiRenders = afterPanes > beforePanes;
+    const idx = get().indicators.findIndex((i) => i.kind === "DMI");
+    if (idx >= 0) get().removeIndicator(get().indicators[idx].id);
+  } else {
+    out.dmiRenders = "skipped (history not landed)";
   }
 
   // 5. dataWarnings counters

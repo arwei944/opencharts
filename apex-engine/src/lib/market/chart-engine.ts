@@ -29,6 +29,7 @@ import { diffTail, initialLogicalRange, trimTail } from "./series-ops";
 import { lastHeikinAshi, type CustomFn } from "./indicator-compute";
 import { IndicatorRenderer } from "./indicator-render";
 import { decideCommit, REVEAL_CHUNK_BARS } from "./data-pipeline";
+import { clampPanSensitivity, dragDelta, panRange } from "./events";
 import { RestQueue } from "./rest-queue";
 import {
   CHART_THEME,
@@ -120,15 +121,23 @@ export class ChartEngine {
     if (!this.dragging || !this.dragStartRange) return;
     const lr = this.chart.timeScale().getVisibleLogicalRange();
     if (!lr || !Number.isFinite(lr.from) || !Number.isFinite(lr.to)) return;
-    const span = lr.to - lr.from;
-    const pxPerLogical = span / Math.max(1, this.host.clientWidth);
     // Sensitivity >1 means the chart follows the cursor faster than 1:1.
-    const dx = (e.clientX - this.dragStartX) * this.panSensitivity;
-    const deltaLogical = dx * pxPerLogical;
-    this.chart.timeScale().setVisibleLogicalRange({
-      from: this.dragStartRange.from - deltaLogical,
-      to: this.dragStartRange.to - deltaLogical,
-    });
+    const deltaLogical = dragDelta(
+      this.dragStartX,
+      e.clientX,
+      this.panSensitivity,
+      lr.to - lr.from,
+      this.host.clientWidth,
+    );
+    this.chart
+      .timeScale()
+      .setVisibleLogicalRange(
+        panRange(
+          this.dragStartRange.from,
+          this.dragStartRange.to,
+          deltaLogical,
+        ),
+      );
     // keep lock-alive while the pointer moves (same as the timer's intent)
     clearTimeout(this.interactTimer);
     this.interactTimer = setTimeout(() => this.markInteracting(), 150);
@@ -150,7 +159,7 @@ export class ChartEngine {
   };
   /** Mouse-drag pan sensitivity multiplier (1 = 1:1); >1 faster, <1 slower. */
   setPanSensitivity(v: number) {
-    this.panSensitivity = Math.max(0.2, Math.min(5, v || 1));
+    this.panSensitivity = clampPanSensitivity(v);
   }
 
   /**
