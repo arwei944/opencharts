@@ -25,14 +25,11 @@ import {
   xToTime as coordXToTime,
   yToPrice as coordYToPrice,
 } from "./export";
-import {
-  diffTail,
-  growsLeft,
-  initialLogicalRange,
-  trimTail,
-} from "./series-ops";
+import { diffTail, initialLogicalRange, trimTail } from "./series-ops";
 import { lastHeikinAshi, type CustomFn } from "./indicator-compute";
 import { IndicatorRenderer } from "./indicator-render";
+import { decideCommit, REVEAL_CHUNK_BARS } from "./data-pipeline";
+import { RestQueue } from "./rest-queue";
 import {
   CHART_THEME,
   DOWN,
@@ -41,12 +38,6 @@ import {
   UP,
 } from "./constants";
 
-/**
- * Length of a left-grow the prefill must accumulate before the resident
- * series is refreshed mid-fill, so a long history populates progressively
- * instead of hiding behind `frozen` until the final page.
- */
-const REVEAL_CHUNK_BARS = 20_000;
 import type { ThemeMode } from "./constants";
 import { formatTime } from "./timefmt";
 import { heikinAshi } from "./indicators";
@@ -170,13 +161,8 @@ export class ChartEngine {
     this.cursorHint = cursor;
     if (!this.dragging) this.host.style.cursor = cursor;
   }
-  /** Full-history `setData` calls still owed after the candles: one per frame. */
-  private restJobs: Array<() => void> = [];
-  /** The not-yet-run tail of the last commit's cosmetic queue. An indicator
-   * change mid-reveal must not swallow these, or the volume/compare panes stay
-   * truncated at whatever the previous commit reached. */
-  private owed: Array<() => void> = [];
-  private restRaf = 0;
+  /** One-setData-per-frame queue for cosmetic full-history redraws. */
+  private queue: RestQueue;
 
   onViewport?: (fromTime: number, toTime: number) => void;
   onRange?: (from: number, to: number) => void;
@@ -271,6 +257,10 @@ export class ChartEngine {
       indicators: this.indicators,
       customFns: this.customFns,
     }));
+    this.queue = new RestQueue(
+      () => this.interacting,
+      () => this.syncMirror(),
+    );
     this.rebuildMain();
     this.host.style.cursor = "default";
     this.chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
@@ -489,29 +479,39 @@ export class ChartEngine {
    */
   setFullData(bars: Candle[], frozen: boolean) {
     this.frozen = frozen;
-    if (bars === this.bars || bars === this.pending) {
-      if (!frozen && this.pending) this.scheduleCommit();
-      return;
-    }
-    if (this.applyTail(bars)) return;
-    const drawn = this.bars;
-    if (growsLeft(drawn, bars) && (frozen || this.interacting)) {
-      this.pending = bars;
-      // Progressive reveal: a left-grow fill can take minutes to finish, so
-      // once enough new bars have accumulated (and the pointer is idle) land
-      // them instead of making the user wait for the whole history. The big
-      // final pass then only fills the small remaining gap.
-      if (
-        this.pending.length - drawn.length >= REVEAL_CHUNK_BARS &&
-        !this.interacting
-      ) {
-        this.commit(bars);
+    const act = decideCommit(
+      this.bars,
+      bars,
+      frozen,
+      this.interacting,
+      this.pending,
+    );
+    switch (act.kind) {
+      case "noop":
+        return;
+      case "schedule":
+        this.scheduleCommit();
+        return;
+      case "tail":
+        this.applyTail(act.next);
+        return;
+      case "park": {
+        this.pending = act.next;
+        // Progressive reveal: a left-grow fill can take minutes to finish, so
+        // once enough new bars have accumulated (and the pointer is idle) land
+        // them instead of making the user wait for the whole history. The big
+        // final pass then only fills the small remaining gap.
+        if (act.reveal) {
+          this.commit(act.next);
+          return;
+        }
+        this.maybeRevealPending();
         return;
       }
-      this.maybeRevealPending();
-      return;
+      case "commit":
+        this.commit(act.next);
+        return;
     }
-    this.commit(bars);
   }
 
   private commit(bars: Candle[]) {
@@ -556,36 +556,11 @@ export class ChartEngine {
     // "where are my bars" — are already on screen. Extra series are reused
     // across commits (see renderer.jobs) so a progressive reveal only refreshes
     // their data instead of destroying + recreating every pane.
-    this.owed = [() => this.applyVol(), () => this.cmp.apply()];
-    this.restJobs = [...this.owed, ...this.render.jobs()];
-    this.pumpRest();
+    this.queue.refill(
+      [() => this.applyVol(), () => this.cmp.apply()],
+      this.render.jobs(),
+    );
   }
-
-  /** Run one queued `setData` per frame, so the reveal never becomes a freeze. */
-  private pumpRest() {
-    if (!this.restRaf) this.restRaf = requestAnimationFrame(this.runRest);
-  }
-
-  private runRest = () => {
-    this.restRaf = 0;
-    if (this.dead) return;
-    if (!this.restJobs.length) return;
-    if (this.interacting) {
-      // The pointer took the chart back mid-reveal: even cosmetic `setData`
-      // calls wait for it to lift. Cheap re-check, one frame apart.
-      this.pumpRest();
-      return;
-    }
-    const job = this.restJobs.shift();
-    // Once it runs the debt is paid; keeping it would replay a `setData` the
-    // next queue refill rebuilt on top of this one.
-    this.owed = this.owed.filter((j) => j !== job);
-    job?.();
-    // 指标 job 会 addSeries 到新 pane，新 pane 带着默认（未翻转）标尺进场：
-    // 每跑完一个就补一次，倒垂才不会在指标加载完的那一帧丢掉副图。
-    this.syncMirror();
-    if (this.restJobs.length) this.pumpRest();
-  };
 
   private maybeRevealPending() {
     if (this.dead || !this.pending) return;
@@ -641,7 +616,7 @@ export class ChartEngine {
         this.onViewport?.(tr.from as number, tr.to as number);
       }
       this.maybeRevealPending();
-      this.pumpRest();
+      this.queue.pump();
     });
   }
 
@@ -736,12 +711,7 @@ export class ChartEngine {
 
   /** Queue the indicator redraw: drop old lines, then repaint one series per frame. */
   private applyIndicators() {
-    this.restJobs = [
-      ...this.owed,
-      () => this.render.reset(),
-      ...this.render.jobs(),
-    ];
-    this.pumpRest();
+    this.queue.prepend(() => this.render.reset(), this.render.jobs());
   }
 
   setCompare(symbol: string, bars: Candle[], color?: string) {
@@ -973,9 +943,7 @@ export class ChartEngine {
   destroy() {
     this.dead = true;
     clearTimeout(this.interactTimer);
-    if (this.restRaf) cancelAnimationFrame(this.restRaf);
-    this.restRaf = 0;
-    this.restJobs = [];
+    this.queue.cancel();
     // ✅ P0 Bug Fix: Use matching options when removing event listeners
     this.host.removeEventListener("pointerdown", this.onPointerDown, {
       capture: true,
