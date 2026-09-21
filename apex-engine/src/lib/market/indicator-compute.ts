@@ -1,17 +1,21 @@
 import type { Candle } from "./types.ts";
 import {
+  aroon,
   atr,
   boll,
   cci,
+  dmi,
   ema,
   heikinAshi,
   kdj,
   macd,
+  mfi,
   obv,
   rsi,
   sar,
   sma,
   stoch,
+  stochrsi,
   supertrend,
   vwap,
   wr,
@@ -132,6 +136,30 @@ export function computeIndicator(
     line(`${id}-obv`, "#b7bdc6", sub.value++, obv(bars));
   } else if (kind === "ATR") {
     line(`${id}-atr`, "#f0b90b", sub.value++, atr(bars, params[0] ?? 14));
+  } else if (kind === "DMI") {
+    const pane = sub.value++;
+    const { plus, minus, adx } = dmi(bars, params[0] ?? 14);
+    line(`${id}-di`, "#0ecb81", pane, plus);
+    line(`${id}-dm`, "#f6465d", pane, minus);
+    line(`${id}-adx`, "#f0b90b", pane, adx);
+  } else if (kind === "STOCHRSI") {
+    const pane = sub.value++;
+    const { k, d } = stochrsi(
+      bars,
+      params[0] ?? 14,
+      params[1] ?? 14,
+      params[2] ?? 3,
+      params[3] ?? 3,
+    );
+    line(`${id}-srk`, "#f0b90b", pane, k);
+    line(`${id}-srd`, "#00d4ff", pane, d);
+  } else if (kind === "MFI") {
+    line(`${id}-mfi`, "#f0b90b", sub.value++, mfi(bars, params[0] ?? 14));
+  } else if (kind === "AROON") {
+    const pane = sub.value++;
+    const { up, dn } = aroon(bars, params[0] ?? 25);
+    line(`${id}-au`, "#0ecb81", pane, up);
+    line(`${id}-ad`, "#f6465d", pane, dn);
   } else if (kind === "CUSTOM") {
     const fn = customFns[id];
     if (fn) {

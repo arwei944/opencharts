@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { fetchDepth, fetchPremium, fetchTicker, fetchWatch } from "./api";
+import { intervalSec } from "./bars";
 import { cancelHistory, compareRef, ensureCompleteHistory } from "./history";
 import { parseKline } from "./kline-parser";
 import { useTerminal } from "./store";
+import { checkBar } from "./validator";
 import type { Interval } from "./types";
 
 const WS_BASES = [
@@ -150,6 +152,17 @@ export function useMarketFeed() {
           const streamSym = (streamSymRaw || symbol).toUpperCase();
           const iv = (rest?.replace("kline_", "") || interval) as Interval;
           if (streamSym === symbol && iv === interval) {
+            // Data integrity: count missing bars and drop anomalous ticks so
+            // feed garbage can never pollute the resident series.
+            const st0 = useTerminal.getState();
+            const check = checkBar(st0.bars.at(-1), bar, intervalSec(iv));
+            if (check.gap > 0 || check.anomaly) {
+              st0.reportDataWarning({
+                gaps: check.gap,
+                anomalies: check.anomaly ? 1 : 0,
+              });
+            }
+            if (check.anomaly) return; // skip the corrupt tick entirely
             useTerminal.getState().updateBar(bar);
             const t = useTerminal.getState().ticker;
             if (t) {

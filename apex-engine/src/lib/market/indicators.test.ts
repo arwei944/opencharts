@@ -1,9 +1,28 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { sma, ema, rsi, macd, boll } from "./indicators.ts";
+import {
+  sma,
+  ema,
+  rsi,
+  macd,
+  boll,
+  dmi,
+  stochrsi,
+  mfi,
+  aroon,
+} from "./indicators.ts";
 
 /** Deterministic synthetic series: 60 bars, close drifting upward. */
-function makeBars(n = 60): { time: number; open: number; high: number; low: number; close: number; volume: number }[] {
+function makeBars(
+  n = 60,
+): {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}[] {
   return Array.from({ length: n }, (_, i) => {
     const close = 100 + i;
     return {
@@ -59,7 +78,10 @@ test("rsi bounded in [0, 100] and high for an uptrend", () => {
     assert.ok(p.value >= 0 && p.value <= 100, `RSI out of range: ${p.value}`);
   }
   const up = rsi(makeBars(40), 14);
-  assert.ok(up[up.length - 1].value > 70, `expected RSI > 70, got ${up[up.length - 1].value}`);
+  assert.ok(
+    up[up.length - 1].value > 70,
+    `expected RSI > 70, got ${up[up.length - 1].value}`,
+  );
 });
 
 test("macd returns dif/dea/hist aligned to each other with hist = dif - dea", () => {
@@ -71,7 +93,9 @@ test("macd returns dif/dea/hist aligned to each other with hist = dif - dea", ()
   assert.equal(hist.length, dea.length);
   const lag = dif.length - dea.length;
   for (let i = 0; i < hist.length; i++) {
-    assert.ok(Math.abs(hist[i].value - (dif[i + lag].value - dea[i].value)) < 1e-6);
+    assert.ok(
+      Math.abs(hist[i].value - (dif[i + lag].value - dea[i].value)) < 1e-6,
+    );
   }
 });
 
@@ -85,4 +109,61 @@ test("boll middle band equals sma, upper > mid > lower", () => {
     assert.ok(upper[i].value > mid[i].value);
     assert.ok(mid[i].value > lower[i].value);
   }
+});
+
+test("dmi emits +DI/-DI in [0,100] and ADX after 2×period warmup", () => {
+  const bars = makeBars(120);
+  const { plus, minus, adx } = dmi(bars, 14);
+  assert.ok(plus.length > 0);
+  assert.equal(plus.length, minus.length);
+  // In a pure uptrend +DI dominates -DI.
+  const lastPlus = plus[plus.length - 1].value;
+  const lastMinus = minus[plus.length - 1].value;
+  assert.ok(
+    lastPlus > lastMinus,
+    `expected +DI > -DI, got ${lastPlus} vs ${lastMinus}`,
+  );
+  for (const p of [...plus, ...minus, ...adx]) {
+    assert.ok(p.value >= 0 && p.value <= 100, `DMI out of range: ${p.value}`);
+  }
+  assert.ok(adx.length > 0 && adx[adx.length - 1].value > 0);
+});
+
+test("stochrsi is bounded in [0,100] with k/d aligned", () => {
+  const bars = makeBars(80);
+  const { k, d } = stochrsi(bars, 14, 14, 3, 3);
+  assert.ok(k.length > 0 && d.length > 0);
+  for (const p of [...k, ...d]) {
+    assert.ok(
+      p.value >= 0 && p.value <= 100,
+      `StochRSI out of range: ${p.value}`,
+    );
+  }
+});
+
+test("mfi is bounded in [0,100] and high for an uptrend", () => {
+  const bars = makeBars(80);
+  const line = mfi(bars, 14);
+  assert.ok(line.length > 0);
+  for (const p of line) {
+    assert.ok(p.value >= 0 && p.value <= 100, `MFI out of range: ${p.value}`);
+  }
+  assert.ok(
+    line[line.length - 1].value > 50,
+    "expected MFI > 50 in an uptrend",
+  );
+});
+
+test("aroon up/down in [0,100] with up near 100 at a fresh high", () => {
+  const bars = makeBars(60);
+  const { up, dn } = aroon(bars, 25);
+  assert.ok(up.length > 0 && up.length === dn.length);
+  for (const p of [...up, ...dn]) {
+    assert.ok(p.value >= 0 && p.value <= 100, `AROON out of range: ${p.value}`);
+  }
+  // The last bar is the highest (uptrend) -> AroonUp hits its peak.
+  assert.ok(
+    up[up.length - 1].value > 90,
+    `expected AroonUp near 100, got ${up[up.length - 1].value}`,
+  );
 });

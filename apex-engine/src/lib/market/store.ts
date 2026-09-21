@@ -105,6 +105,11 @@ export interface TerminalState {
   live: boolean;
   /** Connection health: connecting | live | degraded | offline */
   conn: "connecting" | "live" | "degraded" | "offline";
+  /** Live-feed integrity counters (gaps between bars, anomalous ticks). */
+  dataWarnings: { gaps: number; anomalies: number };
+  reportDataWarning: (
+    patch: Partial<{ gaps: number; anomalies: number }>,
+  ) => void;
   overlay: Candle | null;
   /** Price from a chart click, waiting for the OrderTicket to confirm. */
   chartOrderPrice: number | null;
@@ -165,6 +170,11 @@ export interface TerminalState {
   setLive: (v: boolean) => void;
   setConn: (c: "connecting" | "live" | "degraded" | "offline") => void;
   setOverlay: (c: Candle | null) => void;
+  /** Desktop side-panel visibility (Watchlist / Book-Tape columns). */
+  leftPanelOpen: boolean;
+  rightPanelOpen: boolean;
+  setLeftPanelOpen: (v: boolean) => void;
+  setRightPanelOpen: (v: boolean) => void;
   setSearchOpen: (v: boolean) => void;
   setIndicatorOpen: (v: boolean) => void;
   setSettingsOpen: (v: boolean) => void;
@@ -237,6 +247,9 @@ export const useTerminal = create<TerminalState>()(
       watchSymbols: DEFAULT_WATCH,
       live: false,
       conn: "connecting",
+      dataWarnings: { gaps: 0, anomalies: 0 },
+      leftPanelOpen: true,
+      rightPanelOpen: true,
       overlay: null,
       searchOpen: false,
       indicatorOpen: false,
@@ -543,6 +556,15 @@ export const useTerminal = create<TerminalState>()(
         set({ watchSymbols: get().watchSymbols.filter((x) => x !== s) }),
       setLive: (live) => set({ live, conn: live ? "live" : "degraded" }),
       setConn: (conn) => set({ conn }),
+      reportDataWarning: (patch) =>
+        set((s) => ({
+          dataWarnings: {
+            gaps: s.dataWarnings.gaps + (patch.gaps ?? 0),
+            anomalies: s.dataWarnings.anomalies + (patch.anomalies ?? 0),
+          },
+        })),
+      setLeftPanelOpen: (leftPanelOpen) => set({ leftPanelOpen }),
+      setRightPanelOpen: (rightPanelOpen) => set({ rightPanelOpen }),
       setOverlay: (overlay) => set({ overlay }),
       chartOrderPrice: null,
       setChartOrderPrice: (chartOrderPrice) => set({ chartOrderPrice }),
@@ -686,6 +708,8 @@ export const useTerminal = create<TerminalState>()(
         syncCrosshair: s.syncCrosshair,
         chartSettings: s.chartSettings,
         tpsl: s.tpsl,
+        leftPanelOpen: s.leftPanelOpen,
+        rightPanelOpen: s.rightPanelOpen,
       }),
     },
   ),

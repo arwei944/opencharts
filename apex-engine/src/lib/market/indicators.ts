@@ -2,7 +2,11 @@ import type { Candle } from "./types";
 
 type Line = { time: number; value: number }[];
 
-export function sma(bars: Candle[], period: number, field: keyof Candle = "close"): Line {
+export function sma(
+  bars: Candle[],
+  period: number,
+  field: keyof Candle = "close",
+): Line {
   const out: Line = [];
   let sum = 0;
   for (let i = 0; i < bars.length; i++) {
@@ -51,7 +55,14 @@ export function macd(bars: Candle[], fast = 12, slow = 26, signal = 9) {
     const b = map.get(a.time);
     if (b != null) dif.push({ time: a.time, value: a.value - b });
   }
-  const fake = dif.map((d) => ({ time: d.time, open: d.value, high: d.value, low: d.value, close: d.value, volume: 0 }));
+  const fake = dif.map((d) => ({
+    time: d.time,
+    open: d.value,
+    high: d.value,
+    low: d.value,
+    close: d.value,
+    volume: 0,
+  }));
   const dea = ema(fake, signal);
   const deaMap = new Map(dea.map((x) => [x.time, x.value]));
   const hist: { time: number; value: number; color?: string }[] = [];
@@ -59,7 +70,11 @@ export function macd(bars: Candle[], fast = 12, slow = 26, signal = 9) {
     const s = deaMap.get(d.time);
     if (s == null) continue;
     const h = d.value - s;
-    hist.push({ time: d.time, value: h, color: h >= 0 ? "#0ecb8188" : "#f6465d88" });
+    hist.push({
+      time: d.time,
+      value: h,
+      color: h >= 0 ? "#0ecb8188" : "#f6465d88",
+    });
   }
   return { dif, dea, hist };
 }
@@ -125,10 +140,20 @@ export function stoch(bars: Candle[], kPeriod = 14, dPeriod = 3) {
       hh = Math.max(hh, bars[t].high);
       ll = Math.min(ll, bars[t].low);
     }
-    raw.push({ time: bars[i].time, value: hh === ll ? 50 : ((bars[i].close - ll) / (hh - ll)) * 100 });
+    raw.push({
+      time: bars[i].time,
+      value: hh === ll ? 50 : ((bars[i].close - ll) / (hh - ll)) * 100,
+    });
   }
   const d = sma(
-    raw.map((x) => ({ time: x.time, open: x.value, high: x.value, low: x.value, close: x.value, volume: 0 })),
+    raw.map((x) => ({
+      time: x.time,
+      open: x.value,
+      high: x.value,
+      low: x.value,
+      close: x.value,
+      volume: 0,
+    })),
     dPeriod,
   );
   return { k: raw, d };
@@ -144,7 +169,10 @@ export function wr(bars: Candle[], period = 14): Line {
       hh = Math.max(hh, bars[t].high);
       ll = Math.min(ll, bars[t].low);
     }
-    out.push({ time: bars[i].time, value: hh === ll ? 0 : ((hh - bars[i].close) / (hh - ll)) * -100 });
+    out.push({
+      time: bars[i].time,
+      value: hh === ll ? 0 : ((hh - bars[i].close) / (hh - ll)) * -100,
+    });
   }
   return out;
 }
@@ -157,9 +185,13 @@ export function cci(bars: Candle[], period = 14): Line {
     for (let j = 0; j < period; j++) sum += tp[i - period + 1 + j];
     const ma = sum / period;
     let md = 0;
-    for (let j = 0; j < period; j++) md += Math.abs(tp[i - period + 1 + j] - ma);
+    for (let j = 0; j < period; j++)
+      md += Math.abs(tp[i - period + 1 + j] - ma);
     md /= period;
-    out.push({ time: bars[i].time, value: md === 0 ? 0 : (tp[i] - ma) / (0.015 * md) });
+    out.push({
+      time: bars[i].time,
+      value: md === 0 ? 0 : (tp[i] - ma) / (0.015 * md),
+    });
   }
   return out;
 }
@@ -289,11 +321,176 @@ export function supertrend(bars: Candle[], period = 10, mult = 3) {
   return { up, dn };
 }
 
+function trOf(b: Candle, prev: Candle): number {
+  return Math.max(
+    b.high - b.low,
+    Math.abs(b.high - prev.close),
+    Math.abs(b.low - prev.close),
+  );
+}
+
+function dmOf(b: Candle, prev: Candle): { p: number; m: number } {
+  const up = b.high - prev.high;
+  const dn = prev.low - b.low;
+  if (up > dn && up > 0) return { p: up, m: 0 };
+  if (dn > up && dn > 0) return { p: 0, m: dn };
+  return { p: 0, m: 0 };
+}
+
+/** DMI (+DI/-DI) with Wilder's ADX, all in the 0..100 oscillator band. */
+export function dmi(bars: Candle[], period = 14) {
+  const plus: Line = [];
+  const minus: Line = [];
+  const adx: Line = [];
+  const n = bars.length;
+  if (n < period + 1) return { plus, minus, adx };
+  let tr = 0;
+  let pdm = 0;
+  let ndm = 0;
+  for (let i = 1; i <= period; i++) {
+    tr += trOf(bars[i], bars[i - 1]);
+    const { p, m } = dmOf(bars[i], bars[i - 1]);
+    pdm += p;
+    ndm += m;
+  }
+  const dxOf = (p: number, m: number) =>
+    p + m === 0 ? 0 : (Math.abs(p - m) / (p + m)) * 100;
+  let dxSum = dxOf((pdm / tr) * 100, (ndm / tr) * 100);
+  plus.push({ time: bars[period].time, value: (pdm / tr) * 100 });
+  minus.push({ time: bars[period].time, value: (ndm / tr) * 100 });
+  let adxv = 0;
+  for (let i = period + 1; i < n; i++) {
+    const t = trOf(bars[i], bars[i - 1]);
+    const { p, m } = dmOf(bars[i], bars[i - 1]);
+    tr = tr - tr / period + t;
+    pdm = pdm - pdm / period + p;
+    ndm = ndm - ndm / period + m;
+    const pi = (pdm / tr) * 100;
+    const mi = (ndm / tr) * 100;
+    plus.push({ time: bars[i].time, value: pi });
+    minus.push({ time: bars[i].time, value: mi });
+    const dx = dxOf(pi, mi);
+    if (i < period * 2) {
+      // First ADX = simple average of the first `period` DX values.
+      dxSum += dx;
+      if (i === period * 2 - 1) {
+        adxv = dxSum / period;
+        adx.push({ time: bars[i].time, value: adxv });
+      }
+    } else {
+      adxv = (adxv * (period - 1) + dx) / period;
+      adx.push({ time: bars[i].time, value: adxv });
+    }
+  }
+  return { plus, minus, adx };
+}
+
+/** Stochastic of RSI — the classic overbought/oversold refinement. */
+export function stochrsi(
+  bars: Candle[],
+  rsiPeriod = 14,
+  stochPeriod = 14,
+  kSmooth = 3,
+  dSmooth = 3,
+) {
+  const r = rsi(bars, rsiPeriod);
+  const raw: Line = [];
+  for (let i = 0; i < r.length; i++) {
+    const from = Math.max(0, i - stochPeriod + 1);
+    let hh = -Infinity;
+    let ll = Infinity;
+    for (let t = from; t <= i; t++) {
+      hh = Math.max(hh, r[t].value);
+      ll = Math.min(ll, r[t].value);
+    }
+    raw.push({
+      time: r[i].time,
+      value: hh === ll ? 50 : ((r[i].value - ll) / (hh - ll)) * 100,
+    });
+  }
+  const toCandles = (l: Line) =>
+    l.map((x) => ({
+      time: x.time,
+      open: x.value,
+      high: x.value,
+      low: x.value,
+      close: x.value,
+      volume: 0,
+    }));
+  const k = sma(toCandles(raw), kSmooth);
+  const d = sma(toCandles(k), dSmooth);
+  return { k, d };
+}
+
+/** Money Flow Index — volume-weighted RSI analogue. */
+export function mfi(bars: Candle[], period = 14): Line {
+  const out: Line = [];
+  let pos = 0;
+  let neg = 0;
+  for (let i = 1; i < bars.length; i++) {
+    const tp = (bars[i].high + bars[i].low + bars[i].close) / 3;
+    const ptp = (bars[i - 1].high + bars[i - 1].low + bars[i - 1].close) / 3;
+    const mf = tp * bars[i].volume;
+    if (tp > ptp) pos += mf;
+    else if (tp < ptp) neg += mf;
+    if (i >= period) {
+      const old = i - period + 1;
+      const otp = (bars[old].high + bars[old].low + bars[old].close) / 3;
+      const potp =
+        (bars[old - 1].high + bars[old - 1].low + bars[old - 1].close) / 3;
+      const omf = otp * bars[old].volume;
+      if (otp > potp) pos -= omf;
+      else if (otp < potp) neg -= omf;
+      const ratio = neg === 0 ? 100 : pos / neg;
+      out.push({ time: bars[i].time, value: 100 - 100 / (1 + ratio) });
+    }
+  }
+  return out;
+}
+
+/** Aroon up/down — trend age within a lookback window. */
+export function aroon(bars: Candle[], period = 25) {
+  const up: Line = [];
+  const dn: Line = [];
+  for (let i = 0; i < bars.length; i++) {
+    const from = Math.max(0, i - period);
+    let hh = -Infinity;
+    let ll = Infinity;
+    let hi = from;
+    let li = from;
+    for (let t = from; t <= i; t++) {
+      if (bars[t].high > hh) {
+        hh = bars[t].high;
+        hi = t;
+      }
+      if (bars[t].low < ll) {
+        ll = bars[t].low;
+        li = t;
+      }
+    }
+    if (i >= period) {
+      up.push({
+        time: bars[i].time,
+        value: ((period - (i - hi)) / period) * 100,
+      });
+      dn.push({
+        time: bars[i].time,
+        value: ((period - (i - li)) / period) * 100,
+      });
+    }
+  }
+  return { up, dn };
+}
+
+/** Heikin-Ashi candles derived from raw OHLC. */
 export function heikinAshi(bars: Candle[]): Candle[] {
   const out: Candle[] = [];
   for (let i = 0; i < bars.length; i++) {
     const c = (bars[i].open + bars[i].high + bars[i].low + bars[i].close) / 4;
-    const o = i === 0 ? (bars[i].open + bars[i].close) / 2 : (out[i - 1].open + out[i - 1].close) / 2;
+    const o =
+      i === 0
+        ? (bars[i].open + bars[i].close) / 2
+        : (out[i - 1].open + out[i - 1].close) / 2;
     out.push({
       time: bars[i].time,
       open: o,

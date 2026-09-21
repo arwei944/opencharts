@@ -51,6 +51,7 @@ export const TOOLS: { id: Tool; label: string }[] = [
   { id: "cursor", label: "指针" },
   { id: "cross", label: "十字" },
   { id: "order", label: "下单" },
+  { id: "text", label: "文字" },
   { id: "trend", label: "趋势线" },
   { id: "ray", label: "射线" },
   { id: "hline", label: "水平线" },
@@ -137,6 +138,34 @@ export const INDICATOR_CATALOG: {
   { kind: "CCI", name: "CCI", group: "sub", defaults: [14], labels: ["周期"] },
   { kind: "OBV", name: "OBV", group: "sub", defaults: [], labels: [] },
   { kind: "ATR", name: "ATR", group: "sub", defaults: [14], labels: ["周期"] },
+  {
+    kind: "DMI",
+    name: "DMI/ADX",
+    group: "sub",
+    defaults: [14],
+    labels: ["周期"],
+  },
+  {
+    kind: "STOCHRSI",
+    name: "StochRSI",
+    group: "sub",
+    defaults: [14, 14, 3, 3],
+    labels: ["RSI", "随机", "%K", "%D"],
+  },
+  {
+    kind: "MFI",
+    name: "MFI 资金流量",
+    group: "sub",
+    defaults: [14],
+    labels: ["周期"],
+  },
+  {
+    kind: "AROON",
+    name: "AROON",
+    group: "sub",
+    defaults: [25],
+    labels: ["周期"],
+  },
 ];
 
 export const LAYOUTS: { id: import("./types").ChartLayout; label: string }[] = [

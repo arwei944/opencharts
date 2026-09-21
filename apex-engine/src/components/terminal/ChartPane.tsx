@@ -12,7 +12,7 @@ import {
 } from "@/lib/market/history";
 import { NO_BARS, useTerminal } from "@/lib/market/store";
 import type { Candle, DrawPoint, Interval } from "@/lib/market/types";
-import { uid } from "@/lib/utils";
+import { fmtNum, fmtPx, uid } from "@/lib/utils";
 import { ChartToolbar } from "./ChartToolbar";
 import { ChartContextMenu } from "./ChartContextMenu";
 import { DrawingOverlay } from "./DrawingOverlay";
@@ -71,6 +71,28 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   const theme = useTerminal((s) => s.theme);
   const draft = useRef<DrawPoint[]>([]);
   const [, tick] = useState(0);
+  // Inline text-tool editor: position of the pending annotation input.
+  const [textDraft, setTextDraft] = useState<{
+    x: number;
+    y: number;
+    time: number;
+    price: number;
+  } | null>(null);
+  const [textDraftValue, setTextDraftValue] = useState("");
+  const textInput = useRef<HTMLInputElement>(null);
+  // True while the inline text editor is open: a subsequent chart click closes
+  // it instead of reopening the editor at the new spot.
+  const textOpenRef = useRef(false);
+  // Cursor-following OHLC readout (updated imperatively, never via React state).
+  const ohlcReadout = useRef<HTMLDivElement>(null);
+
+  const hideOhlcReadout = () => {
+    if (ohlcReadout.current) ohlcReadout.current.style.opacity = "0";
+  };
+
+  useEffect(() => {
+    if (textDraft) textInput.current?.focus();
+  }, [textDraft]);
 
   useEffect(() => {
     const el = host.current;
@@ -128,10 +150,33 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
         const t = param.time as number | undefined;
         if (!t) {
           useTerminal.getState().setOverlay(null);
+          hideOhlcReadout();
           return;
         }
         const bar = barAtTime(useTerminal.getState().bars, t);
         useTerminal.getState().setOverlay(bar ?? null);
+        if (bar && param.point && ohlcReadout.current) {
+          const ro = ohlcReadout.current;
+          ro.style.opacity = "1";
+          const w = el.clientWidth;
+          const left =
+            param.point.x + 14 + 200 > w
+              ? param.point.x - 210
+              : param.point.x + 14;
+          ro.style.transform = `translate(${Math.max(4, left)}px, ${Math.max(4, param.point.y - 28)}px)`;
+          const up = bar.close >= bar.open;
+          const cls = up ? "text-up" : "text-down";
+          ro.innerHTML =
+            `<span class="font-semibold text-fg">${useTerminal.getState().symbol}</span>` +
+            `<span class="text-subtle">${new Date(t * 1000).toLocaleString()}</span>` +
+            `<span class="${cls}">开 ${fmtPx(bar.open)}</span>` +
+            `<span class="${cls}">高 ${fmtPx(bar.high)}</span>` +
+            `<span class="${cls}">低 ${fmtPx(bar.low)}</span>` +
+            `<span class="${cls}">收 ${fmtPx(bar.close)}</span>` +
+            `<span class="text-subtle">量 ${fmtNum(bar.volume, 3)}</span>`;
+        } else if (ohlcReadout.current) {
+          ohlcReadout.current.style.opacity = "0";
+        }
       });
       const onClick = (param: {
         point?: { x: number; y: number };
@@ -151,6 +196,19 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
           return;
         }
         const pt = { time, price };
+        // Text annotation: open the inline editor at the click point.
+        if (cur === "text") {
+          if (textOpenRef.current) {
+            // Dismiss-click on the chart: close, don't re-open elsewhere.
+            textOpenRef.current = false;
+            setTextDraft(null);
+            setTextDraftValue("");
+            return;
+          }
+          textOpenRef.current = true;
+          setTextDraft({ x: param.point.x, y: param.point.y, time, price });
+          return;
+        }
         if (cur === "hline" || cur === "vline") {
           useTerminal.getState().addDrawing({
             id: uid(),
@@ -302,6 +360,11 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
       <ChartToolbar engine={eng.current} paneId={paneId} master={master} />
       <div className="relative min-h-0 flex-1">
         <div ref={host} className="absolute inset-0" />
+        <div
+          ref={ohlcReadout}
+          className="pointer-events-none absolute left-0 top-0 z-10 flex gap-2 whitespace-nowrap rounded-sm border border-border bg-elevated/90 px-1.5 py-0.5 text-[10px] leading-tight text-muted backdrop-blur-sm"
+          style={{ opacity: 0 }}
+        />
         <DrawingOverlay engine={eng.current} />
         <TpSlOverlay engine={eng.current} />
         <ChartContextMenu engine={eng.current} />
@@ -314,6 +377,42 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
             mirrorAxis={master && mirrorAxis}
             compareSymbols={compareSymbols}
             historyKey_={historyKey_}
+          />
+        )}
+        {textDraft && (
+          <input
+            ref={textInput}
+            value={textDraftValue}
+            onChange={(e) => setTextDraftValue(e.target.value)}
+            placeholder="输入标注文字，回车确认"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const t = textDraft;
+                const v = textDraftValue.trim();
+                textOpenRef.current = false;
+                setTextDraft(null);
+                setTextDraftValue("");
+                if (!t || !v) return;
+                useTerminal.getState().addDrawing({
+                  id: uid(),
+                  tool: "text",
+                  points: [{ time: t.time, price: t.price, text: v }],
+                  color: "#f0b90b",
+                });
+              } else if (e.key === "Escape") {
+                textOpenRef.current = false;
+                setTextDraft(null);
+                setTextDraftValue("");
+              }
+            }}
+            onBlur={() => {
+              textOpenRef.current = false;
+              setTextDraft(null);
+              setTextDraftValue("");
+            }}
+            className="absolute z-20 w-44 border border-gold bg-elevated px-1.5 py-0.5 text-xs text-fg outline-none"
+            style={{ left: textDraft.x, top: textDraft.y }}
           />
         )}
       </div>

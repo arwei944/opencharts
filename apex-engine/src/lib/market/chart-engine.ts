@@ -41,18 +41,22 @@ import {
 const REVEAL_CHUNK_BARS = 20_000;
 import type { ThemeMode } from "./constants";
 import {
+  aroon,
   atr,
   boll,
   cci,
+  dmi,
   ema,
   heikinAshi,
   kdj,
   macd,
+  mfi,
   obv,
   rsi,
   sar,
   sma,
   stoch,
+  stochrsi,
   supertrend,
   vwap,
   wr,
@@ -1091,6 +1095,27 @@ export class ChartEngine {
         push(`${ind.id}-obv`, lastOf(obv(bars)));
       } else if (ind.kind === "ATR") {
         push(`${ind.id}-atr`, lastOf(atr(bars, ind.params[0] ?? 14)));
+      } else if (ind.kind === "DMI") {
+        const { plus, minus, adx } = dmi(bars, ind.params[0] ?? 14);
+        push(`${ind.id}-di`, lastOf(plus));
+        push(`${ind.id}-dm`, lastOf(minus));
+        push(`${ind.id}-adx`, lastOf(adx));
+      } else if (ind.kind === "STOCHRSI") {
+        const { k, d } = stochrsi(
+          bars,
+          ind.params[0] ?? 14,
+          ind.params[1] ?? 14,
+          ind.params[2] ?? 3,
+          ind.params[3] ?? 3,
+        );
+        push(`${ind.id}-srk`, lastOf(k));
+        push(`${ind.id}-srd`, lastOf(d));
+      } else if (ind.kind === "MFI") {
+        push(`${ind.id}-mfi`, lastOf(mfi(bars, ind.params[0] ?? 14)));
+      } else if (ind.kind === "AROON") {
+        const { up, dn } = aroon(bars, ind.params[0] ?? 25);
+        push(`${ind.id}-au`, lastOf(up));
+        push(`${ind.id}-ad`, lastOf(dn));
       }
     }
   }

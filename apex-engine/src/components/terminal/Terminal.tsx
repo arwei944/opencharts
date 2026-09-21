@@ -23,10 +23,21 @@ export function Terminal() {
   const asks = useTerminal((s) => s.asks);
   const mobileTab = useTerminal((s) => s.mobileTab);
   const setMobileTab = useTerminal((s) => s.setMobileTab);
+  const leftPanelOpen = useTerminal((s) => s.leftPanelOpen);
+  const rightPanelOpen = useTerminal((s) => s.rightPanelOpen);
+  const setLeftPanelOpen = useTerminal((s) => s.setLeftPanelOpen);
+  const setRightPanelOpen = useTerminal((s) => s.setRightPanelOpen);
 
   useEffect(() => {
     if (!ticker) return;
-    usePaper.getState().onTick(symbol, ticker.last, bids[0]?.price ?? ticker.last, asks[0]?.price ?? ticker.last);
+    usePaper
+      .getState()
+      .onTick(
+        symbol,
+        ticker.last,
+        bids[0]?.price ?? ticker.last,
+        asks[0]?.price ?? ticker.last,
+      );
   }, [symbol, ticker, bids, asks]);
 
   return (
@@ -35,8 +46,31 @@ export function Terminal() {
       <Header />
       <TickerBar />
       <div className="flex min-h-0 flex-1">
-        <div className="hidden w-52 shrink-0 border-r border-border lg:block">
-          <Watchlist />
+        <div className="hidden shrink-0 lg:flex">
+          {leftPanelOpen ? (
+            <div className="flex w-52 flex-col border-r border-border">
+              <button
+                type="button"
+                onClick={() => setLeftPanelOpen(false)}
+                title="收起自选列表"
+                className="flex h-4 shrink-0 items-center justify-center border-b border-border text-[9px] text-subtle hover:bg-hover hover:text-fg"
+              >
+                ‹
+              </button>
+              <div className="min-h-0 flex-1">
+                <Watchlist />
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setLeftPanelOpen(true)}
+              title="展开自选列表"
+              className="w-4 self-center border-r border-border py-6 text-[10px] text-subtle hover:bg-hover hover:text-fg"
+            >
+              ›
+            </button>
+          )}
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col lg:hidden">
@@ -77,11 +111,37 @@ export function Terminal() {
             )}
           </div>
           <div className="hidden min-h-0 flex-1 grid-rows-[minmax(0,1fr)_220px] lg:grid">
-            <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_280px]">
+            <div
+              className="grid min-h-0"
+              style={{
+                gridTemplateColumns: `minmax(0,1fr) ${rightPanelOpen ? "280px" : "20px"}`,
+              }}
+            >
               <ChartBoard />
-              <div className="grid min-h-0 grid-rows-2 border-l border-border">
-                <OrderBook />
-                <TradesTape />
+              <div className="grid min-h-0 border-l border-border">
+                {rightPanelOpen ? (
+                  <div className="grid min-h-0 grid-rows-2">
+                    <button
+                      type="button"
+                      onClick={() => setRightPanelOpen(false)}
+                      title="收起盘口与成交"
+                      className="h-4 shrink-0 border-b border-border text-[9px] text-subtle hover:bg-hover hover:text-fg"
+                    >
+                      ›
+                    </button>
+                    <OrderBook />
+                    <TradesTape />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setRightPanelOpen(true)}
+                    title="展开盘口与成交"
+                    className="w-4 justify-self-end self-center py-6 text-[10px] text-subtle hover:bg-hover hover:text-fg"
+                  >
+                    ‹
+                  </button>
+                )}
               </div>
             </div>
             <div className="grid min-h-0 grid-cols-[320px_minmax(0,1fr)] border-t border-border">

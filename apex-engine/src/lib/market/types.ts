@@ -41,6 +41,8 @@ export interface CrosshairLink {
 export type Tool =
   | "cursor"
   | "cross"
+  | "order"
+  | "text"
   | "trend"
   | "ray"
   | "hline"
@@ -48,8 +50,7 @@ export type Tool =
   | "rect"
   | "fib"
   | "parallel"
-  | "measure"
-  | "order";
+  | "measure";
 
 export type IndicatorKind =
   | "MA"
@@ -67,6 +68,10 @@ export type IndicatorKind =
   | "OBV"
   | "ATR"
   | "STOCH"
+  | "DMI"
+  | "STOCHRSI"
+  | "MFI"
+  | "AROON"
   | "CUSTOM";
 
 export interface Candle {
@@ -115,6 +120,8 @@ export interface IndicatorInst {
 export interface DrawPoint {
   time: number;
   price: number;
+  /** Optional text content (text tool). */
+  text?: string;
 }
 
 export interface Drawing {

@@ -9,6 +9,7 @@ export function Header() {
   const setMarket = useTerminal((s) => s.setMarket);
   const quote = usePaper((s) => s.quote);
   const conn = useConnection();
+  const dataWarnings = useTerminal((s) => s.dataWarnings);
   const theme = useTerminal((s) => s.theme);
   const toggleTheme = useTerminal((s) => s.toggleTheme);
 
@@ -75,6 +76,29 @@ export function Header() {
                 ? "离线"
                 : "连接中"}
         </span>
+        {(dataWarnings.gaps > 0 || dataWarnings.anomalies > 0) && (
+          <span
+            className="flex items-center gap-1 text-gold"
+            title={`行情异常 ${dataWarnings.anomalies} 次 · 数据缺口 ${dataWarnings.gaps} 根（异常tick已过滤）`}
+          >
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+              <path d="M12 9v4" />
+              <path d="M12 17h.01" />
+            </svg>
+            数据 {dataWarnings.anomalies + dataWarnings.gaps}
+          </span>
+        )}
         <span className="hidden text-muted sm:inline">
           权益{" "}
           <span className="font-mono text-fg">{fmtNum(quote, 2)} USDT</span>

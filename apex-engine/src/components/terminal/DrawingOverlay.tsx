@@ -60,7 +60,7 @@ export function DrawingOverlay({ engine }: { engine: ChartEngine | null }) {
         const yr = engine.yToPrice(y);
         if (xr == null || yr == null) return;
         const points = drawing.points.map((p, i) =>
-          i === d.anchorIdx ? { time: xr as number, price: yr } : p,
+          i === d.anchorIdx ? { ...p, time: xr as number, price: yr } : p,
         );
         st.updateDrawing(d.id, { points });
       } else {
@@ -73,6 +73,7 @@ export function DrawingOverlay({ engine }: { engine: ChartEngine | null }) {
         const dt = (xr1 as number) - (xr0 as number);
         const dp = yr1 - yr0;
         const points = drawing.points.map((p) => ({
+          ...p,
           time: p.time + dt,
           price: p.price + dp,
         }));
@@ -192,6 +193,26 @@ function DrawShape({
       ))
     : null;
 
+  if (d.tool === "text" && pts[0]) {
+    return (
+      <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
+        <text
+          x={pts[0].x}
+          y={pts[0].y}
+          fill={color}
+          fontSize={12}
+          fontWeight={selected ? 700 : 500}
+          opacity={opacity}
+          stroke="rgba(11,14,17,0.75)"
+          strokeWidth={3}
+          paintOrder="stroke"
+        >
+          {d.points[0].text}
+        </text>
+        {anchors}
+      </g>
+    );
+  }
   if (d.tool === "hline" && pts[0]) {
     return (
       <g>
