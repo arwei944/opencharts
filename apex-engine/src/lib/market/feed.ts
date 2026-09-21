@@ -54,6 +54,10 @@ export function useMarketFeed() {
   const watchSymbols = useTerminal((s) => s.watchSymbols);
   const panes = useTerminal((s) => s.panes);
   const compareSymbols = useTerminal((s) => s.compareSymbols);
+  // Derived stream identities: panes/compareSymbols are only read to build the
+  // stream list, so these strings are the real effect dependencies.
+  const paneIntervalsKey = panes.map((p) => p.interval).join("|");
+  const compareKey = compareSymbols.join("|");
 
   useEffect(() => {
     let dead = false;
@@ -345,14 +349,8 @@ export function useMarketFeed() {
       document.removeEventListener("visibilitychange", onVisibility);
       teardown();
     };
-    // panes/compareSymbols are only read to build the stream list; the derived
-    // strings below are the real identities, so they are the dependencies.
+    // paneIntervalsKey/compareKey are the real identities (the arrays they
+    // derive from are only read to build the stream list).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    symbol,
-    interval,
-    market,
-    panes.map((p) => p.interval).join("|"),
-    compareSymbols.join("|"),
-  ]);
+  }, [symbol, interval, market, paneIntervalsKey, compareKey]);
 }

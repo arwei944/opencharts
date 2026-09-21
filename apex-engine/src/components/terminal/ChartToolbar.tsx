@@ -1,7 +1,18 @@
 import { useEffect, useState } from "react";
-import { Camera, Maximize2, MousePointer2, SlidersHorizontal } from "lucide-react";
+import {
+  Camera,
+  Maximize2,
+  MousePointer2,
+  SlidersHorizontal,
+} from "lucide-react";
 import type { ChartEngine } from "@/lib/market/chart-engine";
-import { CHART_TYPES, INTERVALS, INTERVAL_MS, LAYOUTS, TOOLS } from "@/lib/market/constants";
+import {
+  CHART_TYPES,
+  INTERVALS,
+  INTERVAL_MS,
+  LAYOUTS,
+  TOOLS,
+} from "@/lib/market/constants";
 import { NO_BARS, useTerminal } from "@/lib/market/store";
 import type { ChartLayout, Interval } from "@/lib/market/types";
 import { cn } from "@/lib/utils";
@@ -13,9 +24,14 @@ interface ChartToolbarProps {
   master?: boolean;
 }
 
-export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartToolbarProps) {
+export function ChartToolbar({
+  engine,
+  paneId = "p0",
+  master = true,
+}: ChartToolbarProps) {
   const pane = useTerminal((s) => s.panes.find((p) => p.id === paneId));
-  const interval = (pane?.interval ?? useTerminal.getState().interval) as Interval;
+  const interval = (pane?.interval ??
+    useTerminal.getState().interval) as Interval;
   const setPaneInterval = useTerminal((s) => s.setPaneInterval);
   const chartType = useTerminal((s) => s.chartType);
   const setChartType = useTerminal((s) => s.setChartType);
@@ -28,8 +44,9 @@ export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartTool
   const toggleLog = useTerminal((s) => s.toggleLog);
   const toggleVol = useTerminal((s) => s.toggleVol);
   const setIndicatorOpen = useTerminal((s) => s.setIndicatorOpen);
-  const popDrawing = useTerminal((s) => s.popDrawing);
   const clearDrawings = useTerminal((s) => s.clearDrawings);
+  const undo = useTerminal((s) => s.undo);
+  const redo = useTerminal((s) => s.redo);
   const layout = useTerminal((s) => s.layout);
   const setLayout = useTerminal((s) => s.setLayout);
   const compareSymbols = useTerminal((s) => s.compareSymbols);
@@ -42,7 +59,9 @@ export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartTool
   const [cmp, setCmp] = useState("");
   // Subscribe to the last bar's open time only (not the whole 100k array): an
   // in-flight WS tick updates the same bar, so the toolbar must not re-render.
-  const lastBarTime = useTerminal((s) => (master ? s.bars : (s.paneBars[paneId] ?? NO_BARS)).at(-1)?.time);
+  const lastBarTime = useTerminal(
+    (s) => (master ? s.bars : (s.paneBars[paneId] ?? NO_BARS)).at(-1)?.time,
+  );
   const closeAt = lastBarTime ? lastBarTime * 1000 + INTERVAL_MS[interval] : 0;
 
   const screenshot = () => {
@@ -57,10 +76,15 @@ export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartTool
     });
   };
   const exportCsv = () => {
-    const list = (master ? useTerminal.getState().bars : (useTerminal.getState().paneBars[paneId] ?? NO_BARS));
+    const list = master
+      ? useTerminal.getState().bars
+      : (useTerminal.getState().paneBars[paneId] ?? NO_BARS);
     const rows = [
       "time,open,high,low,close,volume",
-      ...list.map((b) => `${new Date(b.time * 1000).toISOString()},${b.open},${b.high},${b.low},${b.close},${b.volume}`),
+      ...list.map(
+        (b) =>
+          `${new Date(b.time * 1000).toISOString()},${b.open},${b.high},${b.low},${b.close},${b.volume}`,
+      ),
     ];
     const blob = new Blob([rows.join("\n")], { type: "text/csv" });
     const a = document.createElement("a");
@@ -85,7 +109,12 @@ export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartTool
         <button
           key={iv.id}
           type="button"
-          className={cn("whitespace-nowrap rounded-sm px-1.5 py-0.5", interval === iv.id ? "bg-elevated text-gold" : "text-muted hover:text-fg")}
+          className={cn(
+            "whitespace-nowrap rounded-sm px-1.5 py-0.5",
+            interval === iv.id
+              ? "bg-elevated text-gold"
+              : "text-muted hover:text-fg",
+          )}
           onClick={() => setPaneInterval(paneId, iv.id)}
         >
           {iv.label}
@@ -112,16 +141,44 @@ export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartTool
               key={t.id}
               type="button"
               title={t.label}
-              className={cn("rounded-sm px-1.5 py-0.5", tool === t.id ? "bg-elevated text-gold" : "text-muted hover:text-fg")}
+              className={cn(
+                "rounded-sm px-1.5 py-0.5",
+                tool === t.id
+                  ? "bg-elevated text-gold"
+                  : "text-muted hover:text-fg",
+              )}
               onClick={() => setTool(t.id)}
             >
-              {t.id === "cursor" ? <MousePointer2 className="size-3.5" /> : t.label}
+              {t.id === "cursor" ? (
+                <MousePointer2 className="size-3.5" />
+              ) : (
+                t.label
+              )}
             </button>
           ))}
-          <button type="button" className="rounded-sm px-1.5 text-muted hover:text-fg" onClick={popDrawing}>
+          <button
+            type="button"
+            className="rounded-sm px-1.5 text-muted hover:text-fg"
+            onClick={undo}
+            aria-label="撤销"
+            title="撤销 (Ctrl+Z)"
+          >
             撤销
           </button>
-          <button type="button" className="rounded-sm px-1.5 text-muted hover:text-fg" onClick={clearDrawings}>
+          <button
+            type="button"
+            className="rounded-sm px-1.5 text-muted hover:text-fg"
+            onClick={redo}
+            aria-label="重做"
+            title="重做 (Ctrl+Y)"
+          >
+            重做
+          </button>
+          <button
+            type="button"
+            className="rounded-sm px-1.5 text-muted hover:text-fg"
+            onClick={clearDrawings}
+          >
             清空
           </button>
         </>
@@ -135,13 +192,31 @@ export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartTool
       >
         指标
       </button>
-      <button type="button" className={cn("rounded-sm px-1.5", showVol ? "text-gold" : "text-muted")} onClick={toggleVol}>
+      <button
+        type="button"
+        className={cn(
+          "rounded-sm px-1.5",
+          showVol ? "text-gold" : "text-muted",
+        )}
+        onClick={toggleVol}
+      >
         VOL
       </button>
-      <button type="button" className={cn("rounded-sm px-1.5", logScale ? "text-gold" : "text-muted")} onClick={toggleLog}>
+      <button
+        type="button"
+        className={cn(
+          "rounded-sm px-1.5",
+          logScale ? "text-gold" : "text-muted",
+        )}
+        onClick={toggleLog}
+      >
         Log
       </button>
-      <button type="button" className={cn("rounded-sm px-1.5", invert ? "text-gold" : "text-muted")} onClick={toggleInvert}>
+      <button
+        type="button"
+        className={cn("rounded-sm px-1.5", invert ? "text-gold" : "text-muted")}
+        onClick={toggleInvert}
+      >
         红涨绿跌
       </button>
       <InvertedViewToggle />
@@ -153,7 +228,10 @@ export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartTool
             <button
               key={l.id}
               type="button"
-              className={cn("rounded-sm px-1.5", layout === l.id ? "text-gold" : "text-muted hover:text-fg")}
+              className={cn(
+                "rounded-sm px-1.5",
+                layout === l.id ? "text-gold" : "text-muted hover:text-fg",
+              )}
               onClick={() => setLayout(l.id as ChartLayout)}
             >
               {l.label}
@@ -161,7 +239,10 @@ export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartTool
           ))}
           <button
             type="button"
-            className={cn("rounded-sm px-1.5", syncTime ? "text-gold" : "text-muted")}
+            className={cn(
+              "rounded-sm px-1.5",
+              syncTime ? "text-gold" : "text-muted",
+            )}
             onClick={() => setSyncTime(!syncTime)}
             title="同步时间轴"
           >
@@ -169,7 +250,10 @@ export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartTool
           </button>
           <button
             type="button"
-            className={cn("rounded-sm px-1.5", syncCrosshair ? "text-gold" : "text-muted")}
+            className={cn(
+              "rounded-sm px-1.5",
+              syncCrosshair ? "text-gold" : "text-muted",
+            )}
             onClick={() => setSyncCrosshair(!syncCrosshair)}
             title="同步十字光标"
           >
@@ -191,7 +275,12 @@ export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartTool
             />
           </form>
           {compareSymbols.map((s) => (
-            <button key={s} type="button" className="rounded-sm px-1 text-gold" onClick={() => removeCompare(s)}>
+            <button
+              key={s}
+              type="button"
+              className="rounded-sm px-1 text-gold"
+              onClick={() => removeCompare(s)}
+            >
               {s.replace("USDT", "")} ×
             </button>
           ))}
@@ -201,15 +290,31 @@ export function ChartToolbar({ engine, paneId = "p0", master = true }: ChartTool
       {master && (
         <>
           <i className="mx-1 h-4 w-px bg-border" />
-          <button type="button" aria-label="导出截图" className="rounded-sm p-1 text-muted hover:text-fg" title="截图" onClick={screenshot}>
+          <button
+            type="button"
+            aria-label="导出截图"
+            className="rounded-sm p-1 text-muted hover:text-fg"
+            title="截图"
+            onClick={screenshot}
+          >
             <Camera className="size-3.5" />
           </button>
-          <button type="button" aria-label="导出 CSV" className="rounded-sm px-1.5 text-muted hover:text-fg" onClick={exportCsv}>
+          <button
+            type="button"
+            aria-label="导出 CSV"
+            className="rounded-sm px-1.5 text-muted hover:text-fg"
+            onClick={exportCsv}
+          >
             CSV
           </button>
         </>
       )}
-      <button type="button" aria-label="自适应缩放" className="rounded-sm p-1 text-muted hover:text-fg" onClick={() => engine?.fit()}>
+      <button
+        type="button"
+        aria-label="自适应缩放"
+        className="rounded-sm p-1 text-muted hover:text-fg"
+        onClick={() => engine?.fit()}
+      >
         <Maximize2 className="size-3.5" />
       </button>
       <Countdown closeAt={closeAt} />

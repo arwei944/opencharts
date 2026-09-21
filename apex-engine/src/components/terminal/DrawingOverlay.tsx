@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { ChartEngine } from "@/lib/market/chart-engine";
 import { FIB_LEVELS } from "@/lib/market/constants";
 import { useTerminal } from "@/lib/market/store";
@@ -7,14 +7,23 @@ import type { DrawPoint, Drawing } from "@/lib/market/types";
 
 /**
  * SVG overlay for drawings. Renders each drawing, highlights the selected one
- * (thicker, brighter), and lets the user click a drawing to select it and press
- * Delete to remove it. Pure presentation over the store's drawings list.
+ * (thicker, brighter), lets the user click a drawing to select it, press Delete
+ * to remove it, drag its anchor points to edit, or drag the body to move it.
  */
 export function DrawingOverlay({ engine }: { engine: ChartEngine | null }) {
   const drawings = useTerminal((s) => s.drawings);
   const selectedId = useTerminal((s) => s.selectedDrawingId);
   const select = useTerminal((s) => s.selectDrawing);
   const remove = useTerminal((s) => s.removeDrawing);
+
+  // Pointer-drag state for anchor/body editing of the selected drawing.
+  const drag = useRef<{
+    id: string;
+    anchorIdx: number | null; // null = move whole drawing
+    startX: number;
+    startY: number;
+    startPoints: DrawPoint[];
+  } | null>(null);
 
   // Delete removes the selected drawing; Escape clears the selection.
   useEffect(() => {
@@ -35,8 +44,78 @@ export function DrawingOverlay({ engine }: { engine: ChartEngine | null }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [remove]);
 
+  useEffect(() => {
+    if (!drag.current) return;
+    const onMove = (e: PointerEvent) => {
+      const d = drag.current;
+      if (!d || !engine) return;
+      const x = e.clientX;
+      const y = e.clientY;
+      const st = useTerminal.getState();
+      const drawing = st.drawings.find((z) => z.id === d.id);
+      if (!drawing) return;
+      if (d.anchorIdx != null) {
+        // Dragging a single anchor: recompute its price/time from pointer.
+        const xr = engine.xToTime(x);
+        const yr = engine.yToPrice(y);
+        if (xr == null || yr == null) return;
+        const points = drawing.points.map((p, i) =>
+          i === d.anchorIdx ? { time: xr as number, price: yr } : p,
+        );
+        st.updateDrawing(d.id, { points });
+      } else {
+        // Dragging the body: translate every anchor by (dx, dy).
+        const xr0 = engine.xToTime(d.startX);
+        const xr1 = engine.xToTime(x);
+        const yr0 = engine.yToPrice(d.startY);
+        const yr1 = engine.yToPrice(y);
+        if (xr0 == null || xr1 == null || yr0 == null || yr1 == null) return;
+        const dt = (xr1 as number) - (xr0 as number);
+        const dp = yr1 - yr0;
+        const points = drawing.points.map((p) => ({
+          time: p.time + dt,
+          price: p.price + dp,
+        }));
+        st.updateDrawing(d.id, { points });
+      }
+    };
+    const onUp = () => {
+      drag.current = null;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [engine]);
+
   if (!engine) return null;
   if (!drawings.length) return null;
+
+  const startDrag = (
+    id: string,
+    anchorIdx: number | null,
+    x: number,
+    y: number,
+  ) => {
+    const st = useTerminal.getState();
+    const drawing = st.drawings.find((z) => z.id === id);
+    if (!drawing) return;
+    st.selectDrawing(id);
+    drag.current = {
+      id,
+      anchorIdx,
+      startX: x,
+      startY: y,
+      startPoints: drawing.points,
+    };
+  };
 
   return (
     <svg className="pointer-events-none absolute inset-0 h-full w-full">
@@ -47,6 +126,7 @@ export function DrawingOverlay({ engine }: { engine: ChartEngine | null }) {
           engine={engine}
           selected={d.id === selectedId}
           onSelect={() => select(d.id)}
+          onStartDrag={startDrag}
         />
       ))}
     </svg>
@@ -58,11 +138,18 @@ function DrawShape({
   engine,
   selected,
   onSelect,
+  onStartDrag,
 }: {
   d: Drawing;
   engine: ChartEngine;
   selected: boolean;
   onSelect: () => void;
+  onStartDrag: (
+    id: string,
+    anchorIdx: number | null,
+    x: number,
+    y: number,
+  ) => void;
 }) {
   const xy = (p: DrawPoint) => {
     const x = engine.timeToX(p.time);
@@ -76,37 +163,71 @@ function DrawShape({
   const opacity = selected ? 1 : 0.75;
   const hit = {
     pointerEvents: "all" as const,
-    style: { cursor: "pointer" as const },
+    style: { cursor: "move" as const },
   };
+  // Body click => select; body drag => move whole drawing.
+  const onBodyDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    onSelect();
+    onStartDrag(d.id, null, e.clientX, e.clientY);
+  };
+  const anchors = selected
+    ? pts.map((p, i) => (
+        <circle
+          key={`a${i}`}
+          cx={p!.x}
+          cy={p!.y}
+          r={4}
+          fill={color}
+          stroke="#fff"
+          strokeWidth={1}
+          className="cursor-nwse-resize"
+          style={{ pointerEvents: "all" }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            onSelect();
+            onStartDrag(d.id, i, e.clientX, e.clientY);
+          }}
+        />
+      ))
+    : null;
 
   if (d.tool === "hline" && pts[0]) {
     return (
-      <line
-        x1={0}
-        x2="100%"
-        y1={pts[0].y}
-        y2={pts[0].y}
-        stroke={color}
-        strokeWidth={width}
-        opacity={opacity}
-        onClick={onSelect}
-        {...hit}
-      />
+      <g>
+        <line
+          x1={0}
+          x2="100%"
+          y1={pts[0].y}
+          y2={pts[0].y}
+          stroke={color}
+          strokeWidth={width}
+          opacity={opacity}
+          onClick={onSelect}
+          onPointerDown={onBodyDown}
+          {...hit}
+        />
+        {anchors}
+      </g>
     );
   }
   if (d.tool === "vline" && pts[0]) {
     return (
-      <line
-        y1={0}
-        y2="100%"
-        x1={pts[0].x}
-        x2={pts[0].x}
-        stroke={color}
-        strokeWidth={width}
-        opacity={opacity}
-        onClick={onSelect}
-        {...hit}
-      />
+      <g>
+        <line
+          y1={0}
+          y2="100%"
+          x1={pts[0].x}
+          x2={pts[0].x}
+          stroke={color}
+          strokeWidth={width}
+          opacity={opacity}
+          onClick={onSelect}
+          onPointerDown={onBodyDown}
+          {...hit}
+        />
+        {anchors}
+      </g>
     );
   }
   if (
@@ -115,7 +236,7 @@ function DrawShape({
     pts[1]
   ) {
     return (
-      <g onClick={onSelect} {...hit}>
+      <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
         <line
           x1={pts[0].x}
           y1={pts[0].y}
@@ -139,6 +260,7 @@ function DrawShape({
             %
           </text>
         )}
+        {anchors}
       </g>
     );
   }
@@ -146,25 +268,29 @@ function DrawShape({
     const x = Math.min(pts[0].x, pts[1].x);
     const y = Math.min(pts[0].y, pts[1].y);
     return (
-      <rect
-        x={x}
-        y={y}
-        width={Math.abs(pts[1].x - pts[0].x)}
-        height={Math.abs(pts[1].y - pts[0].y)}
-        fill={`${color}22`}
-        stroke={color}
-        strokeWidth={width}
-        opacity={opacity}
-        onClick={onSelect}
-        {...hit}
-      />
+      <g>
+        <rect
+          x={x}
+          y={y}
+          width={Math.abs(pts[1].x - pts[0].x)}
+          height={Math.abs(pts[1].y - pts[0].y)}
+          fill={`${color}22`}
+          stroke={color}
+          strokeWidth={width}
+          opacity={opacity}
+          onClick={onSelect}
+          onPointerDown={onBodyDown}
+          {...hit}
+        />
+        {anchors}
+      </g>
     );
   }
   if (d.tool === "fib" && pts[0] && pts[1]) {
     const a0 = pts[0];
     const a1 = pts[1];
     return (
-      <g onClick={onSelect} {...hit}>
+      <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
         {FIB_LEVELS.map((lv) => {
           const y = a0.y + (a1.y - a0.y) * lv;
           const px =
@@ -186,6 +312,7 @@ function DrawShape({
             </g>
           );
         })}
+        {anchors}
       </g>
     );
   }
@@ -193,7 +320,7 @@ function DrawShape({
     const dx = pts[1].x - pts[0].x;
     const dy = pts[1].y - pts[0].y;
     return (
-      <g onClick={onSelect} {...hit}>
+      <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
         <line
           x1={pts[0].x}
           y1={pts[0].y}
@@ -212,6 +339,7 @@ function DrawShape({
           strokeWidth={width}
           opacity={opacity}
         />
+        {anchors}
       </g>
     );
   }

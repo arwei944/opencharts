@@ -126,6 +126,10 @@ export interface TerminalState {
   setTheme: (t: ThemeMode) => void;
   toggleTheme: () => void;
   addIndicator: (kind: IndicatorInst["kind"]) => string;
+  updateIndicator: (
+    id: string,
+    patch: Partial<Pick<IndicatorInst, "params" | "visible">>,
+  ) => void;
   removeIndicator: (id: string) => void;
   setBars: (b: Candle[]) => void;
   appendOlderBars: (b: Candle[]) => number;
@@ -162,8 +166,20 @@ export interface TerminalState {
   setMobileTab: (t: TerminalState["mobileTab"]) => void;
   setPremium: (mark: number, funding: number, next: number) => void;
   addDrawing: (d: Drawing) => void;
+  updateDrawing: (id: string, patch: Partial<Drawing>) => void;
   clearDrawings: () => void;
   popDrawing: () => void;
+  /** Undo/redo snapshot stacks for drawings + indicator edits. */
+  undoStack: HistorySnapshot[];
+  redoStack: HistorySnapshot[];
+  pushHistory: () => void;
+  undo: () => void;
+  redo: () => void;
+}
+
+interface HistorySnapshot {
+  drawings: Drawing[];
+  indicators: IndicatorInst[];
 }
 
 /** Standing value for a pane whose feed has not produced bars yet. A fresh `[]`
@@ -191,6 +207,8 @@ export const useTerminal = create<TerminalState>()(
         { id: "vol-default", kind: "VOL", params: [], visible: true },
       ],
       drawings: [],
+      undoStack: [],
+      redoStack: [],
       selectedDrawingId: null,
       bars: [],
       lastBar: null,
@@ -266,6 +284,7 @@ export const useTerminal = create<TerminalState>()(
         // (addCustomFn) rather than a catalog spec — emit a placeholder
         // instance so chart-engine picks up the id.
         if (kind === "CUSTOM") {
+          get().pushHistory();
           const id = uid();
           set({
             indicators: [
@@ -277,6 +296,7 @@ export const useTerminal = create<TerminalState>()(
         }
         const spec = INDICATOR_CATALOG.find((x) => x.kind === kind);
         if (!spec) return uid();
+        get().pushHistory();
         const id = uid();
         set({
           indicators: [
@@ -286,7 +306,15 @@ export const useTerminal = create<TerminalState>()(
         });
         return id;
       },
+      updateIndicator: (id, patch) =>
+        set({
+          indicators: get().indicators.map((i) =>
+            i.id === id ? { ...i, ...patch } : i,
+          ),
+        }),
       removeIndicator: (id) => {
+        if (!get().indicators.some((i) => i.id === id)) return;
+        get().pushHistory();
         const next = { ...get().customFns };
         delete next[id];
         set({
@@ -518,16 +546,77 @@ export const useTerminal = create<TerminalState>()(
       setMobileTab: (mobileTab) => set({ mobileTab }),
       setPremium: (mark, funding, nextFunding) =>
         set({ mark, funding, nextFunding }),
-      addDrawing: (d) => set({ drawings: [...get().drawings, d] }),
-      clearDrawings: () => set({ drawings: [], selectedDrawingId: null }),
-      popDrawing: () => set({ drawings: get().drawings.slice(0, -1) }),
-      selectDrawing: (selectedDrawingId) => set({ selectedDrawingId }),
-      removeDrawing: (id) =>
-        set({
-          drawings: get().drawings.filter((d) => d.id !== id),
-          selectedDrawingId:
-            get().selectedDrawingId === id ? null : get().selectedDrawingId,
+      // Drawings / indicators edits keep an undo stack of snapshots.
+      pushHistory: () =>
+        set((s) => ({
+          undoStack: [
+            ...s.undoStack.slice(-99),
+            { drawings: s.drawings, indicators: s.indicators },
+          ],
+          redoStack: [],
+        })),
+      undo: () =>
+        set((s) => {
+          const prev = s.undoStack.at(-1);
+          if (!prev) return s;
+          return {
+            undoStack: s.undoStack.slice(0, -1),
+            redoStack: [
+              ...s.redoStack.slice(-99),
+              { drawings: s.drawings, indicators: s.indicators },
+            ],
+            drawings: prev.drawings,
+            indicators: prev.indicators,
+            selectedDrawingId: null,
+          };
         }),
+      redo: () =>
+        set((s) => {
+          const next = s.redoStack.at(-1);
+          if (!next) return s;
+          return {
+            redoStack: s.redoStack.slice(0, -1),
+            undoStack: [
+              ...s.undoStack.slice(-99),
+              { drawings: s.drawings, indicators: s.indicators },
+            ],
+            drawings: next.drawings,
+            indicators: next.indicators,
+            selectedDrawingId: null,
+          };
+        }),
+      addDrawing: (d) => {
+        get().pushHistory();
+        set((s) => ({ drawings: [...s.drawings, d] }));
+      },
+      updateDrawing: (id, patch) => {
+        get().pushHistory();
+        set((s) => ({
+          drawings: s.drawings.map((d) =>
+            d.id === id ? { ...d, ...patch } : d,
+          ),
+        }));
+      },
+      clearDrawings: () => {
+        if (!get().drawings.length) return;
+        get().pushHistory();
+        set({ drawings: [], selectedDrawingId: null });
+      },
+      popDrawing: () => {
+        if (!get().drawings.length) return;
+        get().pushHistory();
+        set((s) => ({ drawings: s.drawings.slice(0, -1) }));
+      },
+      selectDrawing: (selectedDrawingId) => set({ selectedDrawingId }),
+      removeDrawing: (id) => {
+        if (!get().drawings.some((d) => d.id === id)) return;
+        get().pushHistory();
+        set((s) => ({
+          drawings: s.drawings.filter((d) => d.id !== id),
+          selectedDrawingId:
+            s.selectedDrawingId === id ? null : s.selectedDrawingId,
+        }));
+      },
     }),
     {
       name: "apex-desk",
