@@ -246,6 +246,62 @@ export const INDICATOR_CATALOG: {
     defaults: [20],
     labels: ["周期"],
   },
+  {
+    kind: "WMA",
+    name: "WMA 加权均线",
+    group: "main",
+    defaults: [9, 21],
+    labels: ["WMA1", "WMA2"],
+  },
+  {
+    kind: "TRIMA",
+    name: "TRIMA 三重均线",
+    group: "main",
+    defaults: [20],
+    labels: ["周期"],
+  },
+  {
+    kind: "VWMA",
+    name: "VWMA 量权均线",
+    group: "main",
+    defaults: [20],
+    labels: ["周期"],
+  },
+  {
+    kind: "NATR",
+    name: "NATR 归一化ATR",
+    group: "sub",
+    defaults: [14],
+    labels: ["周期"],
+  },
+  {
+    kind: "BBW",
+    name: "BBW 布林带宽",
+    group: "sub",
+    defaults: [20, 2],
+    labels: ["周期", "倍数"],
+  },
+  {
+    kind: "DPO",
+    name: "DPO 去趋势",
+    group: "sub",
+    defaults: [20],
+    labels: ["周期"],
+  },
+  {
+    kind: "TSI",
+    name: "TSI 真实强度",
+    group: "sub",
+    defaults: [25, 13],
+    labels: ["长", "短"],
+  },
+  {
+    kind: "AO",
+    name: "AO 动量振荡",
+    group: "sub",
+    defaults: [5, 34],
+    labels: ["快", "慢"],
+  },
 ];
 
 export const LAYOUTS: { id: import("./types").ChartLayout; label: string }[] = [

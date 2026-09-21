@@ -592,6 +592,144 @@ export function cmf(bars: Candle[], period = 20): Line {
 }
 
 /** Heikin-Ashi candles derived from raw OHLC. */
+/** Linear-weighted moving average: most recent bar carries the highest weight. */
+export function wma(bars: Candle[], period = 9): Line {
+  const out: Line = [];
+  const wsum = (period * (period + 1)) / 2;
+  for (let i = period - 1; i < bars.length; i++) {
+    let sum = 0;
+    for (let k = 0; k < period; k++) {
+      sum += bars[i - k].close * (period - k);
+    }
+    out.push({ time: bars[i].time, value: sum / wsum });
+  }
+  return out;
+}
+
+/** Triple moving average: sma(sma(sma(close))). */
+export function trima(bars: Candle[], period = 20): Line {
+  return sma(toCandles(sma(toCandles(sma(bars, period)), period)), period);
+}
+
+/** Volume-weighted moving average. */
+export function vwma(bars: Candle[], period = 20): Line {
+  const out: Line = [];
+  let pv = 0;
+  let vol = 0;
+  for (let i = 0; i < bars.length; i++) {
+    pv += bars[i].close * bars[i].volume;
+    vol += bars[i].volume;
+    if (i >= period) {
+      pv -= bars[i - period].close * bars[i - period].volume;
+      vol -= bars[i - period].volume;
+    }
+    if (i >= period - 1) {
+      out.push({
+        time: bars[i].time,
+        value: vol === 0 ? bars[i].close : pv / vol,
+      });
+    }
+  }
+  return out;
+}
+
+/** Normalized ATR: ATR / close * 100. */
+export function natr(bars: Candle[], period = 14): Line {
+  const a = atr(bars, period);
+  const closeMap = new Map(bars.map((b) => [b.time, b.close]));
+  return a
+    .map((x) => ({
+      time: x.time,
+      value: (x.value / (closeMap.get(x.time) ?? 1)) * 100,
+    }))
+    .filter((x) => Number.isFinite(x.value));
+}
+
+/** Bollinger Band Width: (upper - lower) / mid * 100. */
+export function bbw(bars: Candle[], period = 20, mult = 2): Line {
+  const { mid, upper, lower } = boll(bars, period, mult);
+  const out: Line = [];
+  for (let i = 0; i < mid.length; i++) {
+    out.push({
+      time: mid[i].time,
+      value:
+        mid[i].value === 0
+          ? 0
+          : ((upper[i].value - lower[i].value) / mid[i].value) * 100,
+    });
+  }
+  return out;
+}
+
+/** Detrended Price Oscillator (approx): close - sma(close, N). */
+export function dpo(bars: Candle[], period = 20): Line {
+  const s = sma(bars, period);
+  const sMap = new Map(s.map((x) => [x.time, x.value]));
+  const out: Line = [];
+  for (const b of bars) {
+    const v = sMap.get(b.time);
+    if (v == null) continue;
+    out.push({ time: b.time, value: b.close - v });
+  }
+  return out;
+}
+
+/** True Strength Index. */
+export function tsi(bars: Candle[], long = 25, short = 13): Line {
+  const k1 = 2 / (long + 1);
+  const k2 = 2 / (short + 1);
+  const out: Line = [];
+  let n1 = 0;
+  let d1 = 0;
+  let n2 = 0;
+  let d2 = 0;
+  for (let i = 1; i < bars.length; i++) {
+    const m = bars[i].close - bars[i - 1].close;
+    n1 += k1 * (m - n1);
+    d1 += k1 * (Math.abs(m) - d1);
+    n2 += k2 * (n1 - n2);
+    d2 += k2 * (d1 - d2);
+    if (i >= long + short - 1) {
+      out.push({ time: bars[i].time, value: d2 === 0 ? 0 : (n2 / d2) * 100 });
+    }
+  }
+  return out;
+}
+
+/** Awesome Oscillator: fast SMA of median price minus slow SMA. */
+export function ao(bars: Candle[], short = 5, long = 34): Line {
+  const med = (b: Candle) => (b.high + b.low) / 2;
+  const fast = sma(
+    bars.map((b) => ({
+      ...b,
+      open: med(b),
+      high: med(b),
+      low: med(b),
+      close: med(b),
+    })),
+    short,
+  );
+  const slow = sma(
+    bars.map((b) => ({
+      ...b,
+      open: med(b),
+      high: med(b),
+      low: med(b),
+      close: med(b),
+    })),
+    long,
+  );
+  const slowMap = new Map(slow.map((x) => [x.time, x.value]));
+  const out: Line = [];
+  for (const f of fast) {
+    const s = slowMap.get(f.time);
+    if (s == null) continue;
+    out.push({ time: f.time, value: f.value - s });
+  }
+  return out;
+}
+
+/** Heikin-Ashi candles derived from raw OHLC. */
 export function heikinAshi(bars: Candle[]): Candle[] {
   const out: Candle[] = [];
   for (let i = 0; i < bars.length; i++) {

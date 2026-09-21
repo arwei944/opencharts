@@ -20,6 +20,10 @@ export function IndicatorModal() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftParams, setDraftParams] = useState<number[]>([]);
   const [showCustomModal, setShowCustomModal] = useState(false);
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const matches = (x: { name: string; kind: string }) =>
+    !q || x.name.toLowerCase().includes(q) || x.kind.toLowerCase().includes(q);
 
   const startEdit = (i: IndicatorInst) => {
     setEditingId(i.id);
@@ -85,9 +89,21 @@ export function IndicatorModal() {
             ))}
           </div>
 
+          <div className="mb-3">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="搜索指标（名称 / 代码）…"
+              className="w-full rounded border border-border bg-bg px-2 py-1.5 text-micro text-fg outline-none ring-0 focus:border-gold"
+            />
+          </div>
+
           <p className="mb-2 text-micro text-muted">主图 Overlay</p>
           <div className="mb-4 flex flex-wrap gap-2">
-            {INDICATOR_CATALOG.filter((x) => x.group === "main").map((x) => (
+            {INDICATOR_CATALOG.filter(
+              (x) => x.group === "main" && matches(x),
+            ).map((x) => (
               <button
                 key={x.kind}
                 type="button"
@@ -102,7 +118,9 @@ export function IndicatorModal() {
 
           <p className="mb-2 text-micro text-muted">副图 Panel</p>
           <div className="mb-4 flex flex-wrap gap-2">
-            {INDICATOR_CATALOG.filter((x) => x.group === "sub").map((x) => (
+            {INDICATOR_CATALOG.filter(
+              (x) => x.group === "sub" && matches(x),
+            ).map((x) => (
               <button
                 key={x.kind}
                 type="button"

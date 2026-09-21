@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTerminal } from "@/lib/market/store";
-import { runStrategy, type StrategyId } from "@/lib/market/backtest";
+import {
+  backtestFromSeries,
+  runStrategy,
+  type StrategyId,
+} from "@/lib/market/backtest";
+import { scriptParser } from "@/lib/market/script-parser";
 import { fmtNum } from "@/lib/utils";
 import { Modal } from "./Modal";
 
@@ -39,15 +44,67 @@ export function BacktestModal() {
   const open = useTerminal((s) => s.backtestOpen);
   const bars = useTerminal((s) => s.bars);
   const symbol = useTerminal((s) => s.symbol);
+  const [mode, setMode] = useState<"builtin" | "pine">("builtin");
   const [strategy, setStrategy] = useState<StrategyId>("smaCross");
   const [params, setParams] = useState<number[]>(STRATEGIES[0].params);
+  const [pineScript, setPineScript] = useState(
+    `//@version=5
+fast = ema(close, 5)
+slow = ema(close, 20)
+bull = fast > slow ? 1 : -1
+plot(bull, "Signal")`,
+  );
 
   const spec = STRATEGIES.find((s) => s.id === strategy)!;
 
-  // 3000 bars is cheap to recompute on every render — no memo needed.
-  const result = bars.length
-    ? runStrategy(strategy, bars.slice(-3000), params, 10_000)
-    : null;
+  // 3000 bars is cheap — but only compute while the dialog is open, and memo
+  // it so WS ticks (which re-render via the bars subscription) never re-run it.
+  const builtin = useMemo(
+    () =>
+      open && bars.length
+        ? runStrategy(strategy, bars.slice(-3000), params, 10_000)
+        : null,
+    [open, bars, strategy, params],
+  );
+
+  // Pine-script strategy: any output named "Signal" (or the first plot) is
+  // used as the position series (sign → long/short/flat).
+  const pine = useMemo(() => {
+    if (!open || !bars.length) return { result: null, error: null };
+    try {
+      const parsed = scriptParser.parse(pineScript);
+      if (!parsed.success || !parsed.calculationFn) {
+        return { result: null, error: parsed.errors?.join("; ") ?? "解析失败" };
+      }
+      const tail = bars.slice(-3000);
+      const outputs = parsed.calculationFn(tail) as
+        | Array<{ key: string; data: Array<{ time: number; value: number }> }>
+        | Array<{ time: number; value: number }>;
+      let signal: Array<{ time: number; value: number }> | null = null;
+      if (Array.isArray(outputs) && outputs[0] && "key" in outputs[0]) {
+        const named = (
+          outputs as Array<{
+            key: string;
+            data: Array<{ time: number; value: number }>;
+          }>
+        ).find((o) => o.key === "Signal");
+        signal = (named ?? outputs[0]).data;
+      } else if (Array.isArray(outputs) && outputs[0] && "time" in outputs[0]) {
+        signal = outputs as Array<{ time: number; value: number }>;
+      }
+      if (!signal || !signal.length)
+        return { result: null, error: "脚本没有可用的信号输出" };
+      return { result: backtestFromSeries(tail, signal, 10_000), error: null };
+    } catch (e) {
+      return {
+        result: null,
+        error: e instanceof Error ? e.message : "脚本运行失败",
+      };
+    }
+  }, [open, bars, pineScript]);
+
+  const result = mode === "pine" ? pine.result : builtin;
+  const err = mode === "pine" ? pine.error : null;
 
   if (!open) return null;
   const st = () => useTerminal.getState();
@@ -99,48 +156,92 @@ export function BacktestModal() {
         </div>
 
         <div className="flex gap-2">
-          {STRATEGIES.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => {
-                setStrategy(s.id);
-                setParams(s.params);
-              }}
-              className={`rounded-sm px-2.5 py-1.5 text-micro ${
-                strategy === s.id
-                  ? "bg-gold text-bg"
-                  : "bg-surface text-muted hover:text-fg"
-              }`}
-            >
-              {s.name}
-            </button>
-          ))}
+          <button
+            type="button"
+            onClick={() => setMode("builtin")}
+            className={`rounded-sm px-2.5 py-1.5 text-micro ${
+              mode === "builtin"
+                ? "bg-gold text-bg"
+                : "bg-surface text-muted hover:text-fg"
+            }`}
+          >
+            内置策略
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("pine")}
+            className={`rounded-sm px-2.5 py-1.5 text-micro ${
+              mode === "pine"
+                ? "bg-gold text-bg"
+                : "bg-surface text-muted hover:text-fg"
+            }`}
+          >
+            Pine 脚本
+          </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
-          {spec.labels.map((lab, i) => (
-            <label key={lab} className="block text-micro text-subtle">
-              {lab}
-              <input
-                type="number"
-                min={1}
-                value={params[i] ?? 1}
-                onChange={(e) => {
-                  const next = [...params];
-                  next[i] = Number(e.target.value) || 1;
-                  setParams(next);
-                }}
-                className="mt-1 w-full rounded border border-border bg-bg px-2 py-1 text-micro text-fg outline-none ring-0 focus:border-gold"
-              />
+        {mode === "builtin" ? (
+          <>
+            <div className="flex gap-2">
+              {STRATEGIES.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    setStrategy(s.id);
+                    setParams(s.params);
+                  }}
+                  className={`rounded-sm px-2.5 py-1.5 text-micro ${
+                    strategy === s.id
+                      ? "bg-gold text-bg"
+                      : "bg-surface text-muted hover:text-fg"
+                  }`}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {spec.labels.map((lab, i) => (
+                <label key={lab} className="block text-micro text-subtle">
+                  {lab}
+                  <input
+                    type="number"
+                    min={1}
+                    value={params[i] ?? 1}
+                    onChange={(e) => {
+                      const next = [...params];
+                      next[i] = Number(e.target.value) || 1;
+                      setParams(next);
+                    }}
+                    className="mt-1 w-full rounded border border-border bg-bg px-2 py-1 text-micro text-fg outline-none ring-0 focus:border-gold"
+                  />
+                </label>
+              ))}
+              <div className="flex items-end">
+                <p className="w-full text-right text-[10px] text-subtle">
+                  参数修改后自动重算
+                </p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div>
+            <label className="mb-1 block text-micro text-subtle">
+              Pine 脚本（plot 名为 "Signal" 或第一个 plot
+              作为信号；正值=做多，负值=做空）
             </label>
-          ))}
-          <div className="flex items-end">
-            <p className="w-full text-right text-[10px] text-subtle">
-              参数修改后自动重算
-            </p>
+            <textarea
+              value={pineScript}
+              onChange={(e) => setPineScript(e.target.value)}
+              rows={7}
+              spellCheck={false}
+              className="w-full rounded border border-border bg-bg p-2 font-mono text-micro text-fg outline-none ring-0 focus:border-gold"
+            />
+            {err && <p className="mt-1 text-[10px] text-down">⚠ {err}</p>}
           </div>
-        </div>
+        )}
 
         {result && (
           <>

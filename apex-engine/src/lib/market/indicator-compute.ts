@@ -1,17 +1,21 @@
 import type { Candle } from "./types.ts";
 import {
+  ao,
   aroon,
   atr,
+  bbw,
   boll,
   cci,
   cmf,
   dmi,
+  dpo,
   ema,
   heikinAshi,
   kdj,
   macd,
   mfi,
   mom,
+  natr,
   obv,
   ppo,
   roc,
@@ -21,8 +25,12 @@ import {
   stoch,
   stochrsi,
   supertrend,
+  trima,
   trix,
+  tsi,
   vwap,
+  vwma,
+  wma,
   wr,
 } from "./indicators.ts";
 
@@ -195,6 +203,40 @@ export function computeIndicator(
     line(`${id}-sig`, "#00d4ff", pane, signal);
   } else if (kind === "CMF") {
     line(`${id}-cmf`, "#f0b90b", sub.value++, cmf(bars, params[0] ?? 20));
+  } else if (kind === "WMA") {
+    const colors = ["#f0b90b", "#00d4ff"];
+    params.forEach((p, i) => {
+      line(`${id}-wma-${p}`, colors[i % 2], undefined, wma(bars, p));
+    });
+  } else if (kind === "TRIMA") {
+    line(`${id}-trima`, "#0ecb81", undefined, trima(bars, params[0] ?? 20));
+  } else if (kind === "VWMA") {
+    line(`${id}-vwma`, "#c084fc", undefined, vwma(bars, params[0] ?? 20));
+  } else if (kind === "NATR") {
+    line(`${id}-natr`, "#f0b90b", sub.value++, natr(bars, params[0] ?? 14));
+  } else if (kind === "BBW") {
+    line(
+      `${id}-bbw`,
+      "#00d4ff",
+      sub.value++,
+      bbw(bars, params[0] ?? 20, params[1] ?? 2),
+    );
+  } else if (kind === "DPO") {
+    line(`${id}-dpo`, "#f6465d", sub.value++, dpo(bars, params[0] ?? 20));
+  } else if (kind === "TSI") {
+    line(
+      `${id}-tsi`,
+      "#f0b90b",
+      sub.value++,
+      tsi(bars, params[0] ?? 25, params[1] ?? 13),
+    );
+  } else if (kind === "AO") {
+    line(
+      `${id}-ao`,
+      "#0ecb81",
+      sub.value++,
+      ao(bars, params[0] ?? 5, params[1] ?? 34),
+    );
   } else if (kind === "CUSTOM") {
     const fn = customFns[id];
     if (fn) {

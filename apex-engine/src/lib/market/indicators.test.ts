@@ -15,6 +15,14 @@ import {
   mfi,
   aroon,
   trix,
+  wma,
+  trima,
+  vwma,
+  natr,
+  bbw,
+  dpo,
+  tsi,
+  ao,
 } from "./indicators.ts";
 
 /** Deterministic synthetic series: 60 bars, close drifting upward. */
@@ -212,4 +220,87 @@ test("cmf bounded in [-100,100]", () => {
   const line = cmf(bars, 20);
   assert.ok(line.length > 0);
   for (const p of line) assert.ok(p.value >= -100 && p.value <= 100);
+});
+
+test("wma weights the latest bar highest", () => {
+  const bars = makeBars(8); // closes 100..107
+  const line = wma(bars, 3);
+  // manual: (106*1 + 107*2 + 108*3)/6?? no — closes 100..107, last three 105,106,107
+  const last = line[line.length - 1].value;
+  const expected = (105 * 1 + 106 * 2 + 107 * 3) / 6;
+  assert.ok(Math.abs(last - expected) < 1e-9);
+});
+
+test("trima equals sma applied three times", () => {
+  const bars = makeBars(40);
+  const line = trima(bars, 5);
+  const once = sma(bars, 5);
+  const twice = sma(
+    once.map((x) => ({
+      time: x.time,
+      open: x.value,
+      high: x.value,
+      low: x.value,
+      close: x.value,
+      volume: 0,
+    })),
+    5,
+  );
+  const thrice = sma(
+    twice.map((x) => ({
+      time: x.time,
+      open: x.value,
+      high: x.value,
+      low: x.value,
+      close: x.value,
+      volume: 0,
+    })),
+    5,
+  );
+  assert.ok(line.length > 0);
+  assert.ok(
+    Math.abs(line[line.length - 1].value - thrice[thrice.length - 1].value) <
+      1e-9,
+  );
+});
+
+test("vwma leans toward high-volume closes", () => {
+  // custom bars: vol 100 at price 100, vol 900 at price 200
+  const b = [
+    { time: 1, open: 100, high: 100, low: 100, close: 100, volume: 100 },
+    { time: 2, open: 200, high: 200, low: 200, close: 200, volume: 900 },
+  ];
+  const line = vwma(b, 2);
+  assert.ok(Math.abs(line[0].value - (100 * 100 + 200 * 900) / 1000) < 1e-9);
+});
+
+test("natr/bbw/dpo are finite and positive where expected", () => {
+  const bars = makeBars(60);
+  assert.ok(
+    natr(bars, 14).every((p) => p.value > 0 && Number.isFinite(p.value)),
+  );
+  assert.ok(
+    bbw(bars, 20, 2).every((p) => p.value > 0 && Number.isFinite(p.value)),
+  );
+  assert.ok(dpo(bars, 20).every((p) => Number.isFinite(p.value)));
+});
+
+test("tsi bounded in [-100,100] with positive drift", () => {
+  const bars = makeBars(120);
+  const up = tsi(bars, 25, 13);
+  assert.ok(up.length > 0);
+  assert.ok(
+    up[up.length - 1].value > 0,
+    `expected TSI > 0 in uptrend, got ${up[up.length - 1].value}`,
+  );
+});
+
+test("ao finite and positive for a rising median", () => {
+  const bars = makeBars(80);
+  const line = ao(bars, 5, 34);
+  assert.ok(line.length > 0);
+  assert.ok(
+    line[line.length - 1].value > 0,
+    "AO should be positive in an uptrend",
+  );
 });

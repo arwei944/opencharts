@@ -46,18 +46,22 @@ const REVEAL_CHUNK_BARS = 20_000;
 import type { ThemeMode } from "./constants";
 import { formatTime } from "./timefmt";
 import {
+  ao,
   aroon,
   atr,
+  bbw,
   boll,
   cci,
   cmf,
   dmi,
+  dpo,
   ema,
   heikinAshi,
   kdj,
   macd,
   mfi,
   mom,
+  natr,
   obv,
   ppo,
   roc,
@@ -67,8 +71,12 @@ import {
   stoch,
   stochrsi,
   supertrend,
+  trima,
   trix,
+  tsi,
   vwap,
+  vwma,
+  wma,
   wr,
 } from "./indicators";
 import type { Candle, ChartType, IndicatorInst, Interval } from "./types";
@@ -1232,6 +1240,33 @@ export class ChartEngine {
         push(`${ind.id}-sig`, lastOf(signal));
       } else if (ind.kind === "CMF") {
         push(`${ind.id}-cmf`, lastOf(cmf(bars, ind.params[0] ?? 20)));
+      } else if (ind.kind === "WMA") {
+        ind.params.forEach((p) =>
+          push(`${ind.id}-wma-${p}`, lastOf(wma(bars, p))),
+        );
+      } else if (ind.kind === "TRIMA") {
+        push(`${ind.id}-trima`, lastOf(trima(bars, ind.params[0] ?? 20)));
+      } else if (ind.kind === "VWMA") {
+        push(`${ind.id}-vwma`, lastOf(vwma(bars, ind.params[0] ?? 20)));
+      } else if (ind.kind === "NATR") {
+        push(`${ind.id}-natr`, lastOf(natr(bars, ind.params[0] ?? 14)));
+      } else if (ind.kind === "BBW") {
+        push(
+          `${ind.id}-bbw`,
+          lastOf(bbw(bars, ind.params[0] ?? 20, ind.params[1] ?? 2)),
+        );
+      } else if (ind.kind === "DPO") {
+        push(`${ind.id}-dpo`, lastOf(dpo(bars, ind.params[0] ?? 20)));
+      } else if (ind.kind === "TSI") {
+        push(
+          `${ind.id}-tsi`,
+          lastOf(tsi(bars, ind.params[0] ?? 25, ind.params[1] ?? 13)),
+        );
+      } else if (ind.kind === "AO") {
+        push(
+          `${ind.id}-ao`,
+          lastOf(ao(bars, ind.params[0] ?? 5, ind.params[1] ?? 34)),
+        );
       }
     }
   }

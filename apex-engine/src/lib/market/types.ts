@@ -78,6 +78,14 @@ export type IndicatorKind =
   | "MOM"
   | "PPO"
   | "CMF"
+  | "WMA"
+  | "TRIMA"
+  | "VWMA"
+  | "NATR"
+  | "BBW"
+  | "DPO"
+  | "TSI"
+  | "AO"
   | "CUSTOM";
 
 export interface Candle {
