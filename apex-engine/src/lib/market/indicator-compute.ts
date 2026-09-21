@@ -4,19 +4,24 @@ import {
   atr,
   boll,
   cci,
+  cmf,
   dmi,
   ema,
   heikinAshi,
   kdj,
   macd,
   mfi,
+  mom,
   obv,
+  ppo,
+  roc,
   rsi,
   sar,
   sma,
   stoch,
   stochrsi,
   supertrend,
+  trix,
   vwap,
   wr,
 } from "./indicators.ts";
@@ -31,9 +36,7 @@ export interface IndicatorSeriesSpec {
 }
 
 export interface CustomFn {
-  (
-    bars: Candle[],
-  ):
+  (bars: Candle[]):
     | Array<{ time: number; value: number; color?: string }>
     | Array<{
         key: string;
@@ -168,6 +171,30 @@ export function computeIndicator(
     const { up, dn } = aroon(bars, params[0] ?? 25);
     line(`${id}-au`, "#0ecb81", pane, up);
     line(`${id}-ad`, "#f6465d", pane, dn);
+  } else if (kind === "TRIX") {
+    line(`${id}-trix`, "#f0b90b", sub.value++, trix(bars, params[0] ?? 15));
+  } else if (kind === "ROC") {
+    line(`${id}-roc`, "#00d4ff", sub.value++, roc(bars, params[0] ?? 12));
+  } else if (kind === "MOM") {
+    line(`${id}-mom`, "#0ecb81", sub.value++, mom(bars, params[0] ?? 10));
+  } else if (kind === "PPO") {
+    const pane = sub.value++;
+    const {
+      ppo: pp,
+      signal,
+      hist,
+    } = ppo(bars, params[0] ?? 12, params[1] ?? 26, params[2] ?? 9);
+    out.push({
+      key: `${id}-hist`,
+      color: "",
+      pane: paneOf(pane),
+      type: "hist",
+      data: hist,
+    });
+    line(`${id}-ppo`, "#f0b90b", pane, pp);
+    line(`${id}-sig`, "#00d4ff", pane, signal);
+  } else if (kind === "CMF") {
+    line(`${id}-cmf`, "#f0b90b", sub.value++, cmf(bars, params[0] ?? 20));
   } else if (kind === "CUSTOM") {
     const fn = customFns[id];
     if (fn) {

@@ -211,6 +211,41 @@ export const INDICATOR_CATALOG: {
     defaults: [25],
     labels: ["周期"],
   },
+  {
+    kind: "TRIX",
+    name: "TRIX",
+    group: "sub",
+    defaults: [15],
+    labels: ["周期"],
+  },
+  {
+    kind: "ROC",
+    name: "ROC 变化率",
+    group: "sub",
+    defaults: [12],
+    labels: ["周期"],
+  },
+  {
+    kind: "MOM",
+    name: "MOM 动量",
+    group: "sub",
+    defaults: [10],
+    labels: ["周期"],
+  },
+  {
+    kind: "PPO",
+    name: "PPO",
+    group: "sub",
+    defaults: [12, 26, 9],
+    labels: ["快", "慢", "信号"],
+  },
+  {
+    kind: "CMF",
+    name: "CMF 资金流",
+    group: "sub",
+    defaults: [20],
+    labels: ["周期"],
+  },
 ];
 
 export const LAYOUTS: { id: import("./types").ChartLayout; label: string }[] = [

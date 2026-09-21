@@ -73,6 +73,11 @@ export type IndicatorKind =
   | "STOCHRSI"
   | "MFI"
   | "AROON"
+  | "TRIX"
+  | "ROC"
+  | "MOM"
+  | "PPO"
+  | "CMF"
   | "CUSTOM";
 
 export interface Candle {

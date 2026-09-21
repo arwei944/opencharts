@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { backtest, runStrategy } from "./backtest.ts";
+import { backtest, runStrategy, backtestFromSeries } from "./backtest.ts";
 import type { Candle } from "./types.ts";
 
 function bars(closes: number[], step = 60): Candle[] {
@@ -65,5 +65,19 @@ describe("backtest.runStrategy", () => {
     const r = runStrategy("smaCross", bars([100]), [10, 30]);
     assert.equal(r.trades.length, 0);
     assert.equal(r.pnl, 0);
+  });
+
+  it("backtestFromSeries maps signal sign to position and profits on longs", () => {
+    const b = bars([100, 110, 120]);
+    const signal = b.map((x) => ({ time: x.time, value: 1 })); // always long
+    const r = backtestFromSeries(b, signal, 10_000);
+    assert.ok(Math.abs(r.pnl - 20) < 1e-9);
+  });
+
+  it("backtestFromSeries treats zero as flat and negative as short", () => {
+    const b = bars([120, 110, 100]);
+    const signal = b.map((x, i) => ({ time: x.time, value: i === 0 ? 0 : -1 }));
+    const r = backtestFromSeries(b, signal, 10_000);
+    assert.ok(Math.abs(r.pnl - 10) < 1e-9); // short from 110 -> 100
   });
 });

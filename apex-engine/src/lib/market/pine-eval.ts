@@ -142,10 +142,11 @@ function evalExpr(expr: string, env: Env): number {
               : l / r;
     }
   }
-  // history ref: close[1]
-  const h = /^([a-zA-Z_][\w]*)\[(\d+)\]$/.exec(e);
+  // history ref: close[1] / close[i] (numeric or variable index)
+  const h = /^([a-zA-Z_][\w]*)\[(\d+|\w+)\]$/.exec(e);
   if (h) {
-    const idx = Math.max(0, env.i - Number(h[2]));
+    const off = /^\d+$/.test(h[2]) ? Number(h[2]) : (env.vars[h[2]] ?? 0);
+    const idx = Math.max(0, env.i - Math.round(off));
     const b = env.bars[idx];
     if (!b) return 0;
     const f = h[1];
@@ -277,17 +278,60 @@ export function compilePine(script: string): PineCompiled {
     labels.push(im[2]);
   }
 
-  // structural lines: var declarations / updates / plain assigns / plots
+  // structural lines: var declarations / updates / plain assigns / plots / for-blocks
   interface Line {
-    kind: "var" | "assign" | "update" | "plot";
+    kind: "var" | "assign" | "update" | "plot" | "for";
     name?: string;
-    expr: string;
+    expr?: string;
     title?: string;
+    forVar?: string;
+    forFrom?: string;
+    forTo?: string;
+    body?: Line[];
   }
   const lines: Line[] = [];
-  for (const raw of src.split("\n")) {
+  const rawLines = src.split("\n");
+  for (let li = 0; li < rawLines.length; li++) {
+    const raw = rawLines[li];
+    const indent = raw.match(/^\s*/)?.[0].length ?? 0;
     const ln = raw.trim();
     if (!ln) continue;
+    // for loop header — body is the following indented block.
+    const fm = /^for\s+([a-zA-Z_][\w]*)\s*=\s*(.+?)\s+to\s+(.+)$/.exec(ln);
+    if (fm) {
+      const body: Line[] = [];
+      for (li++; li < rawLines.length; li++) {
+        const inner = rawLines[li];
+        const innerIndent = inner.match(/^\s*/)?.[0].length ?? 0;
+        if (!inner.trim() || innerIndent <= indent) {
+          li--; // let the outer loop reprocess the non-indented line
+          break;
+        }
+        const innerLn = inner.trim();
+        const vm = /^(var\s+)?([a-zA-Z_][\w]*)\s*(:?=)\s*(.+)$/.exec(innerLn);
+        if (vm) {
+          body.push({
+            kind: vm[1]?.includes("var")
+              ? "var"
+              : vm[3] === ":="
+                ? "update"
+                : "assign",
+            name: vm[2],
+            expr: vm[4],
+          });
+          continue;
+        }
+        errors.push(`for 循环体内无法识别的语句: ${innerLn.slice(0, 40)}`);
+      }
+      lines.push({
+        kind: "for",
+        forVar: fm[1],
+        forFrom: fm[2],
+        forTo: fm[3],
+        body,
+      });
+      continue;
+    }
     if (/^(var\s+)?[a-zA-Z_][\w]*\s*:?=\s*/.test(ln)) {
       const vm = /^(var\s+)?([a-zA-Z_][\w]*)\s*(:?=)\s*(.+)$/.exec(ln);
       if (!vm) continue;
@@ -304,7 +348,7 @@ export function compilePine(script: string): PineCompiled {
       lines.push({ kind: "plot", expr: pm[1], title: pm[2] });
       continue;
     }
-    if (/input\.int|indicator\(|@version/.test(ln)) continue;
+    if (/input\.int|indicator\(|strategy\(|@version/.test(ln)) continue;
     if (ln.startsWith("//")) continue;
     errors.push(`无法识别的语句: ${ln.slice(0, 48)}`);
   }
@@ -325,8 +369,21 @@ export function compilePine(script: string): PineCompiled {
     for (let i = 0; i < bars.length; i++) {
       const env: Env = { bars, i, vars: stateVars, series: {} };
       for (const l of lines) {
+        if (l.kind === "for") {
+          // for var = from to to { ... }: body lines run per iteration;
+          // the loop variable is visible to them via env.vars.
+          const from = Math.round(evalCall(l.forFrom ?? "0", env));
+          const to = Math.round(evalCall(l.forTo ?? "0", env));
+          for (let k = from; k <= to; k++) {
+            env.vars[l.forVar ?? ""] = k;
+            for (const bl of l.body ?? []) {
+              env.vars[bl.name ?? ""] = evalCall(bl.expr ?? "0", env);
+            }
+          }
+          continue;
+        }
         if (l.kind === "plot") continue;
-        const v = evalCall(l.expr, env);
+        const v = evalCall(l.expr ?? "0", env);
         if (l.kind === "var") {
           // `var` initialises once on the first bar, then persists.
           if (i === 0) stateVars[l.name!] = v;
@@ -337,7 +394,7 @@ export function compilePine(script: string): PineCompiled {
       }
       for (const pi of plotIdx) {
         const l = lines[pi];
-        const v = evalCall(l.expr, env);
+        const v = evalCall(l.expr ?? "0", env);
         const arr = seriesByPlot.get(pi) ?? [];
         arr.push({ time: bars[i].time, value: v });
         seriesByPlot.set(pi, arr);

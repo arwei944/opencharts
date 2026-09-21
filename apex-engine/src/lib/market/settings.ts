@@ -44,6 +44,9 @@ export interface ChartSettings {
   fontSize?: number; // Chart layout font size in px (default 11)
   fontFamily?: string; // Chart layout font family
   pricePrecision?: number; // Main price-axis decimals (undefined = auto from data)
+
+  // 🕐 Timezone
+  timezone?: string; // "local" or IANA name (DST-aware via Intl)
 }
 
 export const DEFAULT_SETTINGS: ChartSettings = {
@@ -78,4 +81,7 @@ export const DEFAULT_SETTINGS: ChartSettings = {
   fontSize: 11,
   fontFamily: "IBM Plex Sans, sans-serif",
   pricePrecision: undefined, // auto from data
+
+  // 🕐 Timezone default: follow the browser clock (incl. its DST rules).
+  timezone: "local",
 };

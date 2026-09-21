@@ -159,3 +159,21 @@ export function runStrategy(
 ): BacktestResult {
   return backtest(bars, strategyDirs(id, bars, params), start);
 }
+
+/**
+ * Backtest from an external signal series (e.g. a Pine script's "Signal"
+ * plot): the sign of each value becomes the desired position — positive
+ * long, negative short, zero flat — aligned to bar times.
+ */
+export function backtestFromSeries(
+  bars: Candle[],
+  signal: Array<{ time: number; value: number }>,
+  start = 10_000,
+): BacktestResult {
+  const map = new Map(signal.map((s) => [s.time, s.value]));
+  const dirs = bars.map((b) => {
+    const v = map.get(b.time) ?? 0;
+    return v > 0 ? 1 : v < 0 ? -1 : 0;
+  });
+  return backtest(bars, dirs, start);
+}

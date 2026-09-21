@@ -8,6 +8,7 @@ import {
 } from "@/lib/trading/broker";
 import { toast } from "sonner";
 import { Modal } from "./Modal";
+import { TIMEZONE_OPTIONS } from "@/lib/market/timefmt";
 import {
   CandleSection,
   CompareColorsSection,
@@ -100,6 +101,23 @@ export function SettingsModal() {
           <CompareColorsSection settings={settings} update={update} />
           <CandleSection settings={settings} update={update} />
           <TypographySection settings={settings} update={update} />
+          <section>
+            <h3 className="mb-3 text-sm font-medium text-subtle">时间轴时区</h3>
+            <select
+              value={settings.timezone ?? "local"}
+              onChange={(e) => update("timezone", e.target.value)}
+              className="w-full rounded border border-border bg-bg px-2 py-1.5 text-micro text-fg outline-none ring-0 focus:border-gold"
+            >
+              {TIMEZONE_OPTIONS.map((z) => (
+                <option key={z.zone} value={z.zone}>
+                  {z.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-[10px] text-subtle">
+              跨时区分析用（含夏令时规则）；本机时间随浏览器时钟与系统夏令时。
+            </p>
+          </section>
           <TouchSection settings={settings} update={update} />
           <section>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-subtle">

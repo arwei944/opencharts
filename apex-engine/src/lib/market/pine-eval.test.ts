@@ -101,4 +101,18 @@ plot(hh, "HH")`,
     assert.equal(noPlot.ok, false);
     assert.ok(noPlot.errors.some((e) => e.includes("plot")));
   });
+
+  it("supports for loops for rolling calculations", () => {
+    const c = compilePine(
+      `//@version=5
+var roll = 0.0
+roll := 0.0
+for i = 1 to 3
+    roll := roll + close[i]
+plot(roll, "Roll")`,
+    );
+    const out = c.run(bars(6, 100)); // closes 100..105
+    // bar 5: close[1..3] = 104+103+102 = 309
+    assert.ok(Math.abs(out[0].data[5].value - (104 + 103 + 102)) < 1e-9);
+  });
 });

@@ -44,24 +44,30 @@ import {
  */
 const REVEAL_CHUNK_BARS = 20_000;
 import type { ThemeMode } from "./constants";
+import { formatTime } from "./timefmt";
 import {
   aroon,
   atr,
   boll,
   cci,
+  cmf,
   dmi,
   ema,
   heikinAshi,
   kdj,
   macd,
   mfi,
+  mom,
   obv,
+  ppo,
+  roc,
   rsi,
   sar,
   sma,
   stoch,
   stochrsi,
   supertrend,
+  trix,
   vwap,
   wr,
 } from "./indicators";
@@ -441,6 +447,19 @@ export class ChartEngine {
       const opts = this.priceFormatOpts();
       if (Object.keys(opts).length) this.main.applyOptions(opts);
     }
+    this.setTimezone(s.timezone ?? "local");
+  }
+
+  /**
+   * Time-axis timezone (incl. DST through Intl). "local" keeps the browser
+   * clock; any IANA zone renders axis/legend times in that zone.
+   */
+  private setTimezone(zone: string) {
+    this.chart.applyOptions({
+      localization: {
+        timeFormatter: (t: UTCTimestamp) => formatTime(t, zone),
+      },
+    });
   }
 
   setType(t: ChartType) {
@@ -1191,6 +1210,28 @@ export class ChartEngine {
         const { up, dn } = aroon(bars, ind.params[0] ?? 25);
         push(`${ind.id}-au`, lastOf(up));
         push(`${ind.id}-ad`, lastOf(dn));
+      } else if (ind.kind === "TRIX") {
+        push(`${ind.id}-trix`, lastOf(trix(bars, ind.params[0] ?? 15)));
+      } else if (ind.kind === "ROC") {
+        push(`${ind.id}-roc`, lastOf(roc(bars, ind.params[0] ?? 12)));
+      } else if (ind.kind === "MOM") {
+        push(`${ind.id}-mom`, lastOf(mom(bars, ind.params[0] ?? 10)));
+      } else if (ind.kind === "PPO") {
+        const {
+          ppo: pp,
+          signal,
+          hist,
+        } = ppo(
+          bars,
+          ind.params[0] ?? 12,
+          ind.params[1] ?? 26,
+          ind.params[2] ?? 9,
+        );
+        push(`${ind.id}-hist`, lastOf(hist));
+        push(`${ind.id}-ppo`, lastOf(pp));
+        push(`${ind.id}-sig`, lastOf(signal));
+      } else if (ind.kind === "CMF") {
+        push(`${ind.id}-cmf`, lastOf(cmf(bars, ind.params[0] ?? 20)));
       }
     }
   }

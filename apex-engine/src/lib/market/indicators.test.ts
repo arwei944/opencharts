@@ -6,16 +6,19 @@ import {
   rsi,
   macd,
   boll,
+  cmf,
   dmi,
+  mom,
+  ppo,
+  roc,
   stochrsi,
   mfi,
   aroon,
+  trix,
 } from "./indicators.ts";
 
 /** Deterministic synthetic series: 60 bars, close drifting upward. */
-function makeBars(
-  n = 60,
-): {
+function makeBars(n = 60): {
   time: number;
   open: number;
   high: number;
@@ -166,4 +169,47 @@ test("aroon up/down in [0,100] with up near 100 at a fresh high", () => {
     up[up.length - 1].value > 90,
     `expected AroonUp near 100, got ${up[up.length - 1].value}`,
   );
+});
+
+test("trix is finite and small for a steady uptrend", () => {
+  const bars = makeBars(80);
+  const line = trix(bars, 15);
+  assert.ok(line.length > 0);
+  for (const p of line) assert.ok(Number.isFinite(p.value));
+});
+
+test("roc/mom are positive in an uptrend and aligned", () => {
+  const bars = makeBars(60);
+  const r = roc(bars, 10);
+  const m = mom(bars, 10);
+  assert.ok(r.length > 0 && m.length > 0);
+  assert.ok(
+    r.every((p) => p.value > 0),
+    "ROC should be positive in an uptrend",
+  );
+  assert.ok(
+    m.every((p) => p.value > 0),
+    "MOM should be positive in an uptrend",
+  );
+  assert.equal(r[0].time, bars[10].time);
+});
+
+test("ppo returns ppo/signal/hist with hist = ppo - signal", () => {
+  const bars = makeBars(80);
+  const { ppo: pp, signal, hist } = ppo(bars, 12, 26, 9);
+  assert.ok(pp.length > 0 && signal.length > 0 && hist.length > 0);
+  assert.equal(hist.length, signal.length);
+  const lag = pp.length - signal.length;
+  for (let i = 0; i < hist.length; i++) {
+    assert.ok(
+      Math.abs(hist[i].value - (pp[i + lag].value - signal[i].value)) < 1e-6,
+    );
+  }
+});
+
+test("cmf bounded in [-100,100]", () => {
+  const bars = makeBars(60);
+  const line = cmf(bars, 20);
+  assert.ok(line.length > 0);
+  for (const p of line) assert.ok(p.value >= -100 && p.value <= 100);
 });

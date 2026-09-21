@@ -483,6 +483,115 @@ export function aroon(bars: Candle[], period = 25) {
 }
 
 /** Heikin-Ashi candles derived from raw OHLC. */
+function toCandles(l: Line): Candle[] {
+  return l.map((x) => ({
+    time: x.time,
+    open: x.value,
+    high: x.value,
+    low: x.value,
+    close: x.value,
+    volume: 0,
+  }));
+}
+
+/** Triple-smoothed EMA rate of change (×10000, TradingView convention). */
+export function trix(bars: Candle[], period = 15): Line {
+  const e1 = ema(toCandles(ema(bars, period)), period);
+  const e3 = ema(toCandles(e1), period);
+  const v3 = new Map(e3.map((x) => [x.time, x.value]));
+  const out: Line = [];
+  let prev: number | null = null;
+  for (const b of bars) {
+    const v = v3.get(b.time);
+    if (v == null) continue;
+    if (prev != null) {
+      out.push({
+        time: b.time,
+        value: prev === 0 ? 0 : ((v - prev) / prev) * 10000,
+      });
+    }
+    prev = v;
+  }
+  return out;
+}
+
+/** Rate of change: (close - close[n]) / close[n] * 100. */
+export function roc(bars: Candle[], period = 12): Line {
+  const out: Line = [];
+  for (let i = period; i < bars.length; i++) {
+    const prev = bars[i - period].close;
+    out.push({
+      time: bars[i].time,
+      value: prev === 0 ? 0 : ((bars[i].close - prev) / prev) * 100,
+    });
+  }
+  return out;
+}
+
+/** Momentum: close - close[n]. */
+export function mom(bars: Candle[], period = 10): Line {
+  const out: Line = [];
+  for (let i = period; i < bars.length; i++) {
+    out.push({
+      time: bars[i].time,
+      value: bars[i].close - bars[i - period].close,
+    });
+  }
+  return out;
+}
+
+/** PPO: (EMA(fast) - EMA(slow)) / EMA(slow) * 100, plus its signal. */
+export function ppo(bars: Candle[], fast = 12, slow = 26, signal = 9) {
+  const ef = ema(bars, fast);
+  const es = ema(bars, slow);
+  const esMap = new Map(es.map((x) => [x.time, x.value]));
+  const raw: Line = [];
+  for (const a of ef) {
+    const b = esMap.get(a.time);
+    if (b == null || b === 0) continue;
+    raw.push({ time: a.time, value: ((a.value - b) / b) * 100 });
+  }
+  const sig = ema(toCandles(raw), signal);
+  const sigMap = new Map(sig.map((x) => [x.time, x.value]));
+  const hist: { time: number; value: number; color?: string }[] = [];
+  for (const r of raw) {
+    const s = sigMap.get(r.time);
+    if (s == null) continue;
+    hist.push({
+      time: r.time,
+      value: r.value - s,
+      color: r.value >= s ? "#0ecb8188" : "#f6465d88",
+    });
+  }
+  return { ppo: raw, signal: sig, hist };
+}
+
+/** Chaikin Money Flow. */
+export function cmf(bars: Candle[], period = 20): Line {
+  const out: Line = [];
+  let mfv = 0;
+  let vol = 0;
+  for (let i = 0; i < bars.length; i++) {
+    const b = bars[i];
+    const hl = b.high - b.low;
+    const m = hl === 0 ? 0 : (b.close - b.low - (b.high - b.close)) / hl;
+    const rawMfv = m * b.volume;
+    mfv += rawMfv;
+    vol += b.volume;
+    if (i >= period) {
+      const ob = bars[i - period];
+      const ohl = ob.high - ob.low;
+      const om =
+        ohl === 0 ? 0 : (ob.close - ob.low - (ob.high - ob.close)) / ohl;
+      mfv -= om * ob.volume;
+      vol -= ob.volume;
+      out.push({ time: b.time, value: vol === 0 ? 0 : (mfv / vol) * 100 });
+    }
+  }
+  return out;
+}
+
+/** Heikin-Ashi candles derived from raw OHLC. */
 export function heikinAshi(bars: Candle[]): Candle[] {
   const out: Candle[] = [];
   for (let i = 0; i < bars.length; i++) {
