@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { ChartEngine } from "@/lib/market/chart-engine";
 import { barAtTime } from "@/lib/market/bars";
 import { COMPARE_COLORS } from "@/lib/market/constants";
@@ -34,7 +34,10 @@ function refFor(st: Snapshot, paneId: string, master: boolean) {
     : paneRef(paneId, st.symbol, st.market, iv);
 }
 
-export function ChartPane({ paneId = "p0", master = true }: Props) {
+export const ChartPane = memo(function ChartPane({
+  paneId = "p0",
+  master = true,
+}: Props) {
   const host = useRef<HTMLDivElement>(null);
   const eng = useRef<ChartEngine | null>(null);
   const applyingRemote = useRef(false);
@@ -501,4 +504,4 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
       </div>
     </div>
   );
-}
+});

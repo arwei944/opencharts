@@ -30,7 +30,9 @@ export function CustomIndicatorModal({
   useEffect(() => {
     if (isOpen && activeTab === "custom") {
       // Reset state when opening custom tab
-      setCustomScript(`// @version=5\n// Write your custom indicator here\n\nlength = input.int(9, "Period", minval=1)\nresult = sma(close, length)\nplot(result)`);
+      setCustomScript(
+        `// @version=5\n// Write your custom indicator here\n\nlength = input.int(9, "Period", minval=1)\nresult = sma(close, length)\nplot(result)`,
+      );
       setTestResult(null);
     }
   }, [isOpen, activeTab]);
@@ -45,33 +47,46 @@ export function CustomIndicatorModal({
   const handleRunScript = () => {
     try {
       const result = scriptParser.parse(customScript);
-      
+
       if (!result.success || !result.calculationFn) {
         setTestResult({
           success: false,
-          error: result.errors?.join(", ") || "Failed to parse script"
+          error: result.errors?.join(", ") || "Failed to parse script",
         });
         return;
       }
-      
+
       if (bars.length === 0) {
         setTestResult({
           success: false,
-          error: "No data available for testing"
+          error: "No data available for testing",
         });
         return;
       }
-      
+
       const calculationData = result.calculationFn(bars);
-      
+
+      // Multi-output Pine scripts render one series per plot(); preview the
+      // first output while the full spec goes to the chart.
+      const preview =
+        Array.isArray(calculationData) &&
+        calculationData[0] &&
+        "key" in calculationData[0]
+          ? (
+              calculationData[0] as {
+                data: Array<{ time: number; value: number }>;
+              }
+            ).data
+          : (calculationData as Array<{ time: number; value: number }>);
+
       setTestResult({
         success: true,
-        data: calculationData
+        data: preview,
       });
     } catch (error) {
       setTestResult({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error"
+        error: error instanceof Error ? error.message : "Unknown error",
       });
     }
   };
@@ -87,23 +102,42 @@ export function CustomIndicatorModal({
   };
 
   return (
-    <Modal open={isOpen} onClose={onClose} labelledBy="custom-indicator-dialog" wide>
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      labelledBy="custom-indicator-dialog"
+      wide
+    >
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h2 id="custom-indicator-dialog" className="text-lg font-semibold text-fg" tabIndex={-1}>📊 Custom Indicators</h2>
-        <button onClick={onClose} aria-label="关闭自定义指标" className="rounded-sm bg-surface px-2 py-1 text-muted hover:bg-gold transition-colors">
+        <h2
+          id="custom-indicator-dialog"
+          className="text-lg font-semibold text-fg"
+          tabIndex={-1}
+        >
+          📊 Custom Indicators
+        </h2>
+        <button
+          onClick={onClose}
+          aria-label="关闭自定义指标"
+          className="rounded-sm bg-surface px-2 py-1 text-muted hover:bg-gold transition-colors"
+        >
           <X className="size-4" />
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border" role="tablist" aria-label="自定义指标模式">
+      <div
+        className="flex border-b border-border"
+        role="tablist"
+        aria-label="自定义指标模式"
+      >
         <button
           role="tab"
           aria-selected={activeTab === "builtin"}
           onClick={() => setActiveTab("builtin")}
           className={`px-4 py-2 text-sm font-medium ${
-            activeTab === "builtin" 
-              ? "bg-surface text-gold border-b-2 border-gold" 
+            activeTab === "builtin"
+              ? "bg-surface text-gold border-b-2 border-gold"
               : "text-muted hover:text-fg"
           }`}
         >
@@ -114,8 +148,8 @@ export function CustomIndicatorModal({
           aria-selected={activeTab === "custom"}
           onClick={() => setActiveTab("custom")}
           className={`px-4 py-2 text-sm font-medium ${
-            activeTab === "custom" 
-              ? "bg-surface text-gold border-b-2 border-gold" 
+            activeTab === "custom"
+              ? "bg-surface text-gold border-b-2 border-gold"
               : "text-muted hover:text-fg"
           }`}
         >
@@ -205,20 +239,25 @@ function CustomScriptEditor({
     <div className="space-y-4">
       {/* Info box */}
       <div className="rounded-md bg-blue-500/10 p-3 text-sm text-blue-300">
-        <strong>Syntax similar to Pine Script v5:</strong><br />
+        <strong>Syntax similar to Pine Script v5:</strong>
+        <br />
         Use parameters like <code>input.int(9, "Period", minval=1)</code>,<br />
-        And functions like <code>sma(close, length)</code>, <code>ema(close, length)</code>, etc.<br />
+        And functions like <code>sma(close, length)</code>,{" "}
+        <code>ema(close, length)</code>, etc.
+        <br />
         Available bars: {barsCount}
       </div>
 
       {/* Code editor area */}
       <div>
-        <label className="mb-2 block text-sm font-medium text-fg">Script Editor</label>
+        <label className="mb-2 block text-sm font-medium text-fg">
+          Script Editor
+        </label>
         <textarea
           value={script}
           onChange={(e) => setScript(e.target.value)}
           className="h-64 w-full resize-none rounded-lg border border-border bg-bg p-3 font-mono text-sm text-fg outline-none focus:border-gold"
-          placeholder="// Write your indicator script here...&#10;// Example: length = input.int(9, &quot;Period&quot;)&#10;// result = sma(close, length)&#10;// plot(result)"
+          placeholder='// Write your indicator script here...&#10;// Example: length = input.int(9, "Period")&#10;// result = sma(close, length)&#10;// plot(result)'
           spellCheck={false}
         />
       </div>
@@ -234,11 +273,13 @@ function CustomScriptEditor({
 
       {/* Results */}
       {result && (
-        <div className={`rounded-lg border p-4 ${
-          result.success 
-            ? "border-green-500/30 bg-green-500/10" 
-            : "border-red-500/30 bg-red-500/10"
-        }`}>
+        <div
+          className={`rounded-lg border p-4 ${
+            result.success
+              ? "border-green-500/30 bg-green-500/10"
+              : "border-red-500/30 bg-red-500/10"
+          }`}
+        >
           {result.success ? (
             <>
               <div className="mb-2 flex items-center gap-2">
@@ -249,26 +290,28 @@ function CustomScriptEditor({
                   Script executed successfully!
                 </span>
               </div>
-              
+
               {/* Preview graph (simple ASCII visualization) */}
               {result.data && result.data.length > 0 && (
                 <div className="mt-3">
-                  <p className="mb-2 text-xs text-green-400">Preview (first 20 points):</p>
+                  <p className="mb-2 text-xs text-green-400">
+                    Preview (first 20 points):
+                  </p>
                   <div className="flex h-32 items-end gap-1 overflow-x-auto">
                     {result.data.slice(0, 30).map((point: any, i: number) => (
                       <div
                         key={i}
                         style={{
-                          height: `${Math.min(100, Math.max(5, (point.value / (Math.max(...result.data.map((d: any) => d.value))) * 100)))}%`,
+                          height: `${Math.min(100, Math.max(5, (point.value / Math.max(...result.data.map((d: any) => d.value))) * 100))}%`,
                           width: "8px",
                           background: "rgba(255, 255, 255, 0.8)",
-                          borderRadius: "2px"
+                          borderRadius: "2px",
                         }}
                         title={`Time: ${point.time}, Value: ${point.value.toFixed(2)}`}
                       />
                     ))}
                   </div>
-                  
+
                   {/* Add button */}
                   <button
                     onClick={onSave}
@@ -296,5 +339,15 @@ function CustomScriptEditor({
 }
 
 function XIcon(props: any) {
-  return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>;
+  return (
+    <svg
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  );
 }

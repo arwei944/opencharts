@@ -1,0 +1,26 @@
+{
+ "theme": "light",
+ "colorBg": "rgb(255, 255, 255)",
+ "colorFg": "rgb(11, 14, 17)",
+ "gold": "#f0b90b",
+ "headerText": "OpenCharts现货U本位实时默认账户＋权益 10,000 USDT",
+ "toolbarButtons": 5,
+ "hasLegend": true,
+ "overlaySvg": false,
+ "toolbarTitles": [
+  "行情健康状态 · 点击查看详情",
+  "新建模拟盘账户",
+  "主题：浅色 · 点击循环切换预设",
+  "收起自选列表",
+  "指针",
+  "十字",
+  "下单",
+  "文字",
+  "趋势线",
+  "射线",
+  "水平线",
+  "垂直线"
+ ],
+ "painted": true,
+ "recorded": "2026-09-21T07:43:55.464Z"
+}

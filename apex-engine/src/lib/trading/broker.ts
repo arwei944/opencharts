@@ -2,6 +2,7 @@ import type { Side } from "./paper";
 import { usePaper } from "./paper";
 import { useTerminal } from "@/lib/market/store";
 import { binanceLive } from "@/lib/binance/proxy";
+import { okxLive } from "@/lib/okx/proxy";
 
 export interface BrokerOrder {
   symbol: string;
@@ -186,6 +187,89 @@ export const liveBroker: BrokerProvider = {
   },
   reset() {
     /* live orders live on the exchange — nothing to reset locally */
+  },
+};
+
+/**
+ * Live OKX adapter over the signed server-side proxy — symmetric to Binance.
+ * Mapping: symbol/market → instId, and our order types to OKX ordType.
+ */
+export const okxBroker: BrokerProvider = {
+  name: "okx-live",
+  async place(o) {
+    const okxType =
+      o.type === "market"
+        ? "market"
+        : o.type === "stop-market"
+          ? "conditional"
+          : o.type === "stop-limit"
+            ? "conditional"
+            : "limit";
+    const params: Record<string, string | number> = {
+      symbol: o.symbol,
+      side: o.side,
+      ordType: okxType,
+      sz: o.qty,
+      tdMode: o.market === "spot" ? "cash" : "isolated",
+    };
+    if (o.price > 0) params.px = o.price;
+    if (o.stop != null) params.tpTriggerPx = o.stop;
+    const r = await okxLive({
+      data: { action: "placeOrder", market: o.market, params },
+    });
+    return r.ok ? null : r.error;
+  },
+  cancel(id, symbol) {
+    if (!symbol) return;
+    void okxLive({
+      data: {
+        action: "cancelOrder",
+        market: useTerminal.getState().market,
+        params: { symbol, ordId: id },
+      },
+    });
+  },
+  cancelAll() {
+    /* OKX batch cancel requires polling open orders; left to the exchange app */
+  },
+  onTick() {
+    /* exchange matches orders itself */
+  },
+  async listOpen(symbol) {
+    const market = useTerminal.getState().market;
+    const r = await okxLive({
+      data: {
+        action: "openOrders",
+        market,
+        params: symbol ? { symbol } : {},
+      },
+    });
+    if (!r.ok) return [];
+    const list = JSON.parse(r.raw) as Array<{
+      instId?: string;
+      side?: string;
+      ordType?: string;
+      px?: string;
+      sz?: string;
+      ordId?: string;
+    }>;
+    return (list ?? []).map((o) => ({
+      symbol: (o.instId ?? "").replace(/-(USDT|USDT-SWAP)$/, ""),
+      market,
+      side: (o.side ?? "buy").toLowerCase() as Side,
+      type: (o.ordType ?? "limit").toLowerCase() as BrokerOrder["type"],
+      price: Number(o.px ?? 0),
+      qty: Number(o.sz ?? 0),
+    }));
+  },
+  async status() {
+    const r = await okxLive({
+      data: { action: "balance", market: "spot", params: {} },
+    });
+    return r.ok ? { enabled: true } : { enabled: false, error: r.error };
+  },
+  reset() {
+    /* live orders live on the exchange */
   },
 };
 

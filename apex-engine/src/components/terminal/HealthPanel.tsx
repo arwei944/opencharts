@@ -1,5 +1,6 @@
 import { useTerminal } from "@/lib/market/store";
 import { useConnection } from "@/lib/market/selectors";
+import { fmtPx } from "@/lib/utils";
 import { Modal } from "./Modal";
 
 const HOST_LABEL: Record<string, string> = {
@@ -20,6 +21,8 @@ export function HealthPanel() {
   const feedStats = useTerminal((s) => s.feedStats);
   const dataWarnings = useTerminal((s) => s.dataWarnings);
   const market = useTerminal((s) => s.market);
+  const okxLive = useTerminal((s) => s.okxLive);
+  const okxLast = useTerminal((s) => s.okxLast);
   const barsLen = useTerminal((s) => s.bars.length);
   const paneBarsMap = useTerminal((s) => s.paneBars);
   const compareBarsMap = useTerminal((s) => s.compareBars);
@@ -81,6 +84,15 @@ export function HealthPanel() {
           </div>
           {row("当前数据源", hostName)}
           {row("源索引 / 总源数", `${feedStats.hostIndex} / 4（自动轮换）`)}
+          {row(
+            "OKX 副流（并发双源）",
+            okxLive
+              ? okxLast
+                ? `在线 · ${fmtPx(okxLast.close)}`
+                : "在线"
+              : "离线（自动重连）",
+          )}
+          {row("跨源偏差告警 (>1%)", String(dataWarnings.skew))}
           {row("重连次数", String(feedStats.reconnects))}
           {row("行情缺口 (根)", String(dataWarnings.gaps))}
           {row("异常 tick 过滤", String(dataWarnings.anomalies))}

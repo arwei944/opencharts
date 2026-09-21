@@ -17,6 +17,7 @@ import {
 import type { ThemeMode, ThemePref } from "./constants";
 import type { ChartSettings } from "./settings";
 import { DEFAULT_SETTINGS } from "./settings";
+import type { CustomFn } from "./indicator-compute";
 import type {
   BookLevel,
   Candle,
@@ -67,16 +68,8 @@ export interface TerminalState {
   themePref: ThemePref;
   indicators: IndicatorInst[];
   /** Parsed custom-indicator calculators, keyed by indicator id (session-only). */
-  customFns: Record<
-    string,
-    (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>
-  >;
-  addCustomFn: (
-    id: string,
-    fn: (
-      bars: Candle[],
-    ) => Array<{ time: number; value: number; color?: string }>,
-  ) => void;
+  customFns: Record<string, CustomFn>;
+  addCustomFn: (id: string, fn: CustomFn) => void;
   removeCustomFn: (id: string) => void;
   drawings: Drawing[];
   /** Currently selected drawing id (null = none); Delete removes it. */
@@ -108,11 +101,16 @@ export interface TerminalState {
   live: boolean;
   /** Connection health: connecting | live | degraded | offline */
   conn: "connecting" | "live" | "degraded" | "offline";
-  /** Live-feed integrity counters (gaps between bars, anomalous ticks). */
-  dataWarnings: { gaps: number; anomalies: number };
+  /** Live-feed integrity counters (gaps, anomalous ticks, cross-source skew). */
+  dataWarnings: { gaps: number; anomalies: number; skew: number };
   reportDataWarning: (
-    patch: Partial<{ gaps: number; anomalies: number }>,
+    patch: Partial<{ gaps: number; anomalies: number; skew: number }>,
   ) => void;
+  /** Resident OKX secondary stream status (concurrent dual-source). */
+  okxLive: boolean;
+  okxLast: { time: number; close: number } | null;
+  setOkxLive: (v: boolean) => void;
+  setOkxLast: (t: { time: number; close: number }) => void;
   overlay: Candle | null;
   /** Price from a chart click, waiting for the OrderTicket to confirm. */
   chartOrderPrice: number | null;
@@ -132,8 +130,8 @@ export interface TerminalState {
   depthOpen: boolean;
   /** Feed-health panel (sources / reconnects / warnings). */
   healthOpen: boolean;
-  /** Active trading backend: paper simulation or live exchange. */
-  brokerMode: "paper" | "live";
+  /** Active trading backend: paper, Binance or OKX live. */
+  brokerMode: "paper" | "binance" | "okx";
   /** Strategy backtester dialog. */
   backtestOpen: boolean;
   feedStats: {
@@ -206,7 +204,7 @@ export interface TerminalState {
   setExportFormat: (f: "csv" | "json") => void;
   setDepthOpen: (v: boolean) => void;
   setHealthOpen: (v: boolean) => void;
-  setBrokerMode: (m: "paper" | "live") => void;
+  setBrokerMode: (m: "paper" | "binance" | "okx") => void;
   setBacktestOpen: (v: boolean) => void;
   setFeedStats: (
     p: Partial<{
@@ -286,7 +284,9 @@ export const useTerminal = create<TerminalState>()(
       watchSymbols: DEFAULT_WATCH,
       live: false,
       conn: "connecting",
-      dataWarnings: { gaps: 0, anomalies: 0 },
+      dataWarnings: { gaps: 0, anomalies: 0, skew: 0 },
+      okxLive: false,
+      okxLast: null,
       leftPanelOpen: true,
       rightPanelOpen: true,
       overlay: null,
@@ -620,8 +620,11 @@ export const useTerminal = create<TerminalState>()(
           dataWarnings: {
             gaps: s.dataWarnings.gaps + (patch.gaps ?? 0),
             anomalies: s.dataWarnings.anomalies + (patch.anomalies ?? 0),
+            skew: s.dataWarnings.skew + (patch.skew ?? 0),
           },
         })),
+      setOkxLive: (okxLive) => set({ okxLive }),
+      setOkxLast: (okxLast) => set({ okxLast }),
       setLeftPanelOpen: (leftPanelOpen) => set({ leftPanelOpen }),
       setRightPanelOpen: (rightPanelOpen) => set({ rightPanelOpen }),
       setOverlay: (overlay) => set({ overlay }),

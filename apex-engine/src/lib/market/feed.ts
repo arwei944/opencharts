@@ -1,5 +1,12 @@
 import { useEffect } from "react";
-import { fetchDepth, fetchPremium, fetchTicker, fetchWatch } from "./api";
+import {
+  OKX_BAR,
+  fetchDepth,
+  fetchPremium,
+  fetchTicker,
+  fetchWatch,
+  okxInstId,
+} from "./api";
 import { intervalSec } from "./bars";
 import { cancelHistory, compareRef, ensureCompleteHistory } from "./history";
 import { parseKline } from "./kline-parser";
@@ -370,4 +377,102 @@ export function useMarketFeed() {
     // derive from are only read to build the stream list).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, interval, market, paneIntervalsKey, compareKey]);
+}
+
+/**
+ * Concurrent OKX kline secondary stream (dual-source aggregation, batch 9).
+ * A resident second socket watches the same symbol/interval; the health panel
+ * surfaces both sources and the main feed cross-checks OKX closes for skew
+ * beyond 1% against Binance bars — garbage ticks get caught by two independent
+ * venues instead of one.
+ */
+export function useOkxCandleFeed() {
+  const symbol = useTerminal((s) => s.symbol);
+  const interval = useTerminal((s) => s.interval);
+  const market = useTerminal((s) => s.market);
+
+  useEffect(() => {
+    const bar = OKX_BAR[interval];
+    if (!bar || !("WebSocket" in window)) return;
+    const instId = okxInstId(symbol, market);
+    let ws: WebSocket | null = null;
+    let closed = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let attempts = 0;
+    // Skew is reported once per bar-time, not on every 200ms tick.
+    let lastSkewTime = 0;
+
+    const schedule = () => {
+      if (closed) return;
+      if (retry) clearTimeout(retry);
+      const delay = Math.min(30000, 1000 * 2 ** Math.min(attempts, 5));
+      attempts += 1;
+      retry = setTimeout(open, delay);
+    };
+
+    function open() {
+      if (closed) return;
+      try {
+        ws = new WebSocket("wss://ws.okx.com:8443/ws/v5/public");
+      } catch {
+        schedule();
+        return;
+      }
+      ws.onopen = () => {
+        attempts = 0;
+        useTerminal.getState().setOkxLive(true);
+        ws?.send(
+          JSON.stringify({
+            op: "subscribe",
+            args: [{ channel: `candle${bar}`, instId }],
+          }),
+        );
+      };
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data as string) as {
+            event?: string;
+            data?: Array<{ ts?: string; c?: string }>;
+          };
+          if (msg.event) return; // subscribe / error / ping acks
+          const row = msg.data?.[0];
+          if (!row || row.c == null) return;
+          const t = Math.floor(Number(row.ts ?? 0) / 1000);
+          const close = Number(row.c);
+          if (!Number.isFinite(t) || !Number.isFinite(close)) return;
+          useTerminal.getState().setOkxLast({ time: t, close });
+          // Cross-source check: when OKX and Binance report the same bar,
+          // a >1% close gap flags the pair (once per bar).
+          const st = useTerminal.getState();
+          const last = st.bars.at(-1);
+          if (last && Math.abs(last.time - t) <= 30 && t !== lastSkewTime) {
+            const skew = Math.abs(close - last.close) / last.close;
+            if (skew > 0.01) {
+              lastSkewTime = t;
+              st.reportDataWarning({ skew: 1 });
+            }
+          }
+        } catch {
+          /* ignore malformed frames */
+        }
+      };
+      ws.onclose = () => {
+        if (closed) return;
+        useTerminal.getState().setOkxLive(false);
+        schedule();
+      };
+      ws.onerror = () => {
+        /* onclose drives reconnect */
+      };
+    }
+
+    open();
+    return () => {
+      closed = true;
+      if (retry) clearTimeout(retry);
+      ws?.close();
+      ws = null;
+      useTerminal.getState().setOkxLive(false);
+    };
+  }, [symbol, interval, market]);
 }

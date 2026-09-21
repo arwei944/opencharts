@@ -12,7 +12,7 @@ const prov = () => primaryProvider();
  * ------------------------------------------------------------------------- */
 const OKX_HOST = "https://www.okx.com";
 
-const OKX_BAR: Record<string, string> = {
+export const OKX_BAR: Record<string, string> = {
   "1m": "1m",
   "3m": "3m",
   "5m": "5m",
@@ -28,7 +28,7 @@ const OKX_BAR: Record<string, string> = {
   "1w": "1Wutc",
 };
 
-function okxInstId(symbol: string, market: Market): string {
+export function okxInstId(symbol: string, market: Market): string {
   return `${symbol}-USDT${market === "usdm" ? "-SWAP" : ""}`;
 }
 

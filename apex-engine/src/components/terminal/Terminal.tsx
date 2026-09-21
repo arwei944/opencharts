@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
-import { useMarketFeed } from "@/lib/market/feed";
+import { useMarketFeed, useOkxCandleFeed } from "@/lib/market/feed";
 import { useTerminal } from "@/lib/market/store";
-import { setActiveBroker, liveBroker, paperBroker } from "@/lib/trading/broker";
+import {
+  setActiveBroker,
+  liveBroker,
+  okxBroker,
+  paperBroker,
+} from "@/lib/trading/broker";
 import { useSystemTheme } from "@/lib/use-system-theme";
 import { usePaper } from "@/lib/trading/paper";
 import { BottomPanel } from "./BottomPanel";
@@ -24,11 +29,17 @@ import { Watchlist } from "./Watchlist";
 
 export function Terminal() {
   useMarketFeed();
+  useOkxCandleFeed();
   useSystemTheme();
   // Restore the persisted trading backend (paper default, live opt-in).
   useEffect(() => {
+    const mode = useTerminal.getState().brokerMode;
     setActiveBroker(
-      useTerminal.getState().brokerMode === "live" ? liveBroker : paperBroker,
+      mode === "binance"
+        ? liveBroker
+        : mode === "okx"
+          ? okxBroker
+          : paperBroker,
     );
   }, []);
   // Service worker: production only (dev HMR must not be cached).

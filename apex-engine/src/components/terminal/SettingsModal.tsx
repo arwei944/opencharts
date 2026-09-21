@@ -1,6 +1,11 @@
 import { useTerminal } from "@/lib/market/store";
 import { usePaper } from "@/lib/trading/paper";
-import { setActiveBroker, liveBroker, paperBroker } from "@/lib/trading/broker";
+import {
+  setActiveBroker,
+  liveBroker,
+  okxBroker,
+  paperBroker,
+} from "@/lib/trading/broker";
 import { toast } from "sonner";
 import { Modal } from "./Modal";
 import {
@@ -104,21 +109,29 @@ export function SettingsModal() {
               {(
                 [
                   ["paper", "模拟盘"],
-                  ["live", "实盘（币安）"],
+                  ["binance", "实盘·币安"],
+                  ["okx", "实盘·OKX"],
                 ] as const
               ).map(([id, lab]) => (
                 <button
                   key={id}
                   type="button"
                   onClick={async () => {
-                    if (id === "live") {
-                      const st = await liveBroker.status?.();
+                    if (id !== "paper") {
+                      const live = id === "binance" ? liveBroker : okxBroker;
+                      const st = await live.status?.();
                       if (st && !st.enabled) {
                         toast.error(st.error ?? "实盘未启用");
                         return;
                       }
                     }
-                    setActiveBroker(id === "live" ? liveBroker : paperBroker);
+                    setActiveBroker(
+                      id === "paper"
+                        ? paperBroker
+                        : id === "binance"
+                          ? liveBroker
+                          : okxBroker,
+                    );
                     setBrokerMode(id);
                   }}
                   className={`rounded-sm px-3 py-1.5 text-micro ${

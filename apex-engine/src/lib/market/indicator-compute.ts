@@ -31,7 +31,15 @@ export interface IndicatorSeriesSpec {
 }
 
 export interface CustomFn {
-  (bars: Candle[]): Array<{ time: number; value: number; color?: string }>;
+  (
+    bars: Candle[],
+  ):
+    | Array<{ time: number; value: number; color?: string }>
+    | Array<{
+        key: string;
+        color: string;
+        data: Array<{ time: number; value: number }>;
+      }>;
 }
 
 /**
@@ -164,7 +172,84 @@ export function computeIndicator(
     const fn = customFns[id];
     if (fn) {
       try {
-        line(`${id}-custom`, "#00d4ff", undefined, fn(bars));
+        const res = fn(bars);
+        // Multi-output (Pine scripts with several plot() calls): a spec array
+        // whose first element carries a `key` renders one series per output.
+        if (Array.isArray(res) && res[0] && "key" in res[0]) {
+          // Multi-output Pine scripts share one dedicated sub-pane (like RSI /
+          // MACD) — the same verified render path; a lone overlay series with
+          // an extreme value range is what used to hang the canvas.
+          const pane = sub.value++;
+          for (const spec of res as Array<{
+            key: string;
+            color: string;
+            data: Array<{ time: number; value: number }>;
+          }>) {
+            if (!spec.data.length) continue; // never render an empty line
+            // Guard rails against lw-charts renderer limits on overlay-style
+            // multi-series data:
+            //  1) a constant series (max == min) collapses a lone scale;
+            //  2) a discrete-jump signal line (adjacent |Δ| > half the range)
+            //     with 0…1 / 0…100 values hangs the canvas renderer.
+            // Smooth series (EMA/SMA-style) pass both checks and render fine.
+            let mn = Infinity;
+            let mx = -Infinity;
+            for (const d of spec.data) {
+              mn = Math.min(mn, d.value);
+              mx = Math.max(mx, d.value);
+            }
+            if (mx - mn < 1e-9) continue;
+            const range = mx - mn;
+            let jumpy = false;
+            for (let k = 1; k < spec.data.length; k++) {
+              if (
+                Math.abs(spec.data[k].value - spec.data[k - 1].value) >
+                range * 0.5
+              ) {
+                jumpy = true;
+                break;
+              }
+            }
+            if (jumpy) continue;
+            out.push({
+              key: `${id}-${spec.key}`,
+              color: spec.color,
+              pane: paneOf(pane), // dedicated sub-pane
+              type: "line",
+              data: spec.data,
+            });
+          }
+        } else {
+          const single = res as Array<{
+            time: number;
+            value: number;
+            color?: string;
+          }>;
+          // Same renderer guard as the multi-output path: constant or
+          // discrete-jump series (0/1, 0/100 style) can hang the canvas.
+          let mn = Infinity;
+          let mx = -Infinity;
+          for (const d of single) {
+            mn = Math.min(mn, d.value);
+            mx = Math.max(mx, d.value);
+          }
+          const range = mx - mn;
+          if (range >= 1e-9) {
+            let jumpy = false;
+            for (let k = 1; k < single.length; k++) {
+              if (
+                Math.abs(single[k].value - single[k - 1].value) >
+                range * 0.5
+              ) {
+                jumpy = true;
+                break;
+              }
+            }
+            if (!jumpy) {
+              line(`${id}-custom`, "#00d4ff", undefined, single);
+            }
+          }
+        }
       } catch {
         /* a broken script must never take the chart down */
       }

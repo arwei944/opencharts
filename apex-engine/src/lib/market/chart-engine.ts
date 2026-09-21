@@ -23,7 +23,11 @@ import {
   initialLogicalRange,
   trimTail,
 } from "./series-ops";
-import { computeIndicator, lastHeikinAshi } from "./indicator-compute";
+import {
+  computeIndicator,
+  lastHeikinAshi,
+  type CustomFn,
+} from "./indicator-compute";
 import {
   CHART_THEME,
   COMPARE_COLORS,
@@ -110,10 +114,7 @@ export class ChartEngine {
   private showVol = true;
   private indicators: IndicatorInst[] = [];
   /** Runtime-only custom calculators keyed by indicator id (see store.customFns). */
-  private customFns: Record<
-    string,
-    (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>
-  > = {};
+  private customFns: Record<string, CustomFn> = {};
   private interval: Interval = "15m";
   private step = 60;
   private suppressRange = false;
@@ -730,12 +731,7 @@ export class ChartEngine {
   }
 
   /** Adopt the session custom calculators; re-render CUSTOM indicators. */
-  setCustomFns(
-    fns: Record<
-      string,
-      (bars: Candle[]) => Array<{ time: number; value: number; color?: string }>
-    >,
-  ) {
+  setCustomFns(fns: Record<string, CustomFn>) {
     this.customFns = fns;
     this.applyIndicators();
   }
@@ -1022,43 +1018,53 @@ export class ChartEngine {
         sub,
         ind.pane,
       )) {
+        if (!spec.data.length) continue;
         // Reuse a series that already exists for this key: progressive reveals
         // re-run indicatorJobs while the panes/lines are still live, so rebuilt
-        // them means dropping and recreating every pane per commit.
+        // them means dropping and recreating every pane per commit. Jobs run
+        // inside pumpRest — a broken script must never take the tab down.
         const existing = this.extra(spec.key);
         if (spec.type === "hist") {
           jobs.push(() => {
-            const h =
-              existing?.series &&
-              (existing.series as ISeriesApi<"Histogram">).applyOptions
-                ? (existing.series as ISeriesApi<"Histogram">)
-                : this.chart.addSeries(
-                    HistogramSeries,
-                    { priceLineVisible: false },
-                    spec.pane,
-                  );
-            if (!existing) this.addExtra(spec.key, h as unknown as AnySeries);
-            h.setData(
-              spec.data.map((x) => ({
-                time: x.time as UTCTimestamp,
-                value: x.value,
-                color: x.color,
-              })),
-            );
+            try {
+              const h =
+                existing?.series &&
+                (existing.series as ISeriesApi<"Histogram">).applyOptions
+                  ? (existing.series as ISeriesApi<"Histogram">)
+                  : this.chart.addSeries(
+                      HistogramSeries,
+                      { priceLineVisible: false },
+                      spec.pane,
+                    );
+              if (!existing) this.addExtra(spec.key, h as unknown as AnySeries);
+              h.setData(
+                spec.data.map((x) => ({
+                  time: x.time as UTCTimestamp,
+                  value: x.value,
+                  color: x.color,
+                })),
+              );
+            } catch {
+              /* skip a broken histogram */
+            }
           });
         } else {
           jobs.push(() => {
-            const s =
-              existing?.series &&
-              (existing.series as ISeriesApi<"Line">).setData
-                ? (existing.series as ISeriesApi<"Line">)
-                : this.line(spec.key, spec.color, spec.pane);
-            s.setData(
-              spec.data.map((x) => ({
-                time: x.time as UTCTimestamp,
-                value: x.value,
-              })),
-            );
+            try {
+              const s =
+                existing?.series &&
+                (existing.series as ISeriesApi<"Line">).setData
+                  ? (existing.series as ISeriesApi<"Line">)
+                  : this.line(spec.key, spec.color, spec.pane);
+              s.setData(
+                spec.data.map((x) => ({
+                  time: x.time as UTCTimestamp,
+                  value: x.value,
+                })),
+              );
+            } catch {
+              /* skip a broken line */
+            }
           });
         }
       }
