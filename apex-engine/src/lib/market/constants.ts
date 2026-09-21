@@ -53,6 +53,7 @@ export const TOOLS: { id: Tool; label: string }[] = [
   { id: "order", label: "下单" },
   { id: "text", label: "文字" },
   { id: "trend", label: "趋势线" },
+  { id: "arrow", label: "箭头" },
   { id: "ray", label: "射线" },
   { id: "hline", label: "水平线" },
   { id: "vline", label: "垂直线" },
@@ -60,6 +61,50 @@ export const TOOLS: { id: Tool; label: string }[] = [
   { id: "fib", label: "斐波那契" },
   { id: "parallel", label: "平行通道" },
   { id: "measure", label: "测距" },
+];
+
+/** One-click indicator groups (layout-preset style). */
+export const INDICATOR_PRESETS: {
+  id: string;
+  name: string;
+  indicators: { kind: string; params?: number[] }[];
+}[] = [
+  {
+    id: "trend",
+    name: "趋势组",
+    indicators: [
+      { kind: "MA", params: [7, 25, 99] },
+      { kind: "EMA", params: [12, 26] },
+      { kind: "BOLL" },
+    ],
+  },
+  {
+    id: "osc",
+    name: "震荡组",
+    indicators: [
+      { kind: "RSI", params: [14] },
+      { kind: "MACD" },
+      { kind: "VOL" },
+    ],
+  },
+  {
+    id: "momentum",
+    name: "动量组",
+    indicators: [
+      { kind: "KDJ" },
+      { kind: "WR", params: [14] },
+      { kind: "DMI", params: [14] },
+    ],
+  },
+  {
+    id: "volume",
+    name: "量价组",
+    indicators: [
+      { kind: "OBV" },
+      { kind: "MFI", params: [14] },
+      { kind: "ATR", params: [14] },
+    ],
+  },
 ];
 
 export const INDICATOR_CATALOG: {

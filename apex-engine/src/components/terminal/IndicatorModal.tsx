@@ -1,4 +1,4 @@
-import { INDICATOR_CATALOG } from "@/lib/market/constants";
+import { INDICATOR_CATALOG, INDICATOR_PRESETS } from "@/lib/market/constants";
 import { useTerminal } from "@/lib/market/store";
 import { useState } from "react";
 import { Pencil } from "lucide-react";
@@ -13,6 +13,7 @@ export function IndicatorModal() {
   const addIndicator = useTerminal((s) => s.addIndicator);
   const updateIndicator = useTerminal((s) => s.updateIndicator);
   const removeIndicator = useTerminal((s) => s.removeIndicator);
+  const applyIndicatorPreset = useTerminal((s) => s.applyIndicatorPreset);
   const bars = useTerminal((s) => s.bars);
 
   // Id of the indicator whose params are being edited (inline in the list).
@@ -67,6 +68,21 @@ export function IndicatorModal() {
                 ✕
               </button>
             </div>
+          </div>
+
+          <p className="mb-1 text-micro text-muted">预置指标组</p>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {INDICATOR_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                title={`替换当前指标为：${p.indicators.map((x) => x.kind).join(" + ")}`}
+                className="rounded-sm border border-gold/40 bg-elevated px-2 py-1 text-micro text-gold hover:bg-gold/10 transition-colors"
+                onClick={() => applyIndicatorPreset(p.indicators)}
+              >
+                {p.name}
+              </button>
+            ))}
           </div>
 
           <p className="mb-2 text-micro text-muted">主图 Overlay</p>

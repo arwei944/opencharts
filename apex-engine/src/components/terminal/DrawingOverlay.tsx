@@ -172,7 +172,8 @@ function DrawShape({
   const pts = d.points.map(xy);
   if (pts.some((p) => !p)) return null;
   const color = d.color;
-  const width = selected ? 2 : 1;
+  const baseWidth = d.width ?? 1;
+  const width = selected ? Math.max(baseWidth, 2) : baseWidth;
   const opacity = selected ? 1 : 0.75;
   const hit = {
     pointerEvents: "all" as const,
@@ -265,10 +266,37 @@ function DrawShape({
     );
   }
   if (
-    (d.tool === "trend" || d.tool === "ray" || d.tool === "measure") &&
+    (d.tool === "trend" ||
+      d.tool === "ray" ||
+      d.tool === "arrow" ||
+      d.tool === "measure") &&
     pts[0] &&
     pts[1]
   ) {
+    // Arrowhead for the arrow tool: a filled triangle at the line tip.
+    const arrow =
+      d.tool === "arrow"
+        ? (() => {
+            const dx = pts[1].x - pts[0].x;
+            const dy = pts[1].y - pts[0].y;
+            const len = Math.hypot(dx, dy) || 1;
+            const ux = dx / len;
+            const uy = dy / len;
+            const s = 8 + width * 2;
+            const tipX = pts[1].x;
+            const tipY = pts[1].y;
+            const bx = tipX - ux * s;
+            const by = tipY - uy * s;
+            const px = -uy * s * 0.45;
+            const py = ux * s * 0.45;
+            return (
+              <polygon
+                points={`${tipX},${tipY} ${bx + px},${by + py} ${bx - px},${by - py}`}
+                fill={color}
+              />
+            );
+          })()
+        : null;
     return (
       <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
         <line
@@ -280,6 +308,7 @@ function DrawShape({
           strokeWidth={width}
           opacity={opacity}
         />
+        {arrow}
         {d.tool === "measure" && (
           <text
             x={(pts[0].x + pts[1].x) / 2}

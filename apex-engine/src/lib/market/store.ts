@@ -158,6 +158,8 @@ export interface TerminalState {
   toggleTheme: () => void;
   setThemePref: (p: ThemePref) => void;
   addIndicator: (kind: IndicatorInst["kind"]) => string;
+  /** Replace all indicators with a preset group (one-click templates). */
+  applyIndicatorPreset: (list: { kind: string; params?: number[] }[]) => void;
   updateIndicator: (
     id: string,
     patch: Partial<Pick<IndicatorInst, "params" | "visible" | "pane">>,
@@ -357,6 +359,17 @@ export const useTerminal = create<TerminalState>()(
           return { themePref: next, theme: next };
         }),
       setThemePref: (themePref) => set({ themePref }),
+      applyIndicatorPreset: (list) => {
+        get().pushHistory();
+        set({
+          indicators: list.map((spec) => ({
+            id: uid(),
+            kind: spec.kind as IndicatorInst["kind"],
+            params: spec.params ?? [],
+            visible: true,
+          })),
+        });
+      },
       addIndicator: (kind) => {
         // CUSTOM indicators are registered by id with a runtime calculator
         // (addCustomFn) rather than a catalog spec — emit a placeholder

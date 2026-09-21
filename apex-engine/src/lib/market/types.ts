@@ -44,6 +44,7 @@ export type Tool =
   | "order"
   | "text"
   | "trend"
+  | "arrow"
   | "ray"
   | "hline"
   | "vline"
@@ -129,6 +130,8 @@ export interface Drawing {
   tool: Tool;
   points: DrawPoint[];
   color: string;
+  /** Line width in px (default 1). */
+  width?: number;
   /** Hidden from the chart (kept in the drawings list). */
   visible?: boolean;
   /** Locked against dragging/editing (selection still allowed). */

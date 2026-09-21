@@ -6,6 +6,17 @@ import { Modal } from "./Modal";
 
 const TOOL_LABEL = new Map<Tool, string>(TOOLS.map((t) => [t.id, t.label]));
 
+const DRAW_COLORS = [
+  "#f0b90b",
+  "#00d4ff",
+  "#0ecb81",
+  "#f6465d",
+  "#c084fc",
+  "#fb7185",
+  "#eaecef",
+  "#848e9c",
+];
+
 function summary(d: Drawing): string {
   if (d.tool === "text" && d.points[0]?.text) return d.points[0].text;
   const a = d.points[0];
@@ -71,6 +82,54 @@ export function DrawingsPanel() {
           </p>
         ) : (
           <div className="min-h-0 flex-1 overflow-auto p-1">
+            {selectedId &&
+              (() => {
+                const sel = drawings.find((d) => d.id === selectedId);
+                if (!sel) return null;
+                return (
+                  <div className="mb-2 rounded border border-gold/40 bg-surface p-2">
+                    <div className="mb-1 flex items-center justify-between text-[10px] text-subtle">
+                      <span>属性 · {TOOL_LABEL.get(sel.tool) ?? sel.tool}</span>
+                      <span>线宽 {sel.width ?? 1}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {DRAW_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          title={c}
+                          onClick={() =>
+                            st().updateDrawing(sel.id, { color: c })
+                          }
+                          className={`size-5 rounded-full border ${
+                            sel.color === c
+                              ? "border-fg ring-1 ring-gold"
+                              : "border-border"
+                          }`}
+                          style={{ background: c }}
+                        />
+                      ))}
+                      <span className="mx-1 h-4 w-px bg-border" />
+                      {[1, 2, 3, 4].map((w) => (
+                        <button
+                          key={w}
+                          type="button"
+                          onClick={() =>
+                            st().updateDrawing(sel.id, { width: w })
+                          }
+                          className={`rounded-sm px-1.5 text-micro ${
+                            (sel.width ?? 1) === w
+                              ? "bg-gold text-bg"
+                              : "text-muted hover:text-fg"
+                          }`}
+                        >
+                          {w}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             {drawings.map((d) => {
               const selected = d.id === selectedId;
               const hidden = d.visible === false;
