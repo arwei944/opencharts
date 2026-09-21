@@ -185,6 +185,76 @@ export function PriceScaleSection({ settings, update }: SectionProps) {
   );
 }
 
+export function TypographySection({ settings, update }: SectionProps) {
+  const FONTS = [
+    "IBM Plex Sans, sans-serif",
+    "ui-monospace, monospace",
+    "system-ui, sans-serif",
+    "Georgia, serif",
+  ];
+  const fontIdx = Math.max(
+    0,
+    FONTS.indexOf(settings.fontFamily ?? "IBM Plex Sans, sans-serif"),
+  );
+  return (
+    <section>
+      <h3 className="mb-3 text-sm font-medium text-subtle">字体与精度</h3>
+      <div className="grid grid-cols-2 gap-4">
+        <Field
+          label="字号 (px)"
+          value={settings.fontSize ?? 11}
+          min={9}
+          max={16}
+          step={1}
+          onChange={(v) => update("fontSize", Number(v))}
+        />
+        <Field
+          label="字体"
+          value={fontIdx}
+          min={0}
+          max={3}
+          step={1}
+          options={[0, 1, 2, 3]}
+          map={{
+            0: "IBM Plex Sans",
+            1: "等宽 Mono",
+            2: "系统 UI",
+            3: "衬线 Serif",
+          }}
+          onChange={(v) => update("fontFamily", FONTS[Number(v)] as string)}
+        />
+        <div>
+          <label className="mb-1 block text-micro text-subtle">
+            价格精度（小数位）
+          </label>
+          <select
+            value={
+              settings.pricePrecision == null
+                ? "auto"
+                : String(settings.pricePrecision)
+            }
+            onChange={(e) => {
+              const v = e.target.value;
+              update("pricePrecision", v === "auto" ? undefined : Number(v));
+            }}
+            className="w-full rounded border border-border bg-bg px-2 py-1 text-micro text-fg outline-none ring-0 focus:border-gold"
+          >
+            <option value="auto">自动（跟随行情）</option>
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+              <option key={n} value={n}>
+                {n} 位
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <p className="mt-2 text-[10px] text-subtle">
+        字号/字体/精度修改后立即生效，随图表持久化。
+      </p>
+    </section>
+  );
+}
+
 export function VolumeSection({ settings, update }: SectionProps) {
   return (
     <section>

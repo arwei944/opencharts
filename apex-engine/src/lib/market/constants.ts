@@ -277,6 +277,9 @@ export const TEXT = "#848e9c";
 
 export type ThemeMode = "dark" | "light";
 
+/** User theme preference: explicit mode, or follow the OS. */
+export type ThemePref = ThemeMode | "system";
+
 // Chart-canvas palette per theme. Accent colours (candles, gold, compare lines)
 // are shared; only the surface, grid, axis text and crosshair label differ.
 export const CHART_THEME: Record<

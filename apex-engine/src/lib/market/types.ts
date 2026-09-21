@@ -129,6 +129,10 @@ export interface Drawing {
   tool: Tool;
   points: DrawPoint[];
   color: string;
+  /** Hidden from the chart (kept in the drawings list). */
+  visible?: boolean;
+  /** Locked against dragging/editing (selection still allowed). */
+  locked?: boolean;
 }
 
 export interface WatchItem {

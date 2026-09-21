@@ -2,10 +2,12 @@ import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { useMarketFeed } from "@/lib/market/feed";
 import { useTerminal } from "@/lib/market/store";
+import { useSystemTheme } from "@/lib/use-system-theme";
 import { usePaper } from "@/lib/trading/paper";
 import { BottomPanel } from "./BottomPanel";
 import { ChartBoard } from "./ChartBoard";
 import { Header } from "./Header";
+import { DrawingsPanel } from "./DrawingsPanel";
 import { IndicatorModal } from "./IndicatorModal";
 import { OrderBook } from "./OrderBook";
 import { OrderTicket } from "./OrderTicket";
@@ -17,6 +19,7 @@ import { Watchlist } from "./Watchlist";
 
 export function Terminal() {
   useMarketFeed();
+  useSystemTheme();
   const symbol = useTerminal((s) => s.symbol);
   const ticker = useTerminal((s) => s.ticker);
   const bids = useTerminal((s) => s.bids);
@@ -154,6 +157,7 @@ export function Terminal() {
       <SymbolSearch />
       <IndicatorModal />
       <SettingsModal />
+      <DrawingsPanel />
     </div>
   );
 }

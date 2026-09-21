@@ -3,6 +3,7 @@ import type { ChartEngine } from "@/lib/market/chart-engine";
 import { FIB_LEVELS } from "@/lib/market/constants";
 import { useTerminal } from "@/lib/market/store";
 import { fmtPx } from "@/lib/utils";
+import { snapPrice, snapTime } from "@/lib/market/snap";
 import type { DrawPoint, Drawing } from "@/lib/market/types";
 
 /**
@@ -55,12 +56,20 @@ export function DrawingOverlay({ engine }: { engine: ChartEngine | null }) {
       const drawing = st.drawings.find((z) => z.id === d.id);
       if (!drawing) return;
       if (d.anchorIdx != null) {
-        // Dragging a single anchor: recompute its price/time from pointer.
+        // Dragging a single anchor: recompute its price/time from the pointer
+        // with a magnetic snap to the bar under the anchor and its OHLC.
         const xr = engine.xToTime(x);
         const yr = engine.yToPrice(y);
         if (xr == null || yr == null) return;
+        const ctx = {
+          timeToX: (t: number) => engine.timeToX(t),
+          priceToY: (p: number) => engine.priceToY(p),
+        };
+        const bars = useTerminal.getState().bars;
+        const stime = snapTime(bars, xr as number, ctx);
+        const sprice = snapPrice(bars, stime, yr, ctx);
         const points = drawing.points.map((p, i) =>
-          i === d.anchorIdx ? { ...p, time: xr as number, price: yr } : p,
+          i === d.anchorIdx ? { ...p, time: stime, price: sprice } : p,
         );
         st.updateDrawing(d.id, { points });
       } else {
@@ -97,7 +106,8 @@ export function DrawingOverlay({ engine }: { engine: ChartEngine | null }) {
   }, [engine]);
 
   if (!engine) return null;
-  if (!drawings.length) return null;
+  const visible = drawings.filter((d) => d.visible !== false);
+  if (!visible.length) return null;
 
   const startDrag = (
     id: string,
@@ -120,16 +130,18 @@ export function DrawingOverlay({ engine }: { engine: ChartEngine | null }) {
 
   return (
     <svg className="pointer-events-none absolute inset-0 h-full w-full">
-      {drawings.map((d) => (
-        <DrawShape
-          key={d.id}
-          d={d}
-          engine={engine}
-          selected={d.id === selectedId}
-          onSelect={() => select(d.id)}
-          onStartDrag={startDrag}
-        />
-      ))}
+      {drawings
+        .filter((d) => d.visible !== false)
+        .map((d) => (
+          <DrawShape
+            key={d.id}
+            d={d}
+            engine={engine}
+            selected={d.id === selectedId}
+            onSelect={() => select(d.id)}
+            onStartDrag={startDrag}
+          />
+        ))}
     </svg>
   );
 }
@@ -164,34 +176,35 @@ function DrawShape({
   const opacity = selected ? 1 : 0.75;
   const hit = {
     pointerEvents: "all" as const,
-    style: { cursor: "move" as const },
+    style: { cursor: d.locked ? ("default" as const) : ("move" as const) },
   };
-  // Body click => select; body drag => move whole drawing.
+  // Body click => select; body drag => move whole drawing (unless locked).
   const onBodyDown = (e: React.PointerEvent) => {
     e.stopPropagation();
     onSelect();
-    onStartDrag(d.id, null, e.clientX, e.clientY);
+    if (!d.locked) onStartDrag(d.id, null, e.clientX, e.clientY);
   };
-  const anchors = selected
-    ? pts.map((p, i) => (
-        <circle
-          key={`a${i}`}
-          cx={p!.x}
-          cy={p!.y}
-          r={4}
-          fill={color}
-          stroke="#fff"
-          strokeWidth={1}
-          className="cursor-nwse-resize"
-          style={{ pointerEvents: "all" }}
-          onPointerDown={(e) => {
-            e.stopPropagation();
-            onSelect();
-            onStartDrag(d.id, i, e.clientX, e.clientY);
-          }}
-        />
-      ))
-    : null;
+  const anchors =
+    selected && !d.locked
+      ? pts.map((p, i) => (
+          <circle
+            key={`a${i}`}
+            cx={p!.x}
+            cy={p!.y}
+            r={4}
+            fill={color}
+            stroke="#fff"
+            strokeWidth={1}
+            className="cursor-nwse-resize"
+            style={{ pointerEvents: "all" }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              onSelect();
+              onStartDrag(d.id, i, e.clientX, e.clientY);
+            }}
+          />
+        ))
+      : null;
 
   if (d.tool === "text" && pts[0]) {
     return (

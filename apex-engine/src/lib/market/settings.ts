@@ -39,6 +39,11 @@ export interface ChartSettings {
   wickColorUp?: string; // Wick up color only (overrides candleColorUp)
   wickColorDown?: string; // Wick down color only (overrides candleColorDown)
   initialZoom?: "fit" | "tight" | "wide"; // Initial view range ("fit" = auto, "tight" = recent bars, "wide" = all bars)
+
+  // 🔤 Typography & Price Precision
+  fontSize?: number; // Chart layout font size in px (default 11)
+  fontFamily?: string; // Chart layout font family
+  pricePrecision?: number; // Main price-axis decimals (undefined = auto from data)
 }
 
 export const DEFAULT_SETTINGS: ChartSettings = {
@@ -68,4 +73,9 @@ export const DEFAULT_SETTINGS: ChartSettings = {
   wickColorUp: undefined, // No override
   wickColorDown: undefined, // No override
   initialZoom: "fit", // Auto-fit to visible data
+
+  // 🔤 Typography & Price Precision Defaults
+  fontSize: 11,
+  fontFamily: "IBM Plex Sans, sans-serif",
+  pricePrecision: undefined, // auto from data
 };

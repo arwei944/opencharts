@@ -205,8 +205,10 @@ export class ChartEngine {
   onViewport?: (fromTime: number, toTime: number) => void;
   onRange?: (from: number, to: number) => void;
   onCrosshair?: (time: number | null, price: number | null) => void;
-  /** Settings from Zustand store, applied once at construction then never again (for performance). */
-  private readonly settings: typeof DEFAULT_SETTINGS;
+  /** High-frequency visible-range tick for the minimap strip (canvas-side, no React). */
+  onMinimap?: (range: { from: number; to: number } | null) => void;
+  /** Settings from Zustand store, applied once at construction then refreshed via applyTypography. */
+  private settings: typeof DEFAULT_SETTINGS;
 
   constructor(
     host: HTMLElement,
@@ -221,8 +223,8 @@ export class ChartEngine {
       layout: {
         background: { type: ColorType.Solid, color: pal.bg },
         textColor: pal.text,
-        fontFamily: "IBM Plex Sans, sans-serif",
-        fontSize: 11,
+        fontFamily: settings.fontFamily ?? "IBM Plex Sans, sans-serif",
+        fontSize: settings.fontSize ?? 11,
         attributionLogo: false,
       },
       grid: {
@@ -290,6 +292,21 @@ export class ChartEngine {
       if (!this.rangeRaf) {
         this.rangeRaf = requestAnimationFrame(() => {
           this.rangeRaf = 0;
+          // The minimap strip tracks every frame the viewport moves — including
+          // mid-drag — but must not fight a range we are applying remotely.
+          if (!this.suppressRange) {
+            const tr = this.chart.timeScale().getVisibleRange();
+            if (
+              tr &&
+              typeof tr.from === "number" &&
+              typeof tr.to === "number"
+            ) {
+              this.onMinimap?.({
+                from: tr.from as number,
+                to: tr.to as number,
+              });
+            }
+          }
           if (this.suppressRange) return;
           // While the pointer is dragging, forwarding every frame to React
           // (linked-range sync, coverage checks) is pure latency: the pan is
@@ -357,22 +374,42 @@ export class ChartEngine {
     return this.invert ? { up: DOWN, down: UP } : { up: UP, down: DOWN };
   }
 
+  /** priceFormat options for the main series, from the configured precision. */
+  private priceFormatOpts(): Record<string, unknown> {
+    const p = this.settings.pricePrecision;
+    if (p == null || !Number.isFinite(p) || p < 0 || p > 8) return {};
+    return {
+      priceFormat: {
+        type: "price",
+        precision: p,
+        minMove: 1 / Math.pow(10, p),
+      },
+    };
+  }
+
   private rebuildMain() {
     if (this.main) this.chart.removeSeries(this.main);
     const { up, down } = this.colors();
+    const fmt = this.priceFormatOpts();
     if (this.type === "bar") {
       this.main = this.chart.addSeries(BarSeries, {
         upColor: up,
         downColor: down,
+        ...fmt,
       });
     } else if (this.type === "line") {
-      this.main = this.chart.addSeries(LineSeries, { color: up, lineWidth: 2 });
+      this.main = this.chart.addSeries(LineSeries, {
+        color: up,
+        lineWidth: 2,
+        ...fmt,
+      });
     } else if (this.type === "area") {
       this.main = this.chart.addSeries(AreaSeries, {
         lineColor: up,
         topColor: `${up}55`,
         bottomColor: `${up}00`,
         lineWidth: 2,
+        ...fmt,
       });
     } else {
       const hollow = this.type === "hollow";
@@ -383,10 +420,26 @@ export class ChartEngine {
         borderDownColor: down,
         wickUpColor: up,
         wickDownColor: down,
+        ...fmt,
       });
     }
     this.applyBars();
     this.syncMirror();
+  }
+
+  /** Re-apply typography (font size/family) and price precision live. */
+  applyTypography(s: typeof DEFAULT_SETTINGS) {
+    this.settings = s;
+    this.chart.applyOptions({
+      layout: {
+        fontSize: s.fontSize ?? 11,
+        fontFamily: s.fontFamily ?? "IBM Plex Sans, sans-serif",
+      },
+    });
+    if (this.main) {
+      const opts = this.priceFormatOpts();
+      if (Object.keys(opts).length) this.main.applyOptions(opts);
+    }
   }
 
   setType(t: ChartType) {
@@ -815,6 +868,22 @@ export class ChartEngine {
     requestAnimationFrame(() => {
       this.suppressRange = false;
     });
+  }
+
+  /**
+   * Double-click zoom: scale the visible logical range by `factor` keeping the
+   * logical anchor under the cursor (approx) stationary.
+   */
+  zoomAt(x: number, width: number, factor = 1.6) {
+    const ts = this.chart.timeScale();
+    const lr = ts.getVisibleLogicalRange();
+    if (!lr || width <= 0) return;
+    const span = lr.to - lr.from;
+    const ratio = Math.max(0, Math.min(1, x / width));
+    const anchor = lr.from + span * ratio;
+    const newSpan = span / factor;
+    const from = anchor - (anchor - lr.from) / factor;
+    ts.setVisibleLogicalRange({ from, to: from + newSpan });
   }
 
   setCrosshair(time: number | null, price: number | null) {

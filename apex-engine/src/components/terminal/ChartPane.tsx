@@ -69,6 +69,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   const historyKey_ = historyKey(market, symbol, interval);
   const historyPhase = useTerminal((s) => s.historyStatus[historyKey_]?.phase);
   const theme = useTerminal((s) => s.theme);
+  const chartSettings = useTerminal((s) => s.chartSettings);
   const draft = useRef<DrawPoint[]>([]);
   const [, tick] = useState(0);
   // Inline text-tool editor: position of the pending annotation input.
@@ -85,8 +86,15 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   const textOpenRef = useRef(false);
   // Cursor-following OHLC readout (updated imperatively, never via React state).
   const ohlcReadout = useRef<HTMLDivElement>(null);
+  // Minimap strip: visible-range indicator + click-to-jump. Imperative style
+  // updates live in this ref so a React re-render (any store change) cannot
+  // clobber them — the JSX reads the same source of truth.
+  const minimapSlider = useRef<HTMLDivElement>(null);
+  const mmState = useRef({ left: "0%", width: "8%", opacity: 0 });
+  const ohlcState = useRef(0);
 
   const hideOhlcReadout = () => {
+    ohlcState.current = 0;
     if (ohlcReadout.current) ohlcReadout.current.style.opacity = "0";
   };
 
@@ -126,6 +134,33 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
       e.onViewport = (from) => {
         ensureCoverage(refFor(useTerminal.getState(), paneId, master), from);
       };
+      e.onMinimap = (range) => {
+        const slider = minimapSlider.current;
+        if (!slider) return;
+        const stBars = useTerminal.getState().bars;
+        if (!stBars.length) return;
+        const t0 = stBars[0].time;
+        const t1 = stBars[stBars.length - 1].time;
+        const span = t1 - t0;
+        if (span <= 0) return;
+        if (!range) {
+          mmState.current.opacity = 0;
+          slider.style.opacity = "0";
+          return;
+        }
+        const left = Math.max(
+          0,
+          Math.min(100, ((range.from - t0) / span) * 100),
+        );
+        const width = Math.max(
+          1.5,
+          Math.min(100 - left, ((range.to - range.from) / span) * 100),
+        );
+        mmState.current = { left: `${left}%`, width: `${width}%`, opacity: 1 };
+        slider.style.opacity = "1";
+        slider.style.left = `${left}%`;
+        slider.style.width = `${width}%`;
+      };
       e.onRange = (from, to) => {
         if (applyingRemote.current) return;
         const st = useTerminal.getState();
@@ -157,6 +192,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
         useTerminal.getState().setOverlay(bar ?? null);
         if (bar && param.point && ohlcReadout.current) {
           const ro = ohlcReadout.current;
+          ohlcState.current = 1;
           ro.style.opacity = "1";
           const w = el.clientWidth;
           const left =
@@ -175,6 +211,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
             `<span class="${cls}">收 ${fmtPx(bar.close)}</span>` +
             `<span class="text-subtle">量 ${fmtNum(bar.volume, 3)}</span>`;
         } else if (ohlcReadout.current) {
+          ohlcState.current = 0;
           ohlcReadout.current.style.opacity = "0";
         }
       });
@@ -293,6 +330,10 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   useEffect(() => {
     eng.current?.setTheme(theme);
   }, [theme]);
+  // Typography / price-precision changes apply live to the running engine.
+  useEffect(() => {
+    eng.current?.applyTypography(chartSettings);
+  }, [chartSettings]);
   useEffect(() => {
     eng.current?.setFullData(bars, historyPhase !== "complete");
   }, [bars, historyPhase]);
@@ -359,11 +400,53 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
     <div className="relative flex h-full min-h-0 flex-col bg-bg">
       <ChartToolbar engine={eng.current} paneId={paneId} master={master} />
       <div className="relative min-h-0 flex-1">
-        <div ref={host} className="absolute inset-0" />
+        <div
+          ref={host}
+          className="absolute inset-0"
+          onDoubleClick={(e) => {
+            // Double-click zooms in around the cursor (desktop/trackpad; the
+            // pointer tools stay untouched so double-clicks keep drawing).
+            const tool = useTerminal.getState().tool;
+            if (tool !== "cursor" && tool !== "cross" && tool !== "order")
+              return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            eng.current?.zoomAt(e.clientX - rect.left, rect.width, 1.6);
+          }}
+        />
+        {master && (
+          <div
+            className="absolute inset-x-2 bottom-1 z-10 h-1.5 cursor-pointer rounded-full bg-border/70"
+            title="当前可见范围 · 点击跳转"
+            onClick={(ev) => {
+              const wrapper = ev.currentTarget as HTMLDivElement;
+              const rect = wrapper.getBoundingClientRect();
+              const ratio = (ev.clientX - rect.left) / rect.width;
+              const stBars = useTerminal.getState().bars;
+              if (!stBars.length || !eng.current) return;
+              const t0 = stBars[0].time;
+              const t1 = stBars[stBars.length - 1].time;
+              const span = t1 - t0;
+              if (span <= 0) return;
+              const mid = t0 + span * ratio;
+              const half = Math.max(span * 0.05, 60_000);
+              eng.current?.setVisibleTimeRange(mid - half, mid + half);
+            }}
+          >
+            <div
+              ref={minimapSlider}
+              className="absolute top-0 h-full rounded-full bg-gold/80"
+              style={{
+                left: mmState.current.left,
+                width: mmState.current.width,
+                opacity: mmState.current.opacity,
+              }}
+            />
+          </div>
+        )}
         <div
           ref={ohlcReadout}
           className="pointer-events-none absolute left-0 top-0 z-10 flex gap-2 whitespace-nowrap rounded-sm border border-border bg-elevated/90 px-1.5 py-0.5 text-[10px] leading-tight text-muted backdrop-blur-sm"
-          style={{ opacity: 0 }}
+          style={{ opacity: ohlcState.current }}
         />
         <DrawingOverlay engine={eng.current} />
         <TpSlOverlay engine={eng.current} />

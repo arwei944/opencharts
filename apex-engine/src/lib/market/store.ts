@@ -13,7 +13,7 @@ import {
   INDICATOR_CATALOG,
   PANE_COUNT,
 } from "./constants";
-import type { ThemeMode } from "./constants";
+import type { ThemeMode, ThemePref } from "./constants";
 import type { ChartSettings } from "./settings";
 import { DEFAULT_SETTINGS } from "./settings";
 import type {
@@ -62,6 +62,8 @@ export interface TerminalState {
   showVol: boolean;
   tool: Tool;
   theme: ThemeMode;
+  /** User preference: dark / light / follow the OS. */
+  themePref: ThemePref;
   indicators: IndicatorInst[];
   /** Parsed custom-indicator calculators, keyed by indicator id (session-only). */
   customFns: Record<
@@ -120,6 +122,8 @@ export interface TerminalState {
   searchOpen: boolean;
   indicatorOpen: boolean;
   settingsOpen: boolean;
+  /** Drawings list panel (object tree). */
+  drawingsOpen: boolean;
   chartSettings: ChartSettings;
   mobileTab: "chart" | "book" | "trade";
   mark: number;
@@ -136,6 +140,7 @@ export interface TerminalState {
   setTool: (t: Tool) => void;
   setTheme: (t: ThemeMode) => void;
   toggleTheme: () => void;
+  setThemePref: (p: ThemePref) => void;
   addIndicator: (kind: IndicatorInst["kind"]) => string;
   updateIndicator: (
     id: string,
@@ -178,6 +183,7 @@ export interface TerminalState {
   setSearchOpen: (v: boolean) => void;
   setIndicatorOpen: (v: boolean) => void;
   setSettingsOpen: (v: boolean) => void;
+  setDrawingsOpen: (v: boolean) => void;
   setChartSettings: (settings: ChartSettings) => void;
   setMobileTab: (t: TerminalState["mobileTab"]) => void;
   setPremium: (mark: number, funding: number, next: number) => void;
@@ -218,6 +224,7 @@ export const useTerminal = create<TerminalState>()(
       showVol: true,
       tool: "cursor",
       theme: "light",
+      themePref: "light",
       indicators: [
         { id: "ma-default", kind: "MA", params: [7, 25, 99], visible: true },
         { id: "vol-default", kind: "VOL", params: [], visible: true },
@@ -254,6 +261,7 @@ export const useTerminal = create<TerminalState>()(
       searchOpen: false,
       indicatorOpen: false,
       settingsOpen: false,
+      drawingsOpen: false,
       chartSettings: DEFAULT_SETTINGS,
       mobileTab: "chart",
       mark: 0,
@@ -297,7 +305,13 @@ export const useTerminal = create<TerminalState>()(
       setTool: (tool) => set({ tool }),
       setTheme: (theme) => set({ theme }),
       toggleTheme: () =>
-        set({ theme: get().theme === "dark" ? "light" : "dark" }),
+        set((s) => {
+          // Switching from "system" pins the explicit opposite of what the OS
+          // resolved; otherwise it just flips and pins the theme.
+          const resolved = s.theme === "dark" ? "light" : "dark";
+          return { themePref: resolved, theme: resolved };
+        }),
+      setThemePref: (themePref) => set({ themePref }),
       addIndicator: (kind) => {
         // CUSTOM indicators are registered by id with a runtime calculator
         // (addCustomFn) rather than a catalog spec — emit a placeholder
@@ -573,6 +587,7 @@ export const useTerminal = create<TerminalState>()(
       setSearchOpen: (searchOpen) => set({ searchOpen }),
       setIndicatorOpen: (indicatorOpen) => set({ indicatorOpen }),
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+      setDrawingsOpen: (drawingsOpen) => set({ drawingsOpen }),
       setChartSettings: (settings: ChartSettings) =>
         set({ chartSettings: settings }),
       setMobileTab: (mobileTab) => set({ mobileTab }),
@@ -675,6 +690,7 @@ export const useTerminal = create<TerminalState>()(
           ...p,
           // Theme is not persisted: the app always boots in the light theme.
           theme: "light",
+          themePref: p.themePref ?? "light",
           layout: p.layout ?? current.layout,
           panes: p.panes?.length ? p.panes : current.panes,
           compareSymbols: p.compareSymbols ?? [],
@@ -710,6 +726,7 @@ export const useTerminal = create<TerminalState>()(
         tpsl: s.tpsl,
         leftPanelOpen: s.leftPanelOpen,
         rightPanelOpen: s.rightPanelOpen,
+        themePref: s.themePref,
       }),
     },
   ),

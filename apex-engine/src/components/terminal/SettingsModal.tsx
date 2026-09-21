@@ -8,6 +8,7 @@ import {
   ResetSection,
   TimeScaleSection,
   TouchSection,
+  TypographySection,
   VolumeSection,
   DEFAULT_SETTINGS,
 } from "./SettingsSections";
@@ -17,6 +18,8 @@ export function SettingsModal() {
   const close = () => useTerminal.getState().setSettingsOpen(false);
   const settings = useTerminal((s) => s.chartSettings);
   const setSettings = useTerminal((s) => s.setChartSettings);
+  const themePref = useTerminal((s) => s.themePref);
+  const setThemePref = useTerminal((s) => s.setThemePref);
 
   const update = <K extends keyof typeof DEFAULT_SETTINGS>(
     key: K,
@@ -46,12 +49,43 @@ export function SettingsModal() {
         </div>
 
         <div className="space-y-6">
+          <section>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-subtle">
+              外观 · 主题模式
+            </h3>
+            <div className="flex gap-2">
+              {(
+                [
+                  ["dark", "深色"],
+                  ["light", "浅色"],
+                  ["system", "跟随系统"],
+                ] as const
+              ).map(([id, lab]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setThemePref(id)}
+                  className={`rounded-sm px-3 py-1.5 text-micro ${
+                    themePref === id
+                      ? "bg-gold text-bg"
+                      : "bg-surface text-muted hover:text-fg"
+                  }`}
+                >
+                  {lab}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[10px] text-subtle">
+              跟随系统：随操作系统深浅色模式实时切换，双主题无需手动管理。
+            </p>
+          </section>
           <CrosshairSection settings={settings} update={update} />
           <TimeScaleSection settings={settings} update={update} />
           <PriceScaleSection settings={settings} update={update} />
           <VolumeSection settings={settings} update={update} />
           <CompareColorsSection settings={settings} update={update} />
           <CandleSection settings={settings} update={update} />
+          <TypographySection settings={settings} update={update} />
           <TouchSection settings={settings} update={update} />
           <ResetSection
             onReset={() => setSettings(DEFAULT_SETTINGS)}

@@ -77,6 +77,14 @@ export function ChartContextMenu({ engine }: { engine: ChartEngine | null }) {
         type="button"
         role="menuitem"
         className={item}
+        onClick={act(() => useTerminal.getState().setDrawingsOpen(true))}
+      >
+        绘图列表…
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        className={item}
         onClick={act(() => {
           const st = useTerminal.getState();
           st.toggleMirrorAxis();
