@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useTerminal } from "@/lib/market/store";
+import { broker } from "@/lib/trading/broker";
 import { usePaper, type OrderType, type Side } from "@/lib/trading/paper";
 import { fmtNum, fmtPx } from "@/lib/utils";
 
@@ -8,27 +9,38 @@ export function OrderTicket() {
   const symbol = useTerminal((s) => s.symbol);
   const market = useTerminal((s) => s.market);
   const ticker = useTerminal((s) => s.ticker);
+  const chartOrderPrice = useTerminal((s) => s.chartOrderPrice);
+  const setChartOrderPrice = useTerminal((s) => s.setChartOrderPrice);
   const quote = usePaper((s) => s.quote);
   const bases = usePaper((s) => s.bases);
   const leverage = usePaper((s) => s.leverage);
   const setLeverage = usePaper((s) => s.setLeverage);
-  const place = usePaper((s) => s.place);
   const [side, setSide] = useState<Side>("buy");
   const [type, setType] = useState<OrderType>("limit");
   const [price, setPrice] = useState("");
   const [stop, setStop] = useState("");
   const [qty, setQty] = useState("");
+  const [tp, setTp] = useState("");
+  const [sl, setSl] = useState("");
   const last = ticker?.last ?? 0;
   const px = Number(price) || last;
   const q = Number(qty) || 0;
   const notional = px * q;
+
+  // Chart click-to-trade: fill the price box and ask the user to confirm.
+  useEffect(() => {
+    if (chartOrderPrice == null) return;
+    setPrice(String(chartOrderPrice));
+    toast.info(`图表点击价格 ${fmtPx(chartOrderPrice)} 已填入，确认后下单`);
+    setChartOrderPrice(null);
+  }, [chartOrderPrice, setChartOrderPrice]);
 
   const submit = () => {
     if (!q || q <= 0) {
       toast.error("请输入数量");
       return;
     }
-    const err = place({
+    const err = broker.place({
       symbol,
       market,
       side,
@@ -37,8 +49,21 @@ export function OrderTicket() {
       stop: stop ? Number(stop) : undefined,
       qty: q,
     });
-    if (err) toast.error(err);
-    else toast.success("已提交");
+    if (err) toast.error(String(err));
+    else {
+      toast.success("已提交");
+      // Sync TP/SL onto the chart as draggable levels.
+      const hasTp = tp !== "" && Number(tp) > 0;
+      const hasSl = sl !== "" && Number(sl) > 0;
+      if (hasTp || hasSl) {
+        useTerminal
+          .getState()
+          .setTpsl({
+            tp: hasTp ? Number(tp) : null,
+            sl: hasSl ? Number(sl) : null,
+          });
+      }
+    }
   };
 
   return (
@@ -92,11 +117,28 @@ export function OrderTicket() {
           <span className="w-8 font-mono text-fg">{leverage}x</span>
         </label>
       )}
-      {type !== "market" && <Field label="价格" value={price} placeholder={fmtPx(last)} onChange={setPrice} />}
+      {type !== "market" && (
+        <Field
+          label="价格"
+          value={price}
+          placeholder={fmtPx(last)}
+          onChange={setPrice}
+        />
+      )}
       {(type === "stop-limit" || type === "stop-market") && (
-        <Field label="触发" value={stop} placeholder="止损价" onChange={setStop} />
+        <Field
+          label="触发"
+          value={stop}
+          placeholder="止损价"
+          onChange={setStop}
+        />
       )}
       <Field label="数量" value={qty} placeholder="0.00" onChange={setQty} />
+      {/* TP/SL: reflected on the chart as draggable dashed levels. */}
+      <div className="grid grid-cols-2 gap-2 px-3">
+        <Field label="止盈 TP" value={tp} placeholder="可选" onChange={setTp} />
+        <Field label="止损 SL" value={sl} placeholder="可选" onChange={setSl} />
+      </div>
       <div className="flex gap-1 px-3 text-micro text-muted">
         {[0.25, 0.5, 0.75, 1].map((p) => (
           <button
@@ -104,8 +146,9 @@ export function OrderTicket() {
             type="button"
             className="rounded-sm bg-elevated px-2 py-1 hover:text-fg"
             onClick={() => {
-              if (side === "buy") setQty(((quote * p) / (px || last || 1)).toPrecision(6));
-              else setQty((((bases[symbol] ?? 0) * p) || 0).toPrecision(6));
+              if (side === "buy")
+                setQty(((quote * p) / (px || last || 1)).toPrecision(6));
+              else setQty(((bases[symbol] ?? 0) * p || 0).toPrecision(6));
             }}
           >
             {p * 100}%
@@ -119,7 +162,9 @@ export function OrderTicket() {
         </div>
         <div className="flex justify-between">
           <span>{symbol.replace("USDT", "")}</span>
-          <span className="font-mono text-fg">{fmtNum(bases[symbol] ?? 0, 6)}</span>
+          <span className="font-mono text-fg">
+            {fmtNum(bases[symbol] ?? 0, 6)}
+          </span>
         </div>
         <div className="flex justify-between">
           <span>名义</span>
@@ -133,7 +178,9 @@ export function OrderTicket() {
       >
         {side === "buy" ? "买入" : "卖出"} {symbol.replace("USDT", "")}
       </button>
-      <p className="px-3 pt-2 text-micro text-subtle">模拟成交 · 公开行情 · 不下真实单</p>
+      <p className="px-3 pt-2 text-micro text-subtle">
+        模拟成交 · 公开行情 · 不下真实单
+      </p>
     </div>
   );
 }

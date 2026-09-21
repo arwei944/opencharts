@@ -106,6 +106,12 @@ export interface TerminalState {
   /** Connection health: connecting | live | degraded | offline */
   conn: "connecting" | "live" | "degraded" | "offline";
   overlay: Candle | null;
+  /** Price from a chart click, waiting for the OrderTicket to confirm. */
+  chartOrderPrice: number | null;
+  setChartOrderPrice: (p: number | null) => void;
+  /** Take-profit / stop-loss levels shown on the chart and draggable. */
+  tpsl: { tp: number | null; sl: number | null };
+  setTpsl: (patch: Partial<{ tp: number | null; sl: number | null }>) => void;
   searchOpen: boolean;
   indicatorOpen: boolean;
   settingsOpen: boolean;
@@ -538,6 +544,10 @@ export const useTerminal = create<TerminalState>()(
       setLive: (live) => set({ live, conn: live ? "live" : "degraded" }),
       setConn: (conn) => set({ conn }),
       setOverlay: (overlay) => set({ overlay }),
+      chartOrderPrice: null,
+      setChartOrderPrice: (chartOrderPrice) => set({ chartOrderPrice }),
+      tpsl: { tp: null, sl: null },
+      setTpsl: (patch) => set({ tpsl: { ...get().tpsl, ...patch } }),
       setSearchOpen: (searchOpen) => set({ searchOpen }),
       setIndicatorOpen: (indicatorOpen) => set({ indicatorOpen }),
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),

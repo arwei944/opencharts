@@ -50,6 +50,7 @@ export const CHART_TYPES: { id: ChartType; label: string }[] = [
 export const TOOLS: { id: Tool; label: string }[] = [
   { id: "cursor", label: "指针" },
   { id: "cross", label: "十字" },
+  { id: "order", label: "下单" },
   { id: "trend", label: "趋势线" },
   { id: "ray", label: "射线" },
   { id: "hline", label: "水平线" },
@@ -67,18 +68,72 @@ export const INDICATOR_CATALOG: {
   defaults: number[];
   labels: string[];
 }[] = [
-  { kind: "MA", name: "MA 均线", group: "main", defaults: [7, 25, 99], labels: ["MA1", "MA2", "MA3"] },
-  { kind: "EMA", name: "EMA 指数均线", group: "main", defaults: [12, 26], labels: ["快", "慢"] },
-  { kind: "BOLL", name: "BOLL 布林带", group: "main", defaults: [20, 2], labels: ["周期", "倍数"] },
-  { kind: "SAR", name: "SAR 抛物线", group: "main", defaults: [0.02, 0.2], labels: ["步长", "极限"] },
+  {
+    kind: "MA",
+    name: "MA 均线",
+    group: "main",
+    defaults: [7, 25, 99],
+    labels: ["MA1", "MA2", "MA3"],
+  },
+  {
+    kind: "EMA",
+    name: "EMA 指数均线",
+    group: "main",
+    defaults: [12, 26],
+    labels: ["快", "慢"],
+  },
+  {
+    kind: "BOLL",
+    name: "BOLL 布林带",
+    group: "main",
+    defaults: [20, 2],
+    labels: ["周期", "倍数"],
+  },
+  {
+    kind: "SAR",
+    name: "SAR 抛物线",
+    group: "main",
+    defaults: [0.02, 0.2],
+    labels: ["步长", "极限"],
+  },
   { kind: "VWAP", name: "VWAP", group: "main", defaults: [], labels: [] },
-  { kind: "SUPER", name: "Supertrend", group: "main", defaults: [10, 3], labels: ["ATR", "倍数"] },
+  {
+    kind: "SUPER",
+    name: "Supertrend",
+    group: "main",
+    defaults: [10, 3],
+    labels: ["ATR", "倍数"],
+  },
   { kind: "VOL", name: "成交量", group: "sub", defaults: [], labels: [] },
-  { kind: "MACD", name: "MACD", group: "sub", defaults: [12, 26, 9], labels: ["快", "慢", "信号"] },
+  {
+    kind: "MACD",
+    name: "MACD",
+    group: "sub",
+    defaults: [12, 26, 9],
+    labels: ["快", "慢", "信号"],
+  },
   { kind: "RSI", name: "RSI", group: "sub", defaults: [14], labels: ["周期"] },
-  { kind: "KDJ", name: "KDJ", group: "sub", defaults: [9, 3, 3], labels: ["N", "M1", "M2"] },
-  { kind: "STOCH", name: "Stochastic", group: "sub", defaults: [14, 3], labels: ["K", "D"] },
-  { kind: "WR", name: "Williams %R", group: "sub", defaults: [14], labels: ["周期"] },
+  {
+    kind: "KDJ",
+    name: "KDJ",
+    group: "sub",
+    defaults: [9, 3, 3],
+    labels: ["N", "M1", "M2"],
+  },
+  {
+    kind: "STOCH",
+    name: "Stochastic",
+    group: "sub",
+    defaults: [14, 3],
+    labels: ["K", "D"],
+  },
+  {
+    kind: "WR",
+    name: "Williams %R",
+    group: "sub",
+    defaults: [14],
+    labels: ["周期"],
+  },
   { kind: "CCI", name: "CCI", group: "sub", defaults: [14], labels: ["周期"] },
   { kind: "OBV", name: "OBV", group: "sub", defaults: [], labels: [] },
   { kind: "ATR", name: "ATR", group: "sub", defaults: [14], labels: ["周期"] },
@@ -98,9 +153,20 @@ export const PANE_COUNT: Record<import("./types").ChartLayout, number> = {
   "2x2": 4,
 };
 
-export const DEFAULT_PANE_INTERVALS: import("./types").Interval[] = ["15m", "1h", "4h", "1d"];
+export const DEFAULT_PANE_INTERVALS: import("./types").Interval[] = [
+  "15m",
+  "1h",
+  "4h",
+  "1d",
+];
 
-export const COMPARE_COLORS = ["#00d4ff", "#c084fc", "#fb7185", "#34d399", "#fbbf24"];
+export const COMPARE_COLORS = [
+  "#00d4ff",
+  "#c084fc",
+  "#fb7185",
+  "#34d399",
+  "#fbbf24",
+];
 
 // Depth a series is filled to before it counts as "complete". Coarse intervals go
 // back to the exchange's first bar (sinceMs: 0); fine intervals stop at a time
@@ -188,6 +254,16 @@ export const CHART_THEME: Record<
   ThemeMode,
   { bg: string; grid: string; text: string; axisLabel: string }
 > = {
-  dark: { bg: "#0b0e11", grid: "#1e2329", text: "#848e9c", axisLabel: "#2b3139" },
-  light: { bg: "#ffffff", grid: "#e6e9ee", text: "#707a89", axisLabel: "#e6e9ee" },
+  dark: {
+    bg: "#0b0e11",
+    grid: "#1e2329",
+    text: "#848e9c",
+    axisLabel: "#2b3139",
+  },
+  light: {
+    bg: "#ffffff",
+    grid: "#e6e9ee",
+    text: "#707a89",
+    axisLabel: "#e6e9ee",
+  },
 };

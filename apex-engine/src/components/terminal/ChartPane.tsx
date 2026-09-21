@@ -16,6 +16,7 @@ import { uid } from "@/lib/utils";
 import { ChartToolbar } from "./ChartToolbar";
 import { ChartContextMenu } from "./ChartContextMenu";
 import { DrawingOverlay } from "./DrawingOverlay";
+import { TpSlOverlay } from "./TpSlOverlay";
 import { Legend } from "./Legend";
 
 type Props = {
@@ -139,11 +140,16 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
         if (!master) return;
         const engine = eng.current;
         const cur = useTerminal.getState().tool;
-        if (!engine || !param.point || cur === "cursor" || cur === "cross")
-          return;
+        if (!engine || !param.point) return;
+        if (cur === "cursor" || cur === "cross") return;
         const time = engine.xToTime(param.point.x);
         const price = engine.yToPrice(param.point.y);
         if (time == null || price == null) return;
+        // Click-to-trade: hand the clicked price to the order ticket.
+        if (cur === "order") {
+          useTerminal.getState().setChartOrderPrice(price);
+          return;
+        }
         const pt = { time, price };
         if (cur === "hline" || cur === "vline") {
           useTerminal.getState().addDrawing({
@@ -218,9 +224,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
     eng.current?.setPanSensitivity(mousePan);
   }, [mousePan]);
   useEffect(() => {
-    eng.current?.setCursor(
-      tool === "cursor" || tool === "cross" ? "default" : "crosshair",
-    );
+    eng.current?.setCursor(tool === "cursor" ? "default" : "crosshair");
   }, [tool]);
   useEffect(() => {
     eng.current?.setLog(logScale);
@@ -299,6 +303,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
       <div className="relative min-h-0 flex-1">
         <div ref={host} className="absolute inset-0" />
         <DrawingOverlay engine={eng.current} />
+        <TpSlOverlay engine={eng.current} />
         <ChartContextMenu engine={eng.current} />
         {shown && (
           <Legend

@@ -48,7 +48,8 @@ export type Tool =
   | "rect"
   | "fib"
   | "parallel"
-  | "measure";
+  | "measure"
+  | "order";
 
 export type IndicatorKind =
   | "MA"
