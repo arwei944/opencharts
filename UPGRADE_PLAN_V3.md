@@ -101,12 +101,13 @@ Phase 3  交易与生态（~10%）—— 订单流/杠杆模式/OCO + 云端同�
 ### P0-A chart-engine 模块化拆分（1362 行 → 6 模块）
 | 模块 | 内容 | 说明 |
 |------|------|------|
-| `engine/core.ts` | 生命周期、setFullData/commit/pending、updateLastBar、applyTail | 保持 public API 稳定，对外只变 import 路径 |
-| `engine/indicator-render.ts` | indicatorJobs 管线、实时尾值重算（现有 `updateIndicatorTails`） | 从核心抽出 |
-| `engine/compare.ts` | 对比线生命周期（setCompare/updateCompare/removeCompare） | |
-| `engine/export.ts` | screenshot / 坐标工具（priceToY/timeToX round-trip） | |
-| `engine/events.ts` | 指针/滚轮/十字线/点击绘制事件绑定 | |
-| `chart-engine.ts` | 仅剩组合层 + 对外门面 | 目标 ≤ 400 行 |
+| `engine/indicator-render.ts` | ✅ 已落地：IndicatorRenderer（jobs/applyTail/reset/line/extra 全量迁入，含实时尾值 switch） | engine 委托，全回归无 diff |
+| `engine/compare.ts` | ✅ 已落地：CompareManager（set/update/remove/clear/apply/syncScale） | 见上一轮 |
+| `engine/export.ts` | ✅ 已落地：截图 + 坐标 round-trip 纯函数 | 见上一轮 |
+| `engine/viewport.ts` | ✅ 已落地：fitRange/zoomRange/isValidRange 纯函数（5 单测），engine 方法接管 | 本轮 |
+| `engine/core.ts` | 生命周期、setFullData/commit/pending、updateLastBar、applyTail | 剩余最大块（~500 行），下一刀 |
+| `engine/events.ts` | 指针/滚轮/十字线/点击绘制事件绑定 | 依赖私有状态最多，最后拆 |
+| `chart-engine.ts` | 组合层 + 对外门面 | 1362 → 1000 行，目标 ≤ 600 |
 
 **验收**：拆分后跑通全量回归（含倒垂 16 断言、像素 4 主题、batch1-12 冒烟），无行为 diff。
 
