@@ -64,7 +64,12 @@ export function Header() {
         </button>
       </nav>
       <div className="ml-auto flex items-center gap-3 text-micro">
-        <span className="flex items-center gap-1.5 text-muted">
+        <button
+          type="button"
+          onClick={() => useTerminal.getState().setHealthOpen(true)}
+          title="行情健康状态 · 点击查看详情"
+          className="flex items-center gap-1.5 text-muted hover:text-fg"
+        >
           <span
             className={`size-1.5 rounded-full ${conn === "live" ? "bg-up" : conn === "degraded" ? "bg-gold" : "bg-subtle"}`}
           />
@@ -75,7 +80,7 @@ export function Header() {
               : conn === "offline"
                 ? "离线"
                 : "连接中"}
-        </span>
+        </button>
         {(dataWarnings.gaps > 0 || dataWarnings.anomalies > 0) && (
           <span
             className="flex items-center gap-1 text-gold"

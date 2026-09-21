@@ -75,23 +75,8 @@ export function ChartToolbar({
       a.click();
     });
   };
-  const exportCsv = () => {
-    const list = master
-      ? useTerminal.getState().bars
-      : (useTerminal.getState().paneBars[paneId] ?? NO_BARS);
-    const rows = [
-      "time,open,high,low,close,volume",
-      ...list.map(
-        (b) =>
-          `${new Date(b.time * 1000).toISOString()},${b.open},${b.high},${b.low},${b.close},${b.volume}`,
-      ),
-    ];
-    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "apex-ohlcv.csv";
-    a.click();
-  };
+  // 导出：打开 ExportDialog（格式 + 时段选择）。
+  const openExport = () => useTerminal.getState().setExportOpen(true);
 
   return (
     <div className="flex h-8 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border px-1 text-micro [&>*]:shrink-0">
@@ -301,11 +286,11 @@ export function ChartToolbar({
           </button>
           <button
             type="button"
-            aria-label="导出 CSV"
+            aria-label="导出数据"
             className="rounded-sm px-1.5 text-muted hover:text-fg"
-            onClick={exportCsv}
+            onClick={openExport}
           >
-            CSV
+            CSV/JSON
           </button>
         </>
       )}

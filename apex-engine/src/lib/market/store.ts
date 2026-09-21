@@ -124,6 +124,19 @@ export interface TerminalState {
   settingsOpen: boolean;
   /** Drawings list panel (object tree). */
   drawingsOpen: boolean;
+  /** Data-export dialog (CSV/JSON + time range). */
+  exportOpen: boolean;
+  exportFormat: "csv" | "json";
+  /** Full-size depth chart modal. */
+  depthOpen: boolean;
+  /** Feed-health panel (sources / reconnects / warnings). */
+  healthOpen: boolean;
+  feedStats: {
+    hostIndex: number;
+    base: string;
+    reconnects: number;
+    lastMsgAt: number;
+  };
   chartSettings: ChartSettings;
   mobileTab: "chart" | "book" | "trade";
   mark: number;
@@ -184,6 +197,18 @@ export interface TerminalState {
   setIndicatorOpen: (v: boolean) => void;
   setSettingsOpen: (v: boolean) => void;
   setDrawingsOpen: (v: boolean) => void;
+  setExportOpen: (v: boolean) => void;
+  setExportFormat: (f: "csv" | "json") => void;
+  setDepthOpen: (v: boolean) => void;
+  setHealthOpen: (v: boolean) => void;
+  setFeedStats: (
+    p: Partial<{
+      hostIndex: number;
+      base: string;
+      reconnects: number;
+      lastMsgAt: number;
+    }>,
+  ) => void;
   setChartSettings: (settings: ChartSettings) => void;
   setMobileTab: (t: TerminalState["mobileTab"]) => void;
   setPremium: (mark: number, funding: number, next: number) => void;
@@ -262,6 +287,11 @@ export const useTerminal = create<TerminalState>()(
       indicatorOpen: false,
       settingsOpen: false,
       drawingsOpen: false,
+      exportOpen: false,
+      exportFormat: "csv",
+      depthOpen: false,
+      healthOpen: false,
+      feedStats: { hostIndex: 0, base: "", reconnects: 0, lastMsgAt: 0 },
       chartSettings: DEFAULT_SETTINGS,
       mobileTab: "chart",
       mark: 0,
@@ -588,6 +618,12 @@ export const useTerminal = create<TerminalState>()(
       setIndicatorOpen: (indicatorOpen) => set({ indicatorOpen }),
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
       setDrawingsOpen: (drawingsOpen) => set({ drawingsOpen }),
+      setExportOpen: (exportOpen) => set({ exportOpen }),
+      setExportFormat: (exportFormat) => set({ exportFormat }),
+      setDepthOpen: (depthOpen) => set({ depthOpen }),
+      setHealthOpen: (healthOpen) => set({ healthOpen }),
+      setFeedStats: (patch) =>
+        set({ feedStats: { ...get().feedStats, ...patch } }),
       setChartSettings: (settings: ChartSettings) =>
         set({ chartSettings: settings }),
       setMobileTab: (mobileTab) => set({ mobileTab }),

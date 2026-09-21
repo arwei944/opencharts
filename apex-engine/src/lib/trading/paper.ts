@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { uid } from "@/lib/utils";
+import { uid } from "../utils.ts";
 
 export type Side = "buy" | "sell";
 export type OrderType = "limit" | "market" | "stop-limit" | "stop-market";
@@ -33,6 +33,7 @@ export interface Fill {
   time: number;
   orderId: string;
   symbol: string;
+  market: "spot" | "usdm";
   side: Side;
   price: number;
   qty: number;
@@ -45,8 +46,13 @@ interface PaperState {
   orders: PaperOrder[];
   fills: Fill[];
   positions: Position[];
+  /** Risk limits (undefined = unlimited). */
+  risk: { maxQty?: number; maxNotional?: number };
   setLeverage: (n: number) => void;
-  place: (o: Omit<PaperOrder, "id" | "time" | "status" | "filledQty" | "avgFill">) => string | null;
+  setRisk: (r: Partial<{ maxQty: number; maxNotional: number }>) => void;
+  place: (
+    o: Omit<PaperOrder, "id" | "time" | "status" | "filledQty" | "avgFill">,
+  ) => string | null;
   cancel: (id: string) => void;
   cancelAll: (symbol?: string) => void;
   onTick: (symbol: string, last: number, bid: number, ask: number) => void;
@@ -55,8 +61,22 @@ interface PaperState {
 
 const START = 10_000;
 
-function applyFill(s: PaperState, o: PaperOrder, px: number, qty: number): Partial<PaperState> {
-  const fill: Fill = { id: uid(), time: Date.now(), orderId: o.id, symbol: o.symbol, side: o.side, price: px, qty };
+function applyFill(
+  s: PaperState,
+  o: PaperOrder,
+  px: number,
+  qty: number,
+): Partial<PaperState> {
+  const fill: Fill = {
+    id: uid(),
+    time: Date.now(),
+    orderId: o.id,
+    symbol: o.symbol,
+    market: o.market,
+    side: o.side,
+    price: px,
+    qty,
+  };
   const fills = [fill, ...s.fills].slice(0, 200);
   const bases = { ...s.bases };
   let quote = s.quote;
@@ -70,7 +90,9 @@ function applyFill(s: PaperState, o: PaperOrder, px: number, qty: number): Parti
       bases[o.symbol] = (bases[o.symbol] ?? 0) - qty;
     }
   } else {
-    let pos = positions.find((p) => p.symbol === o.symbol && p.market === "usdm");
+    let pos = positions.find(
+      (p) => p.symbol === o.symbol && p.market === "usdm",
+    );
     if (!pos) {
       pos = { symbol: o.symbol, market: "usdm", qty: 0, avg: 0 };
       positions.push(pos);
@@ -101,7 +123,13 @@ function applyFill(s: PaperState, o: PaperOrder, px: number, qty: number): Parti
         }
       : x,
   );
-  return { quote, bases, fills, positions: positions.filter((p) => p.qty !== 0), orders };
+  return {
+    quote,
+    bases,
+    fills,
+    positions: positions.filter((p) => p.qty !== 0),
+    orders,
+  };
 }
 
 export const usePaper = create<PaperState>()(
@@ -113,10 +141,23 @@ export const usePaper = create<PaperState>()(
       orders: [],
       fills: [],
       positions: [],
+      risk: {},
       setLeverage: (leverage) => set({ leverage }),
-      reset: () => set({ quote: START, bases: {}, orders: [], fills: [], positions: [] }),
+      setRisk: (risk) => set({ risk: { ...get().risk, ...risk } }),
+      reset: () =>
+        set({ quote: START, bases: {}, orders: [], fills: [], positions: [] }),
       place: (raw) => {
         const s = get();
+        // Risk limits: single-order notional cap + per-symbol max position.
+        if (s.risk.maxQty != null && raw.qty > s.risk.maxQty) {
+          return `超过最大下单数量 ${s.risk.maxQty}`;
+        }
+        if (s.risk.maxNotional != null) {
+          const notional = raw.price * raw.qty;
+          if (notional > s.risk.maxNotional) {
+            return `超过单笔下单额度 ${s.risk.maxNotional} USDT`;
+          }
+        }
         if (raw.type === "market") {
           const id = uid();
           const o: PaperOrder = {
@@ -128,16 +169,35 @@ export const usePaper = create<PaperState>()(
             avgFill: 0,
           };
           const px = raw.price;
-          if (raw.market === "spot" && raw.side === "buy" && s.quote < px * raw.qty) return "余额不足";
-          if (raw.market === "spot" && raw.side === "sell" && (s.bases[raw.symbol] ?? 0) < raw.qty)
+          if (
+            raw.market === "spot" &&
+            raw.side === "buy" &&
+            s.quote < px * raw.qty
+          )
+            return "余额不足";
+          if (
+            raw.market === "spot" &&
+            raw.side === "sell" &&
+            (s.bases[raw.symbol] ?? 0) < raw.qty
+          )
             return "持仓不足";
           set({ orders: [o, ...s.orders] });
           set((cur) => applyFill(cur, o, px, raw.qty) as PaperState);
           return null;
         }
-        if (raw.market === "spot" && raw.side === "buy" && raw.type === "limit" && s.quote < raw.price * raw.qty)
+        if (
+          raw.market === "spot" &&
+          raw.side === "buy" &&
+          raw.type === "limit" &&
+          s.quote < raw.price * raw.qty
+        )
           return "余额不足";
-        if (raw.market === "spot" && raw.side === "sell" && (s.bases[raw.symbol] ?? 0) < raw.qty) return "持仓不足";
+        if (
+          raw.market === "spot" &&
+          raw.side === "sell" &&
+          (s.bases[raw.symbol] ?? 0) < raw.qty
+        )
+          return "持仓不足";
         const o: PaperOrder = {
           ...raw,
           id: uid(),
@@ -151,12 +211,18 @@ export const usePaper = create<PaperState>()(
       },
       cancel: (id) =>
         set({
-          orders: get().orders.map((o) => (o.id === id && o.status === "open" ? { ...o, status: "canceled" } : o)),
+          orders: get().orders.map((o) =>
+            o.id === id && o.status === "open"
+              ? { ...o, status: "canceled" }
+              : o,
+          ),
         }),
       cancelAll: (symbol) =>
         set({
           orders: get().orders.map((o) =>
-            o.status === "open" && (!symbol || o.symbol === symbol) ? { ...o, status: "canceled" } : o,
+            o.status === "open" && (!symbol || o.symbol === symbol)
+              ? { ...o, status: "canceled" }
+              : o,
           ),
         }),
       onTick: (symbol, last, bid, ask) => {
@@ -164,8 +230,12 @@ export const usePaper = create<PaperState>()(
         for (const o of s.orders) {
           if (o.status !== "open" || o.symbol !== symbol) continue;
           if (o.type === "limit") {
-            const hit = o.side === "buy" ? ask <= o.price || last <= o.price : bid >= o.price || last >= o.price;
-            if (hit) set((cur) => applyFill(cur, o, o.price, o.qty) as PaperState);
+            const hit =
+              o.side === "buy"
+                ? ask <= o.price || last <= o.price
+                : bid >= o.price || last >= o.price;
+            if (hit)
+              set((cur) => applyFill(cur, o, o.price, o.qty) as PaperState);
           } else if (o.type === "stop-market" || o.type === "stop-limit") {
             const stop = o.stop ?? o.price;
             const trig = o.side === "buy" ? last >= stop : last <= stop;
@@ -176,7 +246,9 @@ export const usePaper = create<PaperState>()(
             } else {
               set({
                 orders: get().orders.map((x) =>
-                  x.id === o.id ? { ...x, type: "limit", status: "open", price: o.price } : x,
+                  x.id === o.id
+                    ? { ...x, type: "limit", status: "open", price: o.price }
+                    : x,
                 ),
               });
             }
@@ -187,3 +259,12 @@ export const usePaper = create<PaperState>()(
     { name: "apex-paper" },
   ),
 );
+
+// Expose for headless regression probes (dev only, client side)
+if (
+  typeof import.meta.env !== "undefined" &&
+  import.meta.env.DEV &&
+  typeof window !== "undefined"
+) {
+  (window as unknown as Record<string, unknown>).usePaper = usePaper;
+}

@@ -1,4 +1,5 @@
 import { useTerminal } from "@/lib/market/store";
+import { usePaper } from "@/lib/trading/paper";
 import { Modal } from "./Modal";
 import {
   CandleSection,
@@ -20,6 +21,8 @@ export function SettingsModal() {
   const setSettings = useTerminal((s) => s.setChartSettings);
   const themePref = useTerminal((s) => s.themePref);
   const setThemePref = useTerminal((s) => s.setThemePref);
+  const risk = usePaper((s) => s.risk);
+  const setRisk = usePaper((s) => s.setRisk);
 
   const update = <K extends keyof typeof DEFAULT_SETTINGS>(
     key: K,
@@ -87,6 +90,52 @@ export function SettingsModal() {
           <CandleSection settings={settings} update={update} />
           <TypographySection settings={settings} update={update} />
           <TouchSection settings={settings} update={update} />
+          <section>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-subtle">
+              风控 · 模拟盘下单限制
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="text-micro text-subtle">
+                单笔最大数量
+                <input
+                  type="number"
+                  min={0}
+                  value={risk.maxQty ?? ""}
+                  placeholder="不限"
+                  onChange={(e) =>
+                    setRisk({
+                      maxQty:
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value),
+                    })
+                  }
+                  className="mt-1 w-full rounded border border-border bg-bg px-2 py-1 text-micro text-fg outline-none ring-0 focus:border-gold"
+                />
+              </label>
+              <label className="text-micro text-subtle">
+                单笔最大额度 (USDT)
+                <input
+                  type="number"
+                  min={0}
+                  value={risk.maxNotional ?? ""}
+                  placeholder="不限"
+                  onChange={(e) =>
+                    setRisk({
+                      maxNotional:
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value),
+                    })
+                  }
+                  className="mt-1 w-full rounded border border-border bg-bg px-2 py-1 text-micro text-fg outline-none ring-0 focus:border-gold"
+                />
+              </label>
+            </div>
+            <p className="mt-1.5 text-[10px] text-subtle">
+              超出限制的下单会被拒绝并在交易面板提示（留空 = 不限制）。
+            </p>
+          </section>
           <ResetSection
             onReset={() => setSettings(DEFAULT_SETTINGS)}
             onCancel={close}

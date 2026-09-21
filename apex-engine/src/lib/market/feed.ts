@@ -138,6 +138,7 @@ export function useMarketFeed() {
 
     const handle = (ev: MessageEvent) => {
       lastMsgAt = Date.now();
+      useTerminal.getState().setFeedStats({ lastMsgAt: lastMsgAt });
       try {
         const msg = JSON.parse(ev.data as string) as {
           stream?: string;
@@ -263,6 +264,9 @@ export function useMarketFeed() {
         return;
       }
       const base = WS_BASES[host % WS_BASES.length];
+      useTerminal
+        .getState()
+        .setFeedStats({ hostIndex: host, base, reconnects: attempts });
       let sock: WebSocket | null = null;
       try {
         sock = new WebSocket(base + query);

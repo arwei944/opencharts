@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { useMarketFeed } from "@/lib/market/feed";
 import { useTerminal } from "@/lib/market/store";
@@ -7,7 +7,10 @@ import { usePaper } from "@/lib/trading/paper";
 import { BottomPanel } from "./BottomPanel";
 import { ChartBoard } from "./ChartBoard";
 import { Header } from "./Header";
+import { DepthModal } from "./DepthChart";
 import { DrawingsPanel } from "./DrawingsPanel";
+import { ExportModal } from "./ExportModal";
+import { HealthPanel } from "./HealthPanel";
 import { IndicatorModal } from "./IndicatorModal";
 import { OrderBook } from "./OrderBook";
 import { OrderTicket } from "./OrderTicket";
@@ -20,6 +23,25 @@ import { Watchlist } from "./Watchlist";
 export function Terminal() {
   useMarketFeed();
   useSystemTheme();
+  // Service worker: production only (dev HMR must not be cached).
+  useEffect(() => {
+    if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }, []);
+  const [offline, setOffline] = useState(false);
+  useEffect(() => {
+    // Set on mount (not during render) so SSR and client first paint agree
+    // (Node's navigator has no onLine, which would flip the banner server-side).
+    setOffline(!navigator.onLine);
+    const on = () => setOffline(false);
+    const off = () => setOffline(true);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
   const symbol = useTerminal((s) => s.symbol);
   const ticker = useTerminal((s) => s.ticker);
   const bids = useTerminal((s) => s.bids);
@@ -46,6 +68,27 @@ export function Terminal() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-bg text-fg">
       <Toaster theme="dark" position="top-center" />
+      {offline && (
+        <div className="flex h-7 shrink-0 items-center justify-center gap-2 bg-gold/15 text-[11px] text-gold">
+          <svg
+            width="11"
+            height="11"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M1 8.5a16 16 0 0 1 22 0" />
+            <path d="M5 12.5a11 11 0 0 1 14 0" />
+            <path d="M8.5 16.5a6 6 0 0 1 7 0" />
+            <path d="M12 20h.01" />
+          </svg>
+          离线模式 · 使用缓存继续浏览（实时行情暂停）
+        </div>
+      )}
       <Header />
       <TickerBar />
       <div className="flex min-h-0 flex-1">
@@ -158,6 +201,9 @@ export function Terminal() {
       <IndicatorModal />
       <SettingsModal />
       <DrawingsPanel />
+      <ExportModal />
+      <DepthModal />
+      <HealthPanel />
     </div>
   );
 }
