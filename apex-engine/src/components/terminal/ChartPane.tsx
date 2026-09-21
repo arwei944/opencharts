@@ -14,6 +14,7 @@ import { NO_BARS, useTerminal } from "@/lib/market/store";
 import type { Candle, DrawPoint, Interval } from "@/lib/market/types";
 import { uid } from "@/lib/utils";
 import { ChartToolbar } from "./ChartToolbar";
+import { ChartContextMenu } from "./ChartContextMenu";
 import { DrawingOverlay } from "./DrawingOverlay";
 import { Legend } from "./Legend";
 
@@ -184,6 +185,21 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
   useEffect(() => {
     eng.current?.setInterval(interval);
   }, [interval]);
+  // Global shortcuts: Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z / Ctrl+Y redo.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod || e.key.toLowerCase() !== "z") return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      e.preventDefault();
+      const st = useTerminal.getState();
+      if (e.shiftKey) st.redo();
+      else st.undo();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   useEffect(() => {
     eng.current?.setType(chartType);
   }, [chartType]);
@@ -283,6 +299,7 @@ export function ChartPane({ paneId = "p0", master = true }: Props) {
       <div className="relative min-h-0 flex-1">
         <div ref={host} className="absolute inset-0" />
         <DrawingOverlay engine={eng.current} />
+        <ChartContextMenu engine={eng.current} />
         {shown && (
           <Legend
             symbol={symbol}

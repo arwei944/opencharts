@@ -317,6 +317,31 @@ export function ChartToolbar({
       >
         <Maximize2 className="size-3.5" />
       </button>
+
+      {/* 时间区间快捷预设 */}
+      <i className="mx-1 h-4 w-px bg-border" />
+      {(
+        [
+          ["1H", 3600],
+          ["4H", 14400],
+          ["1D", 86400],
+          ["1W", 604800],
+          ["1M", 2592000],
+        ] as const
+      ).map(([label, secs]) => (
+        <button
+          key={label}
+          type="button"
+          title={`最近 ${label}`}
+          className="rounded-sm px-1.5 text-muted hover:text-gold"
+          onClick={() => {
+            const to = Math.floor(Date.now() / 1000);
+            engine?.setVisibleTimeRange(to - secs, to);
+          }}
+        >
+          {label}
+        </button>
+      ))}
       <Countdown closeAt={closeAt} />
     </div>
   );

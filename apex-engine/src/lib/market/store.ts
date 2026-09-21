@@ -128,7 +128,7 @@ export interface TerminalState {
   addIndicator: (kind: IndicatorInst["kind"]) => string;
   updateIndicator: (
     id: string,
-    patch: Partial<Pick<IndicatorInst, "params" | "visible">>,
+    patch: Partial<Pick<IndicatorInst, "params" | "visible" | "pane">>,
   ) => void;
   removeIndicator: (id: string) => void;
   setBars: (b: Candle[]) => void;

@@ -176,6 +176,22 @@ export function IndicatorModal() {
                             {i.params.join(", ")}
                           </span>
                         )}
+                        <select
+                          value={i.pane ?? 0}
+                          aria-label={`${i.kind} 所在窗口`}
+                          onChange={(e) =>
+                            updateIndicator(i.id, {
+                              pane: Number(e.target.value) || undefined,
+                            })
+                          }
+                          className="rounded border border-border bg-bg px-1 py-0.5 text-micro text-muted outline-none focus:border-gold"
+                        >
+                          <option value={0}>主图叠加</option>
+                          <option value={1}>副图 1</option>
+                          <option value={2}>副图 2</option>
+                          <option value={3}>副图 3</option>
+                          <option value={4}>副图 4</option>
+                        </select>
                         <button
                           type="button"
                           aria-label={`编辑 ${i.kind} 参数`}

@@ -107,6 +107,8 @@ export interface IndicatorInst {
   kind: IndicatorKind;
   params: number[];
   visible: boolean;
+  /** Target sub-pane number (1-based). Undefined = default (auto / main overlay). */
+  pane?: number;
 }
 
 export interface DrawPoint {

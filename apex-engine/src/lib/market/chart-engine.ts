@@ -947,6 +947,7 @@ export class ChartEngine {
         bars,
         this.customFns,
         sub,
+        ind.pane,
       )) {
         // Reuse a series that already exists for this key: progressive reveals
         // re-run indicatorJobs while the panes/lines are still live, so rebuilt

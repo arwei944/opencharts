@@ -42,10 +42,23 @@ export function computeIndicator(
   bars: Candle[],
   customFns: Record<string, CustomFn>,
   sub: { value: number },
+  forcePane?: number,
 ): IndicatorSeriesSpec[] {
   const out: IndicatorSeriesSpec[] = [];
-  const line = (key: string, color: string, pane: number | undefined, data: Array<{ time: number; value: number }>) =>
-    out.push({ key, color, pane, type: "line", data });
+  // An explicit pane assignment (overlay main = 0, sub-pane = N) overrides the
+  // automatic sub-pane counter for EVERY series this indicator emits (MACD's
+  // hist+dif+dea all share the pane).
+  const paneOf = (auto: number | undefined): number | undefined =>
+    forcePane === undefined ? auto : forcePane === 0 ? undefined : forcePane;
+  if (forcePane !== undefined) {
+    sub.value = Math.max(sub.value, forcePane + 1);
+  }
+  const line = (
+    key: string,
+    color: string,
+    pane: number | undefined,
+    data: Array<{ time: number; value: number }>,
+  ) => out.push({ key, color, pane: paneOf(pane), type: "line", data });
 
   if (kind === "MA") {
     const colors = ["#f0b90b", "#b7bdc6", "#00d4ff"];
@@ -64,7 +77,12 @@ export function computeIndicator(
     line(`${id}-up`, "#848e9c", undefined, upper);
     line(`${id}-dn`, "#848e9c", undefined, lower);
   } else if (kind === "SAR") {
-    line(`${id}-sar`, "#f6465d", undefined, sar(bars, params[0] ?? 0.02, params[1] ?? 0.2));
+    line(
+      `${id}-sar`,
+      "#f6465d",
+      undefined,
+      sar(bars, params[0] ?? 0.02, params[1] ?? 0.2),
+    );
   } else if (kind === "VWAP") {
     line(`${id}-vwap`, "#fcd535", undefined, vwap(bars));
   } else if (kind === "SUPER") {
@@ -73,15 +91,31 @@ export function computeIndicator(
     line(`${id}-sd`, "#f6465d", undefined, dn);
   } else if (kind === "MACD") {
     const pane = sub.value++;
-    const { dif, dea, hist } = macd(bars, params[0] ?? 12, params[1] ?? 26, params[2] ?? 9);
-    out.push({ key: `${id}-hist`, color: "", pane, type: "hist", data: hist });
+    const { dif, dea, hist } = macd(
+      bars,
+      params[0] ?? 12,
+      params[1] ?? 26,
+      params[2] ?? 9,
+    );
+    out.push({
+      key: `${id}-hist`,
+      color: "",
+      pane: paneOf(pane),
+      type: "hist",
+      data: hist,
+    });
     line(`${id}-dif`, "#f0b90b", pane, dif);
     line(`${id}-dea`, "#00d4ff", pane, dea);
   } else if (kind === "RSI") {
     line(`${id}-rsi`, "#f0b90b", sub.value++, rsi(bars, params[0] ?? 14));
   } else if (kind === "KDJ") {
     const pane = sub.value++;
-    const { k, d, j } = kdj(bars, params[0] ?? 9, params[1] ?? 3, params[2] ?? 3);
+    const { k, d, j } = kdj(
+      bars,
+      params[0] ?? 9,
+      params[1] ?? 3,
+      params[2] ?? 3,
+    );
     line(`${id}-k`, "#f0b90b", pane, k);
     line(`${id}-d`, "#00d4ff", pane, d);
     line(`${id}-j`, "#f6465d", pane, j);
