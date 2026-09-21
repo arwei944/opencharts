@@ -1,5 +1,7 @@
 import { useTerminal } from "@/lib/market/store";
 import { usePaper } from "@/lib/trading/paper";
+import { setActiveBroker, liveBroker, paperBroker } from "@/lib/trading/broker";
+import { toast } from "sonner";
 import { Modal } from "./Modal";
 import {
   CandleSection,
@@ -23,6 +25,8 @@ export function SettingsModal() {
   const setThemePref = useTerminal((s) => s.setThemePref);
   const risk = usePaper((s) => s.risk);
   const setRisk = usePaper((s) => s.setRisk);
+  const brokerMode = useTerminal((s) => s.brokerMode);
+  const setBrokerMode = useTerminal((s) => s.setBrokerMode);
 
   const update = <K extends keyof typeof DEFAULT_SETTINGS>(
     key: K,
@@ -56,11 +60,13 @@ export function SettingsModal() {
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-subtle">
               外观 · 主题模式
             </h3>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {(
                 [
                   ["dark", "深色"],
                   ["light", "浅色"],
+                  ["ocean", "海洋"],
+                  ["sand", "沙色"],
                   ["system", "跟随系统"],
                 ] as const
               ).map(([id, lab]) => (
@@ -90,6 +96,49 @@ export function SettingsModal() {
           <CandleSection settings={settings} update={update} />
           <TypographySection settings={settings} update={update} />
           <TouchSection settings={settings} update={update} />
+          <section>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-subtle">
+              交易连接
+            </h3>
+            <div className="flex gap-2">
+              {(
+                [
+                  ["paper", "模拟盘"],
+                  ["live", "实盘（币安）"],
+                ] as const
+              ).map(([id, lab]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={async () => {
+                    if (id === "live") {
+                      const st = await liveBroker.status?.();
+                      if (st && !st.enabled) {
+                        toast.error(st.error ?? "实盘未启用");
+                        return;
+                      }
+                    }
+                    setActiveBroker(id === "live" ? liveBroker : paperBroker);
+                    setBrokerMode(id);
+                  }}
+                  className={`rounded-sm px-3 py-1.5 text-micro ${
+                    brokerMode === id
+                      ? "bg-gold text-bg"
+                      : "bg-surface text-muted hover:text-fg"
+                  }`}
+                >
+                  {lab}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[10px] text-subtle">
+              实盘需要服务端环境变量{" "}
+              <code className="rounded bg-surface px-1">
+                BINANCE_API_KEY / BINANCE_API_SECRET
+              </code>{" "}
+              已配置；密钥仅在服务端签名，浏览器不可见；下单有真实资金风险，请谨慎。
+            </p>
+          </section>
           <section>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-subtle">
               风控 · 模拟盘下单限制

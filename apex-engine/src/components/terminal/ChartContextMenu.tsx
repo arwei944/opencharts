@@ -77,6 +77,14 @@ export function ChartContextMenu({ engine }: { engine: ChartEngine | null }) {
         type="button"
         role="menuitem"
         className={item}
+        onClick={act(() => useTerminal.getState().setBacktestOpen(true))}
+      >
+        策略回测…
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        className={item}
         onClick={act(() => useTerminal.getState().setDrawingsOpen(true))}
       >
         绘图列表…

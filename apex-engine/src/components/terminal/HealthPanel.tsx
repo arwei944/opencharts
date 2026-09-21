@@ -20,6 +20,11 @@ export function HealthPanel() {
   const feedStats = useTerminal((s) => s.feedStats);
   const dataWarnings = useTerminal((s) => s.dataWarnings);
   const market = useTerminal((s) => s.market);
+  const barsLen = useTerminal((s) => s.bars.length);
+  const paneBarsMap = useTerminal((s) => s.paneBars);
+  const compareBarsMap = useTerminal((s) => s.compareBars);
+  const paneLens = Object.values(paneBarsMap).map((b) => b.length);
+  const compareLens = Object.values(compareBarsMap).map((b) => b.length);
   if (!open) return null;
 
   const ageMs = feedStats.lastMsgAt ? Date.now() - feedStats.lastMsgAt : null;
@@ -80,6 +85,15 @@ export function HealthPanel() {
           {row("行情缺口 (根)", String(dataWarnings.gaps))}
           {row("异常 tick 过滤", String(dataWarnings.anomalies))}
           {row("备份源", "OKX REST 备源（历史/深度降级时自动切换）")}
+          {row("内存驻留（主图）", `${barsLen.toLocaleString()} 根`)}
+          {row(
+            "内存驻留（副图合计）",
+            `${paneLens.reduce((a, b) => a + b, 0).toLocaleString()} 根（${paneLens.length} 面板）`,
+          )}
+          {row(
+            "内存驻留（对比线）",
+            `${compareLens.reduce((a, b) => a + b, 0).toLocaleString()} 根`,
+          )}
         </div>
         <p className="border-t border-border px-3 py-2 text-[10px] text-subtle">
           心跳看门狗 20s 无消息自动重连；断线指数退避（上限 30s）。异常 tick

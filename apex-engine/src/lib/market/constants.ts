@@ -227,6 +227,13 @@ export const INTERVAL_HORIZON: Record<Interval, Horizon> = {
 /** Hard memory guard for one resident series, well above any horizon.bars. */
 export const BAR_CAP = 220_000;
 
+/**
+ * Sub-pane resident cap: a side pane only renders its tail + recomputes the
+ * indicator tail, so it never needs the full history. This is the memory
+ * windowing step — the four pane arrays used to hold up to 4×220k bars.
+ */
+export const PANE_CAP = 12_000;
+
 export const HISTORY_PAGE = 1000;
 
 /** Pages fetched per wave while filling history backwards. */
@@ -275,13 +282,16 @@ export const BG = "#0b0e11";
 export const GRID = "#1e2329";
 export const TEXT = "#848e9c";
 
-export type ThemeMode = "dark" | "light";
+export type ThemeMode = "dark" | "light" | "ocean" | "sand";
 
 /** User theme preference: explicit mode, or follow the OS. */
 export type ThemePref = ThemeMode | "system";
 
-// Chart-canvas palette per theme. Accent colours (candles, gold, compare lines)
-// are shared; only the surface, grid, axis text and crosshair label differ.
+/** Light-ish presets (used by system-follow to pick a light theme). */
+export const LIGHT_THEMES: ThemeMode[] = ["light", "sand"];
+
+/** Chart-canvas palette per theme. Accent colours (candles, gold, compare lines)
+ * are shared; only the surface, grid, axis text and crosshair label differ. */
 export const CHART_THEME: Record<
   ThemeMode,
   { bg: string; grid: string; text: string; axisLabel: string }
@@ -297,5 +307,17 @@ export const CHART_THEME: Record<
     grid: "#e6e9ee",
     text: "#707a89",
     axisLabel: "#e6e9ee",
+  },
+  ocean: {
+    bg: "#0a1220",
+    grid: "#16263a",
+    text: "#8fa8c8",
+    axisLabel: "#1a2a42",
+  },
+  sand: {
+    bg: "#faf6ee",
+    grid: "#ece3d1",
+    text: "#6d6150",
+    axisLabel: "#ece3d1",
   },
 };

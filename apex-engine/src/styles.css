@@ -42,6 +42,35 @@ html[data-theme="light"] {
   color-scheme: light;
 }
 
+/* Ocean: deep blue dark theme (canvas palette in constants.ts CHART_THEME). */
+html[data-theme="ocean"] {
+  --color-bg: #0a1220;
+  --color-surface: #0e1a2d;
+  --color-elevated: #12233a;
+  --color-hover: #1a2f4c;
+  --color-border: #1c3048;
+  --color-fg: #e6f0fa;
+  --color-muted: #8fa8c8;
+  --color-subtle: #5f7694;
+  --color-gold: #ffc93c;
+  --color-ma-b: #8fa8c8;
+  color-scheme: dark;
+}
+
+/* Sand: warm light theme. */
+html[data-theme="sand"] {
+  --color-bg: #faf6ee;
+  --color-surface: #f3ecdd;
+  --color-elevated: #ece3d1;
+  --color-hover: #e5d9c0;
+  --color-border: #e3d8c2;
+  --color-fg: #2f2b23;
+  --color-muted: #6d6150;
+  --color-subtle: #9a8c74;
+  --color-ma-b: #9a8c74;
+  color-scheme: light;
+}
+
 @layer base {
   html,
   body,

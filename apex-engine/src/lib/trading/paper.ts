@@ -48,8 +48,15 @@ interface PaperState {
   positions: Position[];
   /** Risk limits (undefined = unlimited). */
   risk: { maxQty?: number; maxNotional?: number };
+  /** Named account snapshots + the currently active one. */
+  accounts: Record<string, PaperSnapshot>;
+  activeAccount: string;
   setLeverage: (n: number) => void;
   setRisk: (r: Partial<{ maxQty: number; maxNotional: number }>) => void;
+  saveAccount: (name: string) => void;
+  switchAccount: (name: string) => void;
+  newAccount: (name: string) => void;
+  deleteAccount: (name: string) => void;
   place: (
     o: Omit<PaperOrder, "id" | "time" | "status" | "filledQty" | "avgFill">,
   ) => string | null;
@@ -57,6 +64,15 @@ interface PaperState {
   cancelAll: (symbol?: string) => void;
   onTick: (symbol: string, last: number, bid: number, ask: number) => void;
   reset: () => void;
+}
+
+export interface PaperSnapshot {
+  quote: number;
+  bases: Record<string, number>;
+  orders: PaperOrder[];
+  fills: Fill[];
+  positions: Position[];
+  risk: { maxQty?: number; maxNotional?: number };
 }
 
 const START = 10_000;
@@ -142,10 +158,94 @@ export const usePaper = create<PaperState>()(
       fills: [],
       positions: [],
       risk: {},
+      accounts: {},
+      activeAccount: "默认账户",
       setLeverage: (leverage) => set({ leverage }),
       setRisk: (risk) => set({ risk: { ...get().risk, ...risk } }),
       reset: () =>
         set({ quote: START, bases: {}, orders: [], fills: [], positions: [] }),
+      saveAccount: (name) =>
+        set((s) => ({
+          accounts: {
+            ...s.accounts,
+            [name]: {
+              quote: s.quote,
+              bases: s.bases,
+              orders: s.orders,
+              fills: s.fills,
+              positions: s.positions,
+              risk: s.risk,
+            },
+          },
+        })),
+      switchAccount: (name) =>
+        set((s) => {
+          const target = s.accounts[name];
+          if (!target || name === s.activeAccount) return s;
+          const self = {
+            quote: s.quote,
+            bases: s.bases,
+            orders: s.orders,
+            fills: s.fills,
+            positions: s.positions,
+            risk: s.risk,
+          };
+          return {
+            accounts: {
+              ...s.accounts,
+              [s.activeAccount]: self,
+              [name]: target,
+            },
+            quote: target.quote,
+            bases: { ...target.bases },
+            orders: target.orders,
+            fills: target.fills,
+            positions: target.positions,
+            risk: { ...target.risk },
+            activeAccount: name,
+          };
+        }),
+      newAccount: (name) =>
+        set((s) => {
+          if (s.accounts[name] || name === s.activeAccount || !name.trim())
+            return s;
+          const fresh: PaperSnapshot = {
+            quote: START,
+            bases: {},
+            orders: [],
+            fills: [],
+            positions: [],
+            risk: {},
+          };
+          return {
+            accounts: {
+              ...s.accounts,
+              [s.activeAccount]: {
+                quote: s.quote,
+                bases: s.bases,
+                orders: s.orders,
+                fills: s.fills,
+                positions: s.positions,
+                risk: s.risk,
+              },
+              [name]: fresh,
+            },
+            quote: START,
+            bases: {},
+            orders: [],
+            fills: [],
+            positions: [],
+            risk: {},
+            activeAccount: name,
+          };
+        }),
+      deleteAccount: (name) =>
+        set((s) => {
+          if (name === s.activeAccount) return s;
+          const accounts = { ...s.accounts };
+          delete accounts[name];
+          return { accounts };
+        }),
       place: (raw) => {
         const s = get();
         // Risk limits: single-order notional cap + per-symbol max position.

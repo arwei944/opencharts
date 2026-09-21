@@ -12,6 +12,22 @@ export function Header() {
   const dataWarnings = useTerminal((s) => s.dataWarnings);
   const theme = useTerminal((s) => s.theme);
   const toggleTheme = useTerminal((s) => s.toggleTheme);
+  const THEME_NAME: Record<string, string> = {
+    dark: "深色",
+    light: "浅色",
+    ocean: "海洋",
+    sand: "沙色",
+  };
+  const isDarkTheme = theme === "dark" || theme === "ocean";
+  const activeAccount = usePaper((s) => s.activeAccount);
+  // Primitive selectors only — deriving the list in the component keeps the
+  // zustand snapshot stable (no per-render new array from the selector).
+  const accountsMap = usePaper((s) => s.accounts);
+  const accountNames = Array.from(
+    new Set([activeAccount, ...Object.keys(accountsMap)]),
+  );
+  const switchAccount = usePaper((s) => s.switchAccount);
+  const newAccount = usePaper((s) => s.newAccount);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -104,18 +120,46 @@ export function Header() {
             数据 {dataWarnings.anomalies + dataWarnings.gaps}
           </span>
         )}
-        <span className="hidden text-muted sm:inline">
-          权益{" "}
-          <span className="font-mono text-fg">{fmtNum(quote, 2)} USDT</span>
+        <span className="hidden items-center gap-1 text-muted sm:flex">
+          <select
+            value={activeAccount}
+            onChange={(e) => switchAccount(e.target.value)}
+            title="模拟盘账户"
+            className="max-w-28 rounded-sm border border-border bg-surface px-1 py-0.5 text-micro text-fg outline-none ring-0 focus:border-gold"
+          >
+            {accountNames.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            title="新建模拟盘账户"
+            onClick={() => {
+              const name = window.prompt(
+                "新账户名称",
+                "账户 " + (accountNames.length + 1),
+              );
+              if (name?.trim()) newAccount(name.trim());
+            }}
+            className="rounded-sm px-1 text-muted hover:bg-elevated hover:text-fg"
+          >
+            ＋
+          </button>
+          <span>
+            权益{" "}
+            <span className="font-mono text-fg">{fmtNum(quote, 2)} USDT</span>
+          </span>
         </span>
         <button
           type="button"
           onClick={toggleTheme}
-          aria-label={theme === "dark" ? "切换到浅色模式" : "切换到深色模式"}
-          title={theme === "dark" ? "浅色模式" : "深色模式"}
+          aria-label="切换主题预设"
+          title={`主题：${THEME_NAME[theme] ?? theme} · 点击循环切换预设`}
           className="flex size-7 items-center justify-center rounded-sm text-muted hover:bg-elevated hover:text-fg"
         >
-          {theme === "dark" ? (
+          {isDarkTheme ? (
             <svg
               width="15"
               height="15"

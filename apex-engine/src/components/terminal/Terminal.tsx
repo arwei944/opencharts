@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { useMarketFeed } from "@/lib/market/feed";
 import { useTerminal } from "@/lib/market/store";
+import { setActiveBroker, liveBroker, paperBroker } from "@/lib/trading/broker";
 import { useSystemTheme } from "@/lib/use-system-theme";
 import { usePaper } from "@/lib/trading/paper";
 import { BottomPanel } from "./BottomPanel";
 import { ChartBoard } from "./ChartBoard";
 import { Header } from "./Header";
+import { BacktestModal } from "./BacktestModal";
 import { DepthModal } from "./DepthChart";
 import { DrawingsPanel } from "./DrawingsPanel";
 import { ExportModal } from "./ExportModal";
@@ -23,6 +25,12 @@ import { Watchlist } from "./Watchlist";
 export function Terminal() {
   useMarketFeed();
   useSystemTheme();
+  // Restore the persisted trading backend (paper default, live opt-in).
+  useEffect(() => {
+    setActiveBroker(
+      useTerminal.getState().brokerMode === "live" ? liveBroker : paperBroker,
+    );
+  }, []);
   // Service worker: production only (dev HMR must not be cached).
   useEffect(() => {
     if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
@@ -204,6 +212,7 @@ export function Terminal() {
       <ExportModal />
       <DepthModal />
       <HealthPanel />
+      <BacktestModal />
     </div>
   );
 }

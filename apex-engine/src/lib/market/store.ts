@@ -11,6 +11,7 @@ import {
   DEFAULT_PANE_INTERVALS,
   DEFAULT_WATCH,
   INDICATOR_CATALOG,
+  PANE_CAP,
   PANE_COUNT,
 } from "./constants";
 import type { ThemeMode, ThemePref } from "./constants";
@@ -131,6 +132,10 @@ export interface TerminalState {
   depthOpen: boolean;
   /** Feed-health panel (sources / reconnects / warnings). */
   healthOpen: boolean;
+  /** Active trading backend: paper simulation or live exchange. */
+  brokerMode: "paper" | "live";
+  /** Strategy backtester dialog. */
+  backtestOpen: boolean;
   feedStats: {
     hostIndex: number;
     base: string;
@@ -201,6 +206,8 @@ export interface TerminalState {
   setExportFormat: (f: "csv" | "json") => void;
   setDepthOpen: (v: boolean) => void;
   setHealthOpen: (v: boolean) => void;
+  setBrokerMode: (m: "paper" | "live") => void;
+  setBacktestOpen: (v: boolean) => void;
   setFeedStats: (
     p: Partial<{
       hostIndex: number;
@@ -291,6 +298,8 @@ export const useTerminal = create<TerminalState>()(
       exportFormat: "csv",
       depthOpen: false,
       healthOpen: false,
+      brokerMode: "paper",
+      backtestOpen: false,
       feedStats: { hostIndex: 0, base: "", reconnects: 0, lastMsgAt: 0 },
       chartSettings: DEFAULT_SETTINGS,
       mobileTab: "chart",
@@ -336,10 +345,16 @@ export const useTerminal = create<TerminalState>()(
       setTheme: (theme) => set({ theme }),
       toggleTheme: () =>
         set((s) => {
-          // Switching from "system" pins the explicit opposite of what the OS
-          // resolved; otherwise it just flips and pins the theme.
-          const resolved = s.theme === "dark" ? "light" : "dark";
-          return { themePref: resolved, theme: resolved };
+          if (s.themePref === "system") {
+            // Pinning from "system": resolve to the opposite of what the OS
+            // gave us, as an explicit preset.
+            const resolved =
+              s.theme === "dark" || s.theme === "ocean" ? "light" : "dark";
+            return { themePref: resolved, theme: resolved };
+          }
+          const order: ThemeMode[] = ["dark", "light", "ocean", "sand"];
+          const next = order[(order.indexOf(s.theme) + 1) % order.length];
+          return { themePref: next, theme: next };
         }),
       setThemePref: (themePref) => set({ themePref }),
       addIndicator: (kind) => {
@@ -492,12 +507,12 @@ export const useTerminal = create<TerminalState>()(
       },
       setPaneBars: (paneId, bars) =>
         set({
-          paneBars: { ...get().paneBars, [paneId]: bars.slice(-BAR_CAP) },
+          paneBars: { ...get().paneBars, [paneId]: bars.slice(-PANE_CAP) },
         }),
       appendOlderPaneBars: (paneId, incoming) => {
         const cur = get().paneBars[paneId] ?? [];
         const live = paneId === "p0" ? get().liveOpenTime : cur.at(-1)?.time;
-        const next = prependContiguous(cur, incoming, BAR_CAP, live);
+        const next = prependContiguous(cur, incoming, PANE_CAP, live);
         set({ paneBars: { ...get().paneBars, [paneId]: next } });
         return next.length - cur.length;
       },
@@ -510,7 +525,7 @@ export const useTerminal = create<TerminalState>()(
           next = cur.slice();
           next[next.length - 1] = bar;
         } else {
-          next = appendCapped(cur, bar, BAR_CAP);
+          next = appendCapped(cur, bar, PANE_CAP);
         }
         set({ paneBars: { ...get().paneBars, [paneId]: next } });
       },
@@ -622,6 +637,8 @@ export const useTerminal = create<TerminalState>()(
       setExportFormat: (exportFormat) => set({ exportFormat }),
       setDepthOpen: (depthOpen) => set({ depthOpen }),
       setHealthOpen: (healthOpen) => set({ healthOpen }),
+      setBrokerMode: (brokerMode) => set({ brokerMode }),
+      setBacktestOpen: (backtestOpen) => set({ backtestOpen }),
       setFeedStats: (patch) =>
         set({ feedStats: { ...get().feedStats, ...patch } }),
       setChartSettings: (settings: ChartSettings) =>
@@ -763,6 +780,7 @@ export const useTerminal = create<TerminalState>()(
         leftPanelOpen: s.leftPanelOpen,
         rightPanelOpen: s.rightPanelOpen,
         themePref: s.themePref,
+        brokerMode: s.brokerMode,
       }),
     },
   ),
