@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
+// Demo/ecosystem plugin registrations: loaded with the terminal so plugin
+// capabilities (indicators, drawing tools) exist before the chart renders.
+import "@/lib/plugins/index";
 import { useMarketFeed, useOkxCandleFeed } from "@/lib/market/feed";
 import { useLifecycle } from "@/lib/market/lifecycle-hook";
 import { useTerminal } from "@/lib/market/store";

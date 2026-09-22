@@ -11,8 +11,8 @@ import {
   INTERVALS,
   INTERVAL_MS,
   LAYOUTS,
-  TOOLS,
 } from "@/lib/market/constants";
+import { drawingTools } from "@/lib/plugins/registry";
 import { NO_BARS, useTerminal } from "@/lib/market/store";
 import type { ChartLayout, Interval } from "@/lib/market/types";
 import { cn } from "@/lib/utils";
@@ -121,7 +121,7 @@ export function ChartToolbar({
       {master && (
         <>
           <i className="mx-1 h-4 w-px bg-border" />
-          {TOOLS.map((t) => (
+          {drawingTools().map((t) => (
             <button
               key={t.id}
               type="button"

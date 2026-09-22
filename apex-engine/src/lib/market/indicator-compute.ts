@@ -1,4 +1,5 @@
 import type { Candle } from "./types.ts";
+import { getIndicator } from "../plugins/registry.ts";
 import {
   ao,
   aroon,
@@ -348,6 +349,39 @@ export function computeIndicator(
         }
       } catch {
         /* a broken script must never take the chart down */
+      }
+    }
+  } else {
+    // P2-A3: plugin-registered indicators dispatch here. A plugin kind never
+    // matches the builtin chain above, so reaching this branch is unambiguous.
+    const plugin = getIndicator(kind);
+    if (plugin) {
+      try {
+        const res = plugin.compute(bars, params);
+        if (!Array.isArray(res)) return out;
+        // Same renderer guards as the CUSTOM single-output path: constant or
+        // discrete-jump series can hang the lw-charts canvas renderer.
+        let mn = Infinity;
+        let mx = -Infinity;
+        for (const d of res) {
+          mn = Math.min(mn, d.value);
+          mx = Math.max(mx, d.value);
+        }
+        const range = mx - mn;
+        if (range >= 1e-9) {
+          let jumpy = false;
+          for (let k = 1; k < res.length; k++) {
+            if (Math.abs(res[k].value - res[k - 1].value) > range * 0.5) {
+              jumpy = true;
+              break;
+            }
+          }
+          if (!jumpy) {
+            line(`${id}-plugin`, "#f0b90b", undefined, res);
+          }
+        }
+      } catch {
+        /* a broken plugin must never take the chart down */
       }
     }
   }

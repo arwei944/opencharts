@@ -60,7 +60,10 @@ export type Tool =
   | "gann-fan"
   | "wedge"
   | "pitchfork"
-  | "symmetry";
+  | "symmetry"
+  // P2-A3: plugin-registered drawing tools carry their own ids (kept out of
+  // the exhaustive union so builtin exhaustiveness checks stay intact).
+  | (string & {});
 
 export type IndicatorKind =
   | "MA"
@@ -95,7 +98,9 @@ export type IndicatorKind =
   | "DPO"
   | "TSI"
   | "AO"
-  | "CUSTOM";
+  | "CUSTOM"
+  // P2-A3: plugin-registered indicator kinds pass through as opaque strings.
+  | (string & {});
 
 export interface Candle {
   time: number;

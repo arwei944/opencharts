@@ -4,6 +4,7 @@ import { FIB_LEVELS } from "@/lib/market/constants";
 import { useTerminal } from "@/lib/market/store";
 import { fmtPx } from "@/lib/utils";
 import { snapPrice, snapTime } from "@/lib/market/snap";
+import { getDrawingTool } from "@/lib/plugins/registry";
 import type { DrawPoint, Drawing } from "@/lib/market/types";
 
 /**
@@ -669,6 +670,18 @@ function DrawShape({
           strokeWidth={width}
           opacity={opacity}
         />
+        {anchors}
+      </g>
+    );
+  }
+  // P2-A3: plugin drawing tools render through the registry (static shape +
+  // the shared select/drag/anchor interaction shell).
+  const plugin = getDrawingTool(d.tool);
+  if (plugin) {
+    const screen = pts as Array<{ x: number; y: number }>;
+    return (
+      <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
+        {plugin.render(screen, color)}
         {anchors}
       </g>
     );

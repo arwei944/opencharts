@@ -1,4 +1,5 @@
-import { INDICATOR_CATALOG, INDICATOR_PRESETS } from "@/lib/market/constants";
+import { INDICATOR_PRESETS } from "@/lib/market/constants";
+import { indicatorCatalog } from "@/lib/plugins/registry";
 import { useTerminal } from "@/lib/market/store";
 import { useState } from "react";
 import { Pencil } from "lucide-react";
@@ -124,36 +125,36 @@ export function IndicatorModal() {
 
           <p className="mb-2 text-micro text-muted">主图 Overlay</p>
           <div className="mb-4 flex flex-wrap gap-2">
-            {INDICATOR_CATALOG.filter(
-              (x) => x.group === "main" && matches(x),
-            ).map((x) => (
-              <button
-                key={x.kind}
-                type="button"
-                aria-label={`添加 ${x.name}`}
-                className="rounded-sm bg-elevated px-2 py-1 text-micro hover:text-gold transition-colors"
-                onClick={() => addIndicator(x.kind)}
-              >
-                {x.name}
-              </button>
-            ))}
+            {indicatorCatalog()
+              .filter((x) => x.group === "main" && matches(x))
+              .map((x) => (
+                <button
+                  key={x.kind}
+                  type="button"
+                  aria-label={`添加 ${x.name}`}
+                  className="rounded-sm bg-elevated px-2 py-1 text-micro hover:text-gold transition-colors"
+                  onClick={() => addIndicator(x.kind)}
+                >
+                  {x.name}
+                </button>
+              ))}
           </div>
 
           <p className="mb-2 text-micro text-muted">副图 Panel</p>
           <div className="mb-4 flex flex-wrap gap-2">
-            {INDICATOR_CATALOG.filter(
-              (x) => x.group === "sub" && matches(x),
-            ).map((x) => (
-              <button
-                key={x.kind}
-                type="button"
-                aria-label={`添加 ${x.name}`}
-                className="rounded-sm bg-elevated px-2 py-1 text-micro hover:text-gold transition-colors"
-                onClick={() => addIndicator(x.kind)}
-              >
-                {x.name}
-              </button>
-            ))}
+            {indicatorCatalog()
+              .filter((x) => x.group === "sub" && matches(x))
+              .map((x) => (
+                <button
+                  key={x.kind}
+                  type="button"
+                  aria-label={`添加 ${x.name}`}
+                  className="rounded-sm bg-elevated px-2 py-1 text-micro hover:text-gold transition-colors"
+                  onClick={() => addIndicator(x.kind)}
+                >
+                  {x.name}
+                </button>
+              ))}
           </div>
 
           <p className="mb-2 text-micro text-muted">
@@ -161,7 +162,7 @@ export function IndicatorModal() {
           </p>
           <ul className="space-y-1">
             {indicators.map((i) => {
-              const spec = INDICATOR_CATALOG.find((x) => x.kind === i.kind);
+              const spec = indicatorCatalog().find((x) => x.kind === i.kind);
               const editing = editingId === i.id;
               const labels = spec?.labels ?? [];
               return (

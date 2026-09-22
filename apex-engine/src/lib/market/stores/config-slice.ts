@@ -1,14 +1,11 @@
 import { uid } from "../../utils.ts";
 import type { StateCreator } from "zustand";
-import {
-  DEFAULT_PANE_INTERVALS,
-  INDICATOR_CATALOG,
-  PANE_COUNT,
-} from "../constants.ts";
+import { DEFAULT_PANE_INTERVALS, PANE_COUNT } from "../constants.ts";
 import type { ThemeMode, ThemePref } from "../constants.ts";
 import type { ChartSettings } from "../settings.ts";
 import { DEFAULT_SETTINGS } from "../settings.ts";
 import type { CustomFn } from "../indicator-compute.ts";
+import { indicatorCatalog } from "../../plugins/registry.ts";
 import type {
   ChartLayout,
   ChartPaneConfig,
@@ -239,7 +236,7 @@ export const configSlice: StateCreator<
       });
       return id;
     }
-    const spec = INDICATOR_CATALOG.find((x) => x.kind === kind);
+    const spec = indicatorCatalog().find((x) => x.kind === kind);
     if (!spec) return uid();
     get().pushHistory();
     const id = uid();

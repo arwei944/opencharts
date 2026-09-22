@@ -18,6 +18,7 @@ import {
   pushSample,
   type PanSample,
 } from "@/lib/market/predictor";
+import { getDrawingTool } from "@/lib/plugins/registry";
 import { NO_BARS, useTerminal } from "@/lib/market/store";
 import type { Candle, DrawPoint, Interval } from "@/lib/market/types";
 import { fmtNum, fmtPx, uid } from "@/lib/utils";
@@ -300,13 +301,15 @@ export const ChartPane = memo(function ChartPane({
         draft.current = [...draft.current, pt];
         // Phase-1 geometric tools need 3 anchors (wedge/pitchfork/symmetry
         // derive a second rail from the third point); everything else is 2.
+        // P2-A3: plugin drawing tools declare their own point count.
         const POINT_NEED: Record<string, number> = {
           parallel: 3,
           wedge: 3,
           pitchfork: 3,
           symmetry: 3,
         };
-        const need = POINT_NEED[cur] ?? 2;
+        const plugin = getDrawingTool(cur);
+        const need = POINT_NEED[cur] ?? plugin?.points ?? 2;
         if (draft.current.length >= need) {
           useTerminal.getState().addDrawing({
             id: uid(),

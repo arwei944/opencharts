@@ -1,10 +1,12 @@
 import { useTerminal } from "@/lib/market/store";
-import { TOOLS } from "@/lib/market/constants";
+import { drawingTools } from "@/lib/plugins/registry";
 import type { Drawing, Tool } from "@/lib/market/types";
 import { fmtPx } from "@/lib/utils";
 import { Modal } from "./Modal";
 
-const TOOL_LABEL = new Map<Tool, string>(TOOLS.map((t) => [t.id, t.label]));
+const TOOL_LABEL = new Map<Tool, string>(
+  drawingTools().map((t) => [t.id, t.label] as const),
+);
 
 const DRAW_COLORS = [
   "#f0b90b",

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Plus, Save, Play } from "lucide-react";
-import { INDICATOR_CATALOG } from "@/lib/market/constants";
+import { indicatorCatalog } from "@/lib/plugins/registry";
 import { useTerminal } from "@/lib/market/store";
 import type { IndicatorInst } from "@/lib/market/types";
 import { scriptParser } from "@/lib/market/script-parser";
@@ -186,11 +186,11 @@ export function CustomIndicatorModal({
   );
 }
 
-/** Built-in indicators grid — sourced from the single INDICATOR_CATALOG. */
+/** Built-in + plugin indicators grid — sourced from the merged catalog. */
 function BuiltinsGrid({ onSelect }: { onSelect: (kind: string) => void }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {INDICATOR_CATALOG.map((indicator) => (
+      {indicatorCatalog().map((indicator) => (
         <button
           key={indicator.kind}
           onClick={() => onSelect(indicator.kind)}
