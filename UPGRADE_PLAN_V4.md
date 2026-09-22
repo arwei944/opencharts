@@ -240,3 +240,8 @@ P3  积木化 UI + 自测（下轮）—— ChartPane 特征模块化 / DEV 不�
 4. ✅ **SettingsSections 插件化**：registry `registerSettingsSection(id,title,render)` + SettingsModal 尾部渲染插件分区（demo “关于插件系统”浏览器验证）
 
 **P3 验证**：lib 209、mirror 16/16、pixel 4 主题、batch12/13 全绿、build 预算内
+
+### P4 批次（架构延续，`5ca96e8`→`0b61a9a`，第 4 轮）
+1. ✅ **数据级联 pane 化**：`aggregate.isDerivable`（更粗且整除才派生）——副图周期高于主图时 `use-pane-bars` 从主图驻留 bars 本地聚合（memo 于主图引用，WS in-place tick 不重建）；`use-history-fill` 跳过可派生 pane（零 REST/零状态任务）。**实测**：1x2（15m+1h）historyStatus 仅 15m、派生尾 bar == 主图尾 bar
+2. ✅ **主题/面板插件消费**：`registerTheme`/`registerPanel` + `resolveThemePalette`（内置→插件→dark 兜底）；engine options/theme 走 registry → 插件主题作用于 canvas；SettingsModal 合并主题列表；Terminal 右栏按插件数动态行；**顺手修复 setThemePref 只存 pref 不应用主题的潜伏 bug**。**实测**：选“午夜”→ engineBg #0a0d14
+3. 🔬 **指标 worker 评估（决策：缓）**：实测 8 指标 × 40k bars——job（compute+setData）P95 **340ms**、commit（纯 candles setData）P95 **208ms** → 卡顿主因是 lw-charts 全量 setData 本身，worker 化 compute 仅消除 ~130ms，剩 208ms setData 仍超 16.7ms 帧预算；SharedArrayBuffer/竞态/双路径成本 > 收益。**保留门禁**：若后续出现“批量加指标 <100ms/帧”硬要求再引入（columns 传参基础已备）
