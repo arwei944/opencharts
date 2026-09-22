@@ -232,3 +232,11 @@ P3  积木化 UI + 自测（下轮）—— ChartPane 特征模块化 / DEV 不�
 
 ### P3（下轮）待办
 - A4 ChartPane 特征模块化 / D4 DEV 不变式自测 / D5 回归探针扩展 / SettingsSections 插件化
+
+### P3 批次（✅ 已全部落地，`4b90d13`→`8225b10` 4 commits，第 3 轮）
+1. ✅ **A4 ChartPane 特征模块化**：539→207 行——`panes/use-chart-engine`（懒启动+ResizeObserver+ready 信号）、`use-viewport-coverage`（predictor 覆盖/minimap/联动发布·订阅）、`use-ohlc-readout`（十字光标读数，canvas 侧）、`use-draw-click`（点击绘制+文本编辑状态）、`use-sync-effects`（全单向同步+compare，keyed on ready 让懒建引擎重放初始状态）、`use-history-fill`+`series-ref`；组件变组合；mirror 3×16/16、batch10-12 回归
+2. ✅ **D4 DEV 不变式自测**：`invariants.ts` 纯检查（bars 单调/列式 round-trip/indTail·驻留尾同步）+ 引擎 commit 后 DEV 自测，违规入遥测 lifecycle 记录（生产零开销）；4 单测
+3. ✅ **D5 回归探针**：`batch13-smoke.mjs` 12 项专项（aggregate 对齐+实时尾/predictor 放大/lineage 血统/telemetry op-log+perf/healer no-op/插件 UI 证据/invariants 干净）——**踩坑**：vite dev 绝对 URL 动态 import 会 fork 模块图，插件探针改 UI 证据断言后 12/12
+4. ✅ **SettingsSections 插件化**：registry `registerSettingsSection(id,title,render)` + SettingsModal 尾部渲染插件分区（demo “关于插件系统”浏览器验证）
+
+**P3 验证**：lib 209、mirror 16/16、pixel 4 主题、batch12/13 全绿、build 预算内
