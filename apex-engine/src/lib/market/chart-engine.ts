@@ -13,6 +13,8 @@ import { IndicatorRenderer } from "./indicator-render.ts";
 import { decideCommit } from "./data-pipeline.ts";
 import { RestQueue } from "./rest-queue.ts";
 import { IND_TAIL_BARS, IND_TAIL_GROW } from "./constants.ts";
+import { chartTelemetry } from "./telemetry.ts";
+import { commitPerf, jobPerf, tailPerf } from "./perf-metrics.ts";
 
 import type { ThemeMode } from "./constants.ts";
 import type { Candle, ChartType, IndicatorInst, Interval } from "./types.ts";
@@ -109,6 +111,10 @@ export class ChartEngine {
     this.queue = new RestQueue(
       () => this.pointer.isInteracting,
       () => this.theme.syncMirror(),
+      (ms, remaining) => {
+        jobPerf.record(ms);
+        chartTelemetry.log("queueJob", { remaining }, ms);
+      },
     );
     this.range = new RangeController(this.chart, {
       onMinimap: (r) => this.onMinimap?.(r),
@@ -210,6 +216,13 @@ export class ChartEngine {
       this.pointer.isInteracting,
       this.pending,
     );
+    chartTelemetry.log("commitDecide", {
+      kind: act.kind,
+      bars: bars.length,
+      had: this.bars.length,
+      frozen,
+      pending: !!this.pending,
+    });
     switch (act.kind) {
       case "noop":
         return;
@@ -239,6 +252,7 @@ export class ChartEngine {
   }
 
   private commit(bars: Candle[]) {
+    const t0 = performance.now();
     const view = this.chart.timeScale().getVisibleRange();
     const hadData = this.bars.length > 0;
     this.bars = bars;
@@ -273,6 +287,9 @@ export class ChartEngine {
       [() => this.series.applyVol(this.bars), () => this.cmp.apply()],
       this.render.jobs(),
     );
+    const ms = performance.now() - t0;
+    commitPerf.record(ms);
+    chartTelemetry.log("commit", { bars: bars.length }, ms);
   }
 
   private maybeRevealPending() {
@@ -321,12 +338,16 @@ export class ChartEngine {
 
   /** Live tick: the series gets one `update` — never a re-render, never a stutter. */
   private applyTail(next: Candle[]): boolean {
+    const t0 = performance.now();
     const cur = this.bars;
     const diff = diffTail(cur, next);
     if (!diff || diff.kind === "none") return false;
     this.bars = next;
     this.pushIndTail(diff.bar, diff.kind === "append");
     this.updateSeriesBar(diff.bar);
+    const ms = performance.now() - t0;
+    tailPerf.record(ms);
+    chartTelemetry.log("tail", { barTime: diff.bar.time }, ms);
     return true;
   }
 

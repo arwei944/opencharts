@@ -14,6 +14,8 @@ export class RestQueue {
   constructor(
     private interacting: () => boolean,
     private afterJob: () => void,
+    /** Telemetry hook: (jobCostMs, remainingJobs) — wired by the engine (P0-B1). */
+    private onJob?: (ms: number, remaining: number) => void,
   ) {}
 
   /** Replace the queue after a commit: owed cosmetic series stay at the front
@@ -51,7 +53,9 @@ export class RestQueue {
     // Once it runs the debt is paid; keeping it would replay a `setData` the
     // next queue refill rebuilt on top of this one.
     this.owed = this.owed.filter((j) => j !== job);
+    const t0 = performance.now();
     job?.();
+    this.onJob?.(performance.now() - t0, this.jobs.length);
     // 指标 job 会 addSeries 到新 pane，新 pane 带着默认（未翻转）标尺进场：
     // 每跑完一个就补一次，倒垂才不会在指标加载完的那一帧丢掉副图。
     this.afterJob();
