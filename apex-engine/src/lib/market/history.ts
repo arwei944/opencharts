@@ -1,4 +1,4 @@
-import { fetchKlines } from "./api.ts";
+import { dataSourcePort, cachePort } from "./ports.ts";
 import { intervalSec } from "./bars.ts";
 import {
   BAR_CAP,
@@ -10,12 +10,6 @@ import {
 } from "./constants.ts";
 import { horizonOf, type Horizon } from "./horizon.ts";
 import { needsOlderData, olderWaveEnds } from "./history-paging.ts";
-import {
-  decodeBars,
-  pruneKlineCache,
-  readKlineCache,
-  appendKlineCache,
-} from "./kline-cache.ts";
 import { useTerminal } from "./store.ts";
 import type { Candle, Interval, Market } from "./types.ts";
 
@@ -145,14 +139,12 @@ function getStatus(ref: SeriesRef) {
 
 async function page(ref: SeriesRef, endTimeSec?: number): Promise<Candle[]> {
   try {
-    return await fetchKlines({
-      data: {
-        symbol: ref.symbol,
-        interval: ref.interval,
-        market: ref.market,
-        limit: HISTORY_PAGE,
-        endTime: endTimeSec == null ? undefined : endTimeSec * 1000 - 1,
-      },
+    return await dataSourcePort.fetchKlines({
+      symbol: ref.symbol,
+      interval: ref.interval,
+      market: ref.market,
+      limit: HISTORY_PAGE,
+      endTime: endTimeSec == null ? undefined : endTimeSec * 1000 - 1,
     });
   } catch (error) {
     console.error("[History] fetchKlines failed:", error);
@@ -238,9 +230,9 @@ async function hydrateFromCache(
   alive: () => boolean,
 ): Promise<boolean> {
   if (readBars(ref).length) return false;
-  const rec = await readKlineCache(dataKey(ref));
+  const rec = await cachePort.read(dataKey(ref));
   if (!rec || !alive()) return false;
-  const bars = decodeBars(rec);
+  const { bars } = rec;
   if (!bars.length) return false;
   setAll(ref, bars);
   setStatus(ref, {
@@ -375,13 +367,13 @@ async function snapshot(
   if (!bars.length) return;
   // Incremental when the previous snapshot is a left-prefix of the resident
   // series (the normal fill pattern); falls back to a full write otherwise.
-  await appendKlineCache(
+  await cachePort.append(
     dataKey(ref),
     { symbol: ref.symbol, market: ref.market, interval: ref.interval },
     { stepSec: intervalSec(ref.interval), floorTime, complete },
     bars,
   );
-  if (complete) void pruneKlineCache();
+  if (complete) void cachePort.prune();
 }
 
 /**

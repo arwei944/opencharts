@@ -1,15 +1,9 @@
 import { useEffect } from "react";
-import {
-  OKX_BAR,
-  fetchDepth,
-  fetchPremium,
-  fetchTicker,
-  fetchWatch,
-  okxInstId,
-} from "./api.ts";
+import { OKX_BAR, okxInstId } from "./api.ts";
 import { intervalSec } from "./bars.ts";
 import { cancelHistory, compareRef, ensureCompleteHistory } from "./history.ts";
 import { parseKline } from "./kline-parser.ts";
+import { dataSourcePort } from "./ports.ts";
 import { useTerminal } from "./store.ts";
 import { checkBar } from "./validator.ts";
 import type { Interval } from "./types.ts";
@@ -76,14 +70,14 @@ export function useMarketFeed() {
     (async () => {
       try {
         const [ticker, depth] = await Promise.all([
-          fetchTicker({ data: { symbol, market } }),
-          fetchDepth({ data: { symbol, market } }),
+          dataSourcePort.fetchTicker(symbol, market),
+          dataSourcePort.fetchDepth(symbol, market),
         ]);
         if (dead) return;
         useTerminal.getState().setTicker(ticker);
         useTerminal.getState().setBook(depth.bids, depth.asks);
         if (market === "usdm") {
-          const p = await fetchPremium({ data: { symbol } });
+          const p = await dataSourcePort.fetchPremium(symbol);
           if (!dead)
             useTerminal.getState().setPremium(p.mark, p.funding, p.next);
         }
@@ -105,7 +99,8 @@ export function useMarketFeed() {
   useEffect(() => {
     let dead = false;
     const load = () =>
-      fetchWatch({ data: { symbols: watchSymbols, market } })
+      dataSourcePort
+        .fetchWatch(watchSymbols, market)
         .then((w) => {
           if (!dead) useTerminal.getState().setWatch(w);
         })
