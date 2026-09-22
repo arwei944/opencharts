@@ -59,10 +59,23 @@ export interface DataSourcePlugin {
   ) => Promise<Candle[]>;
 }
 
+export interface SettingsSectionProps {
+  settings: Record<string, unknown>;
+  update: (key: string, value: unknown) => void;
+}
+
+/** Plugin-drawn settings section appended to the Settings modal (P3). */
+export interface SettingsSectionPlugin {
+  id: string;
+  title: string;
+  render: (ctx: SettingsSectionProps) => React.ReactNode;
+}
+
 // Registry (process-wide singletons).
 const indicatorRegistry = new Map<string, IndicatorPlugin>();
 const drawingRegistry = new Map<string, DrawingToolPlugin>();
 const dataSourceRegistry = new Map<string, DataSourcePlugin>();
+const settingsSectionRegistry = new Map<string, SettingsSectionPlugin>();
 /** Activated plugin kinds (default: everything registered is active). */
 const activeIndicators = new Set<string>();
 const activeDrawingTools = new Set<string>();
@@ -71,6 +84,7 @@ export const pluginRegistry = {
   indicators: indicatorRegistry,
   drawingTools: drawingRegistry,
   dataSources: dataSourceRegistry,
+  settingsSections: settingsSectionRegistry,
 };
 
 export function registerIndicator(p: IndicatorPlugin): void {
@@ -83,6 +97,16 @@ export function registerDrawingTool(p: DrawingToolPlugin): void {
 }
 export function registerDataSource(p: DataSourcePlugin): void {
   dataSourceRegistry.set(p.name, p);
+}
+/** P3: append a plugin-drawn settings section (Settings modal). */
+export function registerSettingsSection(p: SettingsSectionPlugin): void {
+  settingsSectionRegistry.set(p.id, p);
+}
+export function listSettingsSections(): SettingsSectionPlugin[] {
+  return [...settingsSectionRegistry.values()];
+}
+export function unregisterSettingsSection(id: string): void {
+  settingsSectionRegistry.delete(id);
 }
 export function listIndicators(): IndicatorPlugin[] {
   return [...indicatorRegistry.values()];

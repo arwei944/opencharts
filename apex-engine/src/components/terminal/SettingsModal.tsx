@@ -8,6 +8,7 @@ import {
 } from "@/lib/trading/broker";
 import { toast } from "sonner";
 import { Modal } from "./Modal";
+import { listSettingsSections } from "@/lib/plugins/registry";
 import { TIMEZONE_OPTIONS } from "@/lib/market/timefmt";
 import {
   CandleSection,
@@ -220,6 +221,18 @@ export function SettingsModal() {
             onReset={() => setSettings(DEFAULT_SETTINGS)}
             onCancel={close}
           />
+          {/* P3: plugin-drawn settings sections render after the builtin ones. */}
+          {listSettingsSections().map((sec) => (
+            <section key={sec.id}>
+              <h3 className="mb-3 text-sm font-medium text-subtle">
+                {sec.title}
+              </h3>
+              {sec.render({
+                settings: settings as unknown as Record<string, unknown>,
+                update: (key, value) => update(key as never, value as never),
+              })}
+            </section>
+          ))}
         </div>
       </div>
     </Modal>

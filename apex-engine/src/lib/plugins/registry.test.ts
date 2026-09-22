@@ -116,3 +116,25 @@ test("plugin catalog entry carries defaults + labels for addIndicator", () => {
   assert.deepEqual(entry?.labels, ["幂"]);
   assert.equal(entry?.group, "sub");
 });
+
+test("settingsSection: register + list + unregister", async () => {
+  const mod = await import("./registry.ts");
+  mod.registerSettingsSection({
+    id: "test.sec",
+    title: "测试分区",
+    render: () => null,
+  });
+  assert.equal(
+    mod.listSettingsSections().some((s) => s.id === "test.sec"),
+    true,
+  );
+  assert.equal(
+    mod.listSettingsSections().find((s) => s.id === "test.sec")?.title,
+    "测试分区",
+  );
+  mod.unregisterSettingsSection("test.sec");
+  assert.equal(
+    mod.listSettingsSections().some((s) => s.id === "test.sec"),
+    false,
+  );
+});

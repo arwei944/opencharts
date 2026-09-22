@@ -7,6 +7,7 @@ import {
   registerDataSource,
   registerDrawingTool,
   registerIndicator,
+  registerSettingsSection,
 } from "./registry";
 import type { Candle } from "../market/types";
 import { sma } from "../market/indicators";
@@ -67,6 +68,19 @@ registerDrawingTool({
 registerDataSource({
   name: "demo",
   fetchKlines: async () => [],
+});
+
+// P3: demo settings section — proves plugin-drawn sections render in the
+// Settings modal without touching core SettingsSections.
+registerSettingsSection({
+  id: "demo.about",
+  title: "关于插件系统",
+  render: () => (
+    <p className="text-micro text-muted">
+      从注册表加载的自定义设置分区：第三方能力可以在此挂载配置 UI，而不必修改
+      核心 SettingsSections 组件。
+    </p>
+  ),
 });
 
 export * from "./registry";
