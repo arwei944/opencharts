@@ -1,63 +1,45 @@
-import {
-  AreaSeries,
-  BarSeries,
-  CandlestickSeries,
-  ColorType,
-  CrosshairMode,
-  HistogramSeries,
-  LineSeries,
-  createChart,
-  type IChartApi,
-  type ISeriesApi,
-  type LineWidth,
-  type Logical,
-  type Time,
-  type UTCTimestamp,
-} from "lightweight-charts";
+import { createChart, type IChartApi, type Time } from "lightweight-charts";
 import { intervalSec } from "./bars.ts";
 import { CompareManager } from "./compare.ts";
-import { isValidRange, zoomRange } from "./viewport.ts";
-import {
-  priceToY as coordPriceToY,
-  takeScreenshot,
-  timeToX as coordTimeToX,
-  xToTime as coordXToTime,
-  yToPrice as coordYToPrice,
-} from "./export.ts";
+import { buildChartOptions } from "./engine/options.ts";
+import { ThemeManager } from "./engine/theme.ts";
+import { SeriesManager } from "./engine/series.ts";
+import { PointerController } from "./engine/pointer.ts";
+import { RangeController } from "./engine/range.ts";
+import { yToPrice as coordYToPrice, takeScreenshot } from "./export.ts";
 import { diffTail, initialLogicalRange, trimTail } from "./series-ops.ts";
-import { lastHeikinAshi, type CustomFn } from "./indicator-compute.ts";
+import type { CustomFn } from "./indicator-compute.ts";
 import { IndicatorRenderer } from "./indicator-render.ts";
 import { decideCommit } from "./data-pipeline.ts";
-import { clampPanSensitivity, dragDelta, panRange } from "./events.ts";
 import { RestQueue } from "./rest-queue.ts";
-import {
-  CHART_THEME,
-  DOWN,
-  IND_TAIL_BARS,
-  IND_TAIL_GROW,
-  UP,
-} from "./constants.ts";
+import { IND_TAIL_BARS, IND_TAIL_GROW } from "./constants.ts";
 
 import type { ThemeMode } from "./constants.ts";
-import { formatTime } from "./timefmt.ts";
-import { heikinAshi } from "./indicators.ts";
 import type { Candle, ChartType, IndicatorInst, Interval } from "./types.ts";
 import { DEFAULT_SETTINGS } from "./settings.ts";
 
-type AnySeries = ISeriesApi<
-  "Candlestick" | "Bar" | "Line" | "Area" | "Histogram"
->;
-
+/**
+ * ChartEngine — composition facade over the extracted managers:
+ *
+ *   SeriesManager   main/vol series lifecycle (engine/series.ts)
+ *   PointerController  drag-pan + interaction-priority window (engine/pointer.ts)
+ *   RangeController    visible-range forwarding/suppression (engine/range.ts)
+ *   CompareManager     compare-line series (compare.ts)
+ *   IndicatorRenderer  indicator line pipeline (indicator-render.ts)
+ *   RestQueue          one-setData-per-frame cosmetic queue (rest-queue.ts)
+ *   data-pipeline      decideCommit pure decision layer (data-pipeline.ts)
+ *
+ * The engine owns bar data (bars/pending/indTail) and the commit orchestration;
+ * every other concern lives in a single-purpose module.
+ */
 export class ChartEngine {
   chart: IChartApi;
-  private main: AnySeries | null = null;
-  private vol: ISeriesApi<"Histogram"> | null = null;
+  private series: SeriesManager;
+  private pointer: PointerController;
+  private range: RangeController;
+  private theme: ThemeManager;
   private cmp: CompareManager;
   private render: IndicatorRenderer;
-  private type: ChartType = "candle";
-  private invert = false;
-  /** 倒垂视角：价格轴翻转。与 `invert`（红绿互换）是两件事，各开各的。 */
-  private mirror = false;
   /** 倒垂时是否连成交量一起翻（默认不翻，保持贴底）。 */
   private mirrorVolume = false;
   /**
@@ -77,98 +59,14 @@ export class ChartEngine {
   private frozen = false;
   /** Tail slice the per-tick indicator refresh recomputes — never the whole history. */
   private indTail: Candle[] = [];
-  private showVol = true;
   private indicators: IndicatorInst[] = [];
   /** Runtime-only custom calculators keyed by indicator id (see store.customFns). */
   private customFns: Record<string, CustomFn> = {};
   private interval: Interval = "15m";
   private step = 60;
-  private suppressRange = false;
-  private rangeRaf = 0;
-  /** True while the pointer owns the chart — the moment a repaint must not happen. */
-  private interacting = false;
-  private dragging = false;
-  private panSensitivity = 1;
-  private cursorHint: "default" | "crosshair" = "default";
-  private dragStartX = 0;
-  private dragStartRange: { from: number; to: number } | null = null;
-  private interactTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly host: HTMLElement;
-  private mode: ThemeMode = "dark";
   private dead = false;
 
-  private readonly onPointerDown = (e: PointerEvent) => {
-    // Ignore right-click / touch (touch pan is handled natively). Only the
-    // left button drags.
-    if (e.button !== 0) return;
-    const lr = this.chart.timeScale().getVisibleLogicalRange();
-    this.dragStartX = e.clientX;
-    this.dragStartRange =
-      lr && Number.isFinite(lr.from) && Number.isFinite(lr.to)
-        ? { from: lr.from, to: lr.to }
-        : null;
-    this.dragging = this.dragStartRange !== null;
-    this.host.style.cursor = "grabbing";
-    try {
-      this.host.setPointerCapture?.(e.pointerId);
-    } catch {
-      /* capture is best-effort */
-    }
-    this.markInteracting();
-  };
-  private readonly onPointerMove = (e: PointerEvent) => {
-    if (!this.dragging || !this.dragStartRange) return;
-    const lr = this.chart.timeScale().getVisibleLogicalRange();
-    if (!lr || !Number.isFinite(lr.from) || !Number.isFinite(lr.to)) return;
-    // Sensitivity >1 means the chart follows the cursor faster than 1:1.
-    const deltaLogical = dragDelta(
-      this.dragStartX,
-      e.clientX,
-      this.panSensitivity,
-      lr.to - lr.from,
-      this.host.clientWidth,
-    );
-    this.chart
-      .timeScale()
-      .setVisibleLogicalRange(
-        panRange(
-          this.dragStartRange.from,
-          this.dragStartRange.to,
-          deltaLogical,
-        ),
-      );
-    // keep lock-alive while the pointer moves (same as the timer's intent)
-    clearTimeout(this.interactTimer);
-    this.interactTimer = setTimeout(() => this.markInteracting(), 150);
-  };
-  private readonly onPointerUp = (e: PointerEvent) => {
-    this.dragging = false;
-    this.dragStartRange = null;
-    this.host.style.cursor = this.cursorHint;
-    try {
-      this.host.releasePointerCapture?.(e.pointerId);
-    } catch {
-      /* best-effort */
-    }
-    clearTimeout(this.interactTimer);
-    this.releaseInteracting();
-  };
-  private readonly onWheel = () => {
-    this.markInteracting();
-  };
-  /** Mouse-drag pan sensitivity multiplier (1 = 1:1); >1 faster, <1 slower. */
-  setPanSensitivity(v: number) {
-    this.panSensitivity = clampPanSensitivity(v);
-  }
-
-  /**
-   * Cursor hint per active tool: default arrow when idle (drag shows the hand
-   * automatically), crosshair while a drawing tool is active.
-   */
-  setCursor(cursor: "default" | "crosshair") {
-    this.cursorHint = cursor;
-    if (!this.dragging) this.host.style.cursor = cursor;
-  }
   /** One-setData-per-frame queue for cosmetic full-history redraws. */
   private queue: RestQueue;
 
@@ -185,172 +83,68 @@ export class ChartEngine {
     mode: ThemeMode = "dark",
     settings: typeof DEFAULT_SETTINGS = DEFAULT_SETTINGS,
   ) {
-    this.mode = mode;
     this.settings = settings;
     this.host = host;
-    const pal = CHART_THEME[mode];
-    this.chart = createChart(host, {
-      layout: {
-        background: { type: ColorType.Solid, color: pal.bg },
-        textColor: pal.text,
-        fontFamily: settings.fontFamily ?? "IBM Plex Sans, sans-serif",
-        fontSize: settings.fontSize ?? 11,
-        attributionLogo: false,
-      },
-      grid: {
-        vertLines: { color: pal.grid, style: settings.gridLineStyle as any },
-        horzLines: { color: pal.grid, style: settings.gridLineStyle as any },
-      },
-      crosshair: {
-        mode: CrosshairMode.Normal,
-        vertLine: {
-          color: pal.text,
-          width: settings.crosshairWidth as LineWidth,
-          style: settings.crosshairLineStyle as any,
-          labelBackgroundColor: settings.crosshairLabelBg,
-        },
-        horzLine: {
-          color: pal.text,
-          width: settings.crosshairWidth as LineWidth,
-          style: settings.crosshairLineStyle as any,
-          labelBackgroundColor: settings.crosshairLabelBg,
-        },
-      },
-      // Mouse drag-pan is implemented here (custom sensitivity + grab/grabbing
-      // cursor), so disable the library's baked-in 1:1 drag; everything else
-      // (wheel, axis scale, pinch) stays native.
-      handleScroll: {
-        pressedMouseMove: false,
-        mouseWheel: true,
-        horzTouchDrag: true,
-        vertTouchDrag: false,
-      },
-      handleScale: {
-        axisPressedMouseMove: true,
-        axisDoubleClickReset: true,
-        mouseWheel: true,
-        pinch: true,
-      },
-      rightPriceScale: {
-        borderColor: pal.grid,
-        scaleMargins: {
-          top: settings.priceScaleMargins[0],
-          bottom: settings.priceScaleMargins[1],
-        },
-      },
-      leftPriceScale: {
-        visible: false,
-        borderColor: pal.grid,
-        scaleMargins: {
-          top: settings.priceScaleMargins[0],
-          bottom: settings.priceScaleMargins[1],
-        },
-      },
-      timeScale: {
-        borderColor: pal.grid,
-        timeVisible: true,
-        secondsVisible: false,
-        rightOffset: settings.timeRightOffset,
-        barSpacing: settings.barSpacing,
-        // Default minBarSpacing (0.5px) caps the zoomed-out view at ~viewport/0.5
-        // bars, so a 100k-series can never be seen in full — and the viewport
-        // never reaches the loaded front, which is what triggers the infinite
-        // backfill (ensureCoverage/extendHistory). Lower the floor so zoom-out
-        // covers every resident bar; 0.01 still clamps at ~viewport/0.0114, so
-        // 0.001 it is (measured: fitContent reaches bar 0).
-        minBarSpacing: 0.001,
-      },
-      autoSize: true,
-    });
+    this.chart = createChart(host, buildChartOptions(mode, settings));
+    this.theme = new ThemeManager(
+      this.chart,
+      mode,
+      () => this.settings,
+      () => this.mirrorVolume,
+    );
+    this.series = new SeriesManager(this.chart, () => this.settings);
     this.cmp = new CompareManager(
       this.chart,
-      () => this.mode,
-      () => this.syncMirror(),
+      () => this.theme.current,
+      () => this.theme.syncMirror(),
     );
     this.render = new IndicatorRenderer(this.chart, () => ({
       bars: this.bars,
       indicators: this.indicators,
       customFns: this.customFns,
     }));
-    this.queue = new RestQueue(
-      () => this.interacting,
-      () => this.syncMirror(),
-    );
-    this.rebuildMain();
-    this.host.style.cursor = "default";
-    this.chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-      if (!range || this.dead) return;
-      if (!this.rangeRaf) {
-        this.rangeRaf = requestAnimationFrame(() => {
-          this.rangeRaf = 0;
-          // The minimap strip tracks every frame the viewport moves — including
-          // mid-drag — but must not fight a range we are applying remotely.
-          if (!this.suppressRange) {
-            const tr = this.chart.timeScale().getVisibleRange();
-            if (
-              tr &&
-              typeof tr.from === "number" &&
-              typeof tr.to === "number"
-            ) {
-              this.onMinimap?.({
-                from: tr.from as number,
-                to: tr.to as number,
-              });
-            }
-          }
-          if (this.suppressRange) return;
-          // While the pointer is dragging, forwarding every frame to React
-          // (linked-range sync, coverage checks) is pure latency: the pan is
-          // already canvas-side. Defer until the drag finishes.
-          if (this.dragging) return;
-          const tr = this.chart.timeScale().getVisibleRange();
-          if (tr && typeof tr.from === "number" && typeof tr.to === "number") {
-            this.onRange?.(tr.from as number, tr.to as number);
-            this.onViewport?.(tr.from as number, tr.to as number);
-          }
-          this.maybeRevealPending();
-        });
-      }
+    this.pointer = new PointerController(host, this.chart, {
+      onPointerIdle: () => this.releaseInteracting(),
     });
+    this.queue = new RestQueue(
+      () => this.pointer.isInteracting,
+      () => this.theme.syncMirror(),
+    );
+    this.range = new RangeController(this.chart, {
+      onMinimap: (r) => this.onMinimap?.(r),
+      onRangeChange: (from, to) => {
+        this.onRange?.(from, to);
+        this.onViewport?.(from, to);
+        this.maybeRevealPending();
+      },
+      isDragging: () => this.pointer.isDragging,
+    });
+    this.series.rebuildMain();
+    this.host.style.cursor = "default";
     this.chart.subscribeCrosshairMove((param) => {
       /* While the button owns the chart the library still draws the crosshair on
        * canvas, but forwarding it to React here would re-render the board the user
        * is dragging — a per-mousemove render is what makes a pan trail the cursor. */
-      if (this.dragging) return;
+      if (this.pointer.isDragging) return;
       const time = typeof param.time === "number" ? param.time : null;
       let price: number | null = null;
-      if (this.main && param.seriesData) {
-        const raw = param.seriesData.get(this.main) as
+      if (this.series.main && param.seriesData) {
+        const raw = param.seriesData.get(this.series.main) as
           { close?: number; value?: number } | undefined;
         price = raw?.close ?? raw?.value ?? null;
       }
-      if (price == null && param.point && this.main) {
-        const p = this.main.coordinateToPrice(param.point.y);
+      if (price == null && param.point && this.series.main) {
+        const p = coordYToPrice(this.series.main, param.point.y);
         price = p == null ? null : Number(p);
       }
       this.onCrosshair?.(time, price);
     });
-    host.addEventListener("pointerdown", this.onPointerDown, {
-      capture: true,
-      passive: false,
-    });
-    host.addEventListener("pointermove", this.onPointerMove, {
-      capture: true,
-      passive: true,
-    });
-    host.addEventListener("wheel", this.onWheel, {
-      passive: true,
-      capture: true,
-    });
-    window.addEventListener("pointerup", this.onPointerUp, { capture: true }); // ✅ Match with pointerdown
-    window.addEventListener("pointercancel", this.onPointerUp, {
-      capture: true,
-    }); // ✅ Match with pointerdown
+    this.pointer.bind();
   }
 
   /** True from `pointerdown` until the button is lifted: the DOM must keep out of the way. */
   get isDragging() {
-    return this.dragging;
+    return this.pointer.isDragging;
   }
 
   setInterval(interval: Interval) {
@@ -361,129 +155,34 @@ export class ChartEngine {
     });
   }
 
-  private colors() {
-    return this.invert ? { up: DOWN, down: UP } : { up: UP, down: DOWN };
+  /** Mouse-drag pan sensitivity multiplier (1 = 1:1); >1 faster, <1 slower. */
+  setPanSensitivity(v: number) {
+    this.pointer.setPanSensitivity(v);
   }
 
-  /** priceFormat options for the main series, from the configured precision. */
-  private priceFormatOpts(): Record<string, unknown> {
-    const p = this.settings.pricePrecision;
-    if (p == null || !Number.isFinite(p) || p < 0 || p > 8) return {};
-    return {
-      priceFormat: {
-        type: "price",
-        precision: p,
-        minMove: 1 / Math.pow(10, p),
-      },
-    };
-  }
-
-  private rebuildMain() {
-    if (this.main) this.chart.removeSeries(this.main);
-    const { up, down } = this.colors();
-    const fmt = this.priceFormatOpts();
-    if (this.type === "bar") {
-      this.main = this.chart.addSeries(BarSeries, {
-        upColor: up,
-        downColor: down,
-        ...fmt,
-      });
-    } else if (this.type === "line") {
-      this.main = this.chart.addSeries(LineSeries, {
-        color: up,
-        lineWidth: 2,
-        ...fmt,
-      });
-    } else if (this.type === "area") {
-      this.main = this.chart.addSeries(AreaSeries, {
-        lineColor: up,
-        topColor: `${up}55`,
-        bottomColor: `${up}00`,
-        lineWidth: 2,
-        ...fmt,
-      });
-    } else {
-      const hollow = this.type === "hollow";
-      this.main = this.chart.addSeries(CandlestickSeries, {
-        upColor: hollow ? "transparent" : up,
-        downColor: down,
-        borderUpColor: up,
-        borderDownColor: down,
-        wickUpColor: up,
-        wickDownColor: down,
-        ...fmt,
-      });
-    }
-    this.applyBars();
-    this.syncMirror();
+  /** Cursor hint per active tool (crosshair while a drawing tool is active). */
+  setCursor(cursor: "default" | "crosshair") {
+    this.pointer.setCursor(cursor);
   }
 
   /** Re-apply typography (font size/family) and price precision live. */
   applyTypography(s: typeof DEFAULT_SETTINGS) {
     this.settings = s;
-    this.chart.applyOptions({
-      layout: {
-        fontSize: s.fontSize ?? 11,
-        fontFamily: s.fontFamily ?? "IBM Plex Sans, sans-serif",
-      },
-      grid: {
-        vertLines: {
-          color: CHART_THEME[this.mode].grid,
-          style: s.gridLineStyle as any,
-        },
-        horzLines: {
-          color: CHART_THEME[this.mode].grid,
-          style: s.gridLineStyle as any,
-        },
-      },
-    });
-    if (this.main) {
-      const opts = this.priceFormatOpts();
-      if (Object.keys(opts).length) this.main.applyOptions(opts);
-    }
-    this.setTimezone(s.timezone ?? "local");
-  }
-
-  /**
-   * Time-axis timezone (incl. DST through Intl). "local" keeps the browser
-   * clock; any IANA zone renders axis/legend times in that zone.
-   */
-  private setTimezone(zone: string) {
-    this.chart.applyOptions({
-      localization: {
-        timeFormatter: (t: UTCTimestamp) => formatTime(t, zone),
-      },
-    });
+    this.theme.applyTypography(s);
+    this.series.applyPriceFormat();
+    this.theme.setTimezone(s.timezone ?? "local");
   }
 
   setType(t: ChartType) {
-    if (this.type === t) return;
-    const wasHollowSwap =
-      (this.type === "candle" || this.type === "hollow") &&
-      (t === "candle" || t === "hollow");
-    this.type = t;
-    if (wasHollowSwap && this.main) {
-      // candle <-> hollow share the CandlestickSeries type; recolor in place
-      // instead of destroying + re-setting 100k bars.
-      const { up, down } = this.colors();
-      const hollow = t === "hollow";
-      this.main.applyOptions({
-        upColor: hollow ? "transparent" : up,
-        downColor: down,
-        borderUpColor: up,
-        borderDownColor: down,
-        wickUpColor: up,
-        wickDownColor: down,
-      });
-      return;
-    }
-    this.rebuildMain();
+    if (this.series.chartType === t) return;
+    this.series.setType(t);
+    this.theme.syncMirror();
   }
 
   setInvert(v: boolean) {
-    this.invert = v;
-    this.rebuildMain();
-    this.applyVol();
+    this.series.setInvert(v);
+    this.series.applyVol(this.bars);
+    this.theme.syncMirror();
   }
 
   setLog(v: boolean) {
@@ -491,8 +190,8 @@ export class ChartEngine {
   }
 
   setShowVol(v: boolean) {
-    this.showVol = v;
-    this.applyVol();
+    this.series.setShowVol(v);
+    this.series.applyVol(this.bars);
   }
 
   /**
@@ -508,7 +207,7 @@ export class ChartEngine {
       this.bars,
       bars,
       frozen,
-      this.interacting,
+      this.pointer.isInteracting,
       this.pending,
     );
     switch (act.kind) {
@@ -545,11 +244,11 @@ export class ChartEngine {
     this.bars = bars;
     this.pending = null;
     this.indTail = bars.slice(-IND_TAIL_BARS);
-    this.applyBars();
+    this.series.applyBars(bars);
     // Data arriving after the pane was created (layout switch, lazy fill) can
     // materialize the main series and its brand-new scales — re-assert the
     // mirror so a toggled-on inverted view never comes back un-flipped.
-    this.syncMirror();
+    this.theme.syncMirror();
 
     if (
       hadData &&
@@ -558,22 +257,11 @@ export class ChartEngine {
       typeof view.to === "number"
     ) {
       // Same candles stay under the cursor: only bars the viewport cannot see were added.
-      this.setVisibleTimeRange(view.from, view.to);
+      this.range.setVisibleTimeRange(view.from, view.to);
     } else {
       // New data loaded - default to showing latest bars at right edge
-      this.suppressRange = true;
-
-      // If there's no specific zoom preference, show recent ~150 bars
       const { from: fromTime, to: toTime } = initialLogicalRange(bars.length);
-
-      this.chart.timeScale().setVisibleLogicalRange({
-        from: fromTime as Logical,
-        to: toTime as Logical,
-      });
-
-      requestAnimationFrame(() => {
-        this.suppressRange = false;
-      });
+      this.range.setVisibleLogicalRange(fromTime, toTime);
     }
 
     // Volume, compares and indicator lines each cost another full-history
@@ -582,7 +270,7 @@ export class ChartEngine {
     // across commits (see renderer.jobs) so a progressive reveal only refreshes
     // their data instead of destroying + recreating every pane.
     this.queue.refill(
-      [() => this.applyVol(), () => this.cmp.apply()],
+      [() => this.series.applyVol(this.bars), () => this.cmp.apply()],
       this.render.jobs(),
     );
   }
@@ -605,22 +293,9 @@ export class ChartEngine {
    * moment the pointer lifts — the bars are already resident, only the paint waits.
    */
   private scheduleCommit() {
-    if (this.interacting) return;
+    if (this.pointer.isInteracting) return;
     const pending = this.pending;
     if (pending) this.commit(pending);
-  }
-
-  private markInteracting() {
-    this.interacting = true;
-    clearTimeout(this.interactTimer);
-    this.interactTimer = setTimeout(() => {
-      if (this.dragging) {
-        // Still mid-drag: keep the pointer-priority window alive.
-        this.markInteracting();
-        return;
-      }
-      this.releaseInteracting();
-    }, 150);
   }
 
   /**
@@ -630,9 +305,8 @@ export class ChartEngine {
    * re-arming dragging before paint.
    */
   private releaseInteracting() {
-    this.interacting = false;
     requestAnimationFrame(() => {
-      if (this.dead || this.dragging) return;
+      if (this.dead || this.pointer.isDragging) return;
       // Re-forward the (deferred) viewport change so coverage checks and
       // linked-range sync catch up after the drag.
       const tr = this.chart.timeScale().getVisibleRange();
@@ -643,13 +317,6 @@ export class ChartEngine {
       this.maybeRevealPending();
       this.queue.pump();
     });
-  }
-
-  private visibleSpan(): number {
-    const lr = this.chart.timeScale().getVisibleLogicalRange();
-    return lr && Number.isFinite(lr.to - lr.from)
-      ? Math.max(20, lr.to - lr.from)
-      : 300;
   }
 
   /** Live tick: the series gets one `update` — never a re-render, never a stutter. */
@@ -683,29 +350,8 @@ export class ChartEngine {
   }
 
   private updateSeriesBar(bar: Candle) {
-    if (!this.main) return;
-    const src = this.type === "ha" ? lastHeikinAshi(this.indTail) : bar;
-    if (!src) return;
-    if (this.type === "line" || this.type === "area") {
-      (this.main as ISeriesApi<"Line">).update({
-        time: src.time as UTCTimestamp,
-        value: src.close,
-      });
-    } else {
-      (this.main as ISeriesApi<"Candlestick">).update({
-        time: src.time as UTCTimestamp,
-        open: src.open,
-        high: src.high,
-        low: src.low,
-        close: src.close,
-      });
-    }
-    const { up, down } = this.colors();
-    this.vol?.update({
-      time: bar.time as UTCTimestamp,
-      value: bar.volume,
-      color: bar.close >= bar.open ? `${up}99` : `${down}99`,
-    });
+    if (!this.series.updateMainBar(bar, this.indTail)) return;
+    this.series.updateVolBar(bar);
     this.render.applyTail(this.indTail);
   }
 
@@ -764,48 +410,13 @@ export class ChartEngine {
   }
 
   setTheme(mode: ThemeMode) {
-    if (mode === this.mode) return;
-    this.mode = mode;
-    const pal = CHART_THEME[mode];
-    this.chart.applyOptions({
-      layout: {
-        background: { type: ColorType.Solid, color: pal.bg },
-        textColor: pal.text,
-      },
-      grid: {
-        vertLines: {
-          color: pal.grid,
-          style: this.settings.gridLineStyle as any,
-        },
-        horzLines: {
-          color: pal.grid,
-          style: this.settings.gridLineStyle as any,
-        },
-      },
-      crosshair: {
-        vertLine: { color: pal.text, labelBackgroundColor: pal.axisLabel },
-        horzLine: { color: pal.text, labelBackgroundColor: pal.axisLabel },
-      },
-      rightPriceScale: { borderColor: pal.grid },
-      leftPriceScale: { borderColor: pal.grid },
-      timeScale: { borderColor: pal.grid },
-    });
-    this.cmp.syncScale();
+    const changed = this.theme.current !== mode;
+    this.theme.setTheme(mode);
+    if (changed) this.cmp.syncScale();
   }
 
   setVisibleTimeRange(from: number, to: number) {
-    if (!isValidRange(from, to)) return;
-    this.suppressRange = true;
-    try {
-      this.chart
-        .timeScale()
-        .setVisibleRange({ from: from as Time, to: to as Time });
-    } catch {
-      /* range may not exist on this interval yet */
-    }
-    requestAnimationFrame(() => {
-      this.suppressRange = false;
-    });
+    this.range.setVisibleTimeRange(from, to);
   }
 
   /**
@@ -813,20 +424,16 @@ export class ChartEngine {
    * logical anchor under the cursor (approx) stationary.
    */
   zoomAt(x: number, width: number, factor = 1.6) {
-    const ts = this.chart.timeScale();
-    const lr = ts.getVisibleLogicalRange();
-    if (!lr || width <= 0) return;
-    const ratio = Math.max(0, Math.min(1, x / width));
-    ts.setVisibleLogicalRange(zoomRange(lr.from, lr.to, factor, ratio));
+    this.range.zoomAt(x, width, factor);
   }
 
   setCrosshair(time: number | null, price: number | null) {
-    if (time == null || price == null || !this.main) {
+    if (time == null || price == null || !this.series.main) {
       this.chart.clearCrosshairPosition();
       return;
     }
     try {
-      this.chart.setCrosshairPosition(price, time as Time, this.main);
+      this.chart.setCrosshairPosition(price, time as Time, this.series.main);
     } catch {
       this.chart.clearCrosshairPosition();
     }
@@ -840,94 +447,20 @@ export class ChartEngine {
   fit() {
     if (this.pending) this.commit(this.pending);
     if (!this.bars.length) return;
-    this.suppressRange = true;
-    // fitContent() reaches the real front (measured: lr.from=0). A manual
-    // setVisibleLogicalRange({-4, len+4}) is clamped by lw to ~710 bars of
-    // slack at min bar spacing, and lw's *first* fitContent on a fresh
-    // 100k-series clamps to ~714; a second call — one frame later, since lw
-    // batches time-scale ops per frame — lands on the true front (0), which
-    // is what the coverage/backfill trigger needs. Idempotent.
-    this.chart.timeScale().fitContent();
-    requestAnimationFrame(() => {
-      this.chart.timeScale().fitContent();
-    });
-    requestAnimationFrame(() => {
-      this.suppressRange = false;
-    });
-  }
-
-  /**
-   * Heikin-Ashi over the resident series, memoized: WS ticks mutate the tail
-   * via updateSeriesBar (lastHeikinAshi over indTail), so a full O(n) recompute
-   * is only owed when the series reference actually changes (commit/reveal).
-   */
-  private haSource(bars: Candle[]): Candle[] {
-    if (this.type !== "ha") return bars;
-    if (this.haCacheBars !== bars) {
-      this.haCache = heikinAshi(bars);
-      this.haCacheBars = bars;
-    }
-    return this.haCache;
-  }
-
-  private haCache: Candle[] = [];
-  private haCacheBars: Candle[] | null = null;
-
-  private applyBars() {
-    if (!this.main) return;
-    const src = this.haSource(this.bars);
-    if (this.type === "line" || this.type === "area") {
-      const line = src.map((b) => ({
-        time: b.time as UTCTimestamp,
-        value: b.close,
-      }));
-      (this.main as ISeriesApi<"Line">).setData(line);
-      return;
-    }
-    const candles = src.map((b) => ({
-      time: b.time as UTCTimestamp,
-      open: b.open,
-      high: b.high,
-      low: b.low,
-      close: b.close,
-    }));
-    (this.main as ISeriesApi<"Candlestick">).setData(candles);
-  }
-
-  private applyVol() {
-    if (this.vol) {
-      this.chart.removeSeries(this.vol);
-      this.vol = null;
-    }
-    if (!this.showVol || this.bars.length === 0) return;
-    const { up, down } = this.colors();
-    this.vol = this.chart.addSeries(HistogramSeries, {
-      priceFormat: { type: "volume" },
-      priceScaleId: "vol",
-    });
-    this.chart.priceScale("vol").applyOptions({
-      scaleMargins: { top: this.settings.volumeHeight, bottom: 0 },
-    });
-    this.vol.setData(
-      this.bars.map((b) => ({
-        time: b.time as UTCTimestamp,
-        value: b.volume,
-        color: b.close >= b.open ? `${up}88` : `${down}88`,
-      })),
-    );
+    this.range.fitContent();
   }
 
   priceToY(price: number) {
-    return coordPriceToY(this.main, price);
+    return this.series.priceToY(price);
   }
   yToPrice(y: number) {
-    return coordYToPrice(this.main, y);
+    return this.series.yToPrice(y);
   }
   timeToX(time: number) {
-    return coordTimeToX(this.chart, time);
+    return this.series.timeToX(time);
   }
   xToTime(x: number) {
-    return coordXToTime(this.chart, x);
+    return this.series.xToTime(x);
   }
 
   /**
@@ -936,71 +469,28 @@ export class ChartEngine {
    * 后者只是把画面往上挪，K 线形状根本没翻。
    */
   setMirror(v: boolean) {
-    if (this.mirror === v) return;
-    this.mirror = v;
-    this.syncMirror();
+    this.theme.setMirror(v);
   }
 
   /** 是否把成交量面板也纳入倒垂翻转（独立于主标尺，随设置联动）。 */
   setMirrorVolume(v: boolean) {
     if (this.mirrorVolume === v) return;
     this.mirrorVolume = v;
-    this.applyVol();
-    this.syncMirror();
+    this.series.applyVol(this.bars);
+    this.theme.syncMirror();
   }
 
   get isMirrored() {
-    return this.mirror;
-  }
-
-  /**
-   * `invertScale` 属于「每个 pane 的每条标尺」，而 pane 和标尺都是随系列创建才出现的：
-   * 指标线会新建副图 pane，对比线会新建 left 标尺。所以每次系列结构变化后都要重新
-   * 下一道命令，否则「先开倒垂、后加载指标」会有一半画面偷偷正回来。
-   *
-   * 成交量走独立的 `vol` 标尺，故意为之不翻 —— 它始终贴在底部，与币安/TradingView 一致。
-   */
-  private syncMirror() {
-    const panes = this.chart.panes();
-    for (let i = 0; i < panes.length; i++) {
-      for (const id of ["right", "left"] as const) {
-        try {
-          panes[i].priceScale(id).applyOptions({ invertScale: this.mirror });
-        } catch {
-          /* 这个 pane 没有该标尺（例如没有对比线时的 left） */
-        }
-      }
-    }
-    // 成交量独立 vol 标尺：默认不翻（贴底），mirrorVolume 打开时随倒垂一起翻。
-    try {
-      this.chart
-        .priceScale("vol")
-        .applyOptions({ invertScale: this.mirror && this.mirrorVolume });
-    } catch {
-      /* 成交量未创建时没有 vol 标尺 */
-    }
+    return this.theme.isMirrored;
   }
 
   destroy() {
     this.dead = true;
-    clearTimeout(this.interactTimer);
+    this.pointer.cancel();
+    this.pointer.unbind();
     this.queue.cancel();
-    // ✅ P0 Bug Fix: Use matching options when removing event listeners
-    this.host.removeEventListener("pointerdown", this.onPointerDown, {
-      capture: true,
-    });
-    this.host.removeEventListener("pointermove", this.onPointerMove, {
-      capture: true,
-    });
-    this.host.removeEventListener("wheel", this.onWheel, { capture: true });
-    window.removeEventListener("pointerup", this.onPointerUp, {
-      capture: true,
-    });
-    window.removeEventListener("pointercancel", this.onPointerUp, {
-      capture: true,
-    });
-    if (this.rangeRaf) cancelAnimationFrame(this.rangeRaf);
-    this.rangeRaf = 0;
+    this.range.markDead();
+    this.range.cancel();
     this.chart.remove();
   }
 }
