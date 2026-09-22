@@ -207,6 +207,23 @@ const handleExport = () => {
 3. **按需加载**: 仅初始化需要的指标
 4. **防抖节流**: 频繁更新的 tick 数据做节流处理
 
+## 🩺 引擎遥测（DEV）
+
+架构层透明化：引擎的全链路决策与性能指标实时可查。
+
+```js
+// 结构化 op-log（环形 500 条）：commitDecide / commit / tail / queueJob
+window.__chartTelemetry.snapshot()
+
+// 性能分位数（avg / P50 / P95，窗口 200 采样）：提交耗时 / tick 尾段 / 渲染帧
+window.__chartPerf.commitPerf.snapshot()
+window.__chartPerf.tailPerf.snapshot()
+window.__chartPerf.jobPerf.snapshot()
+```
+
+健康面板同时展示引擎性能（avg/P95）与最近 op-log；数据血统（WS/REST/缓存/OKX
+来源构成）在同一面板可查。
+
 ## 🐛 常见问题
 
 **Q: 如何隐藏某个指标？**

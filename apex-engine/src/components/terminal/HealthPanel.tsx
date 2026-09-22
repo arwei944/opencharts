@@ -1,6 +1,14 @@
+import { useEffect, useState } from "react";
 import { useTerminal } from "@/lib/market/store";
 import { useConnection } from "@/lib/market/selectors";
 import { lineageSummary } from "@/lib/market/lineage";
+import { chartTelemetry, type TelemetryOp } from "@/lib/market/telemetry";
+import {
+  commitPerf,
+  jobPerf,
+  tailPerf,
+  type PerfSnapshot,
+} from "@/lib/market/perf-metrics";
 import { fmtPx } from "@/lib/utils";
 import { Modal } from "./Modal";
 
@@ -10,6 +18,47 @@ const HOST_LABEL: Record<string, string> = {
   "wss://stream.binance.us:9443/stream": "Binance US",
   "wss://fstream.binance.com/stream": "Binance 合约",
 };
+
+/**
+ * Diagnostic center (P1-B3): poll the engine telemetry singletons while the
+ * panel is open. The perf stats are process-wide and imperative (they live in
+ * perf-metrics.ts, not the store), so a 2s poll is the reactivity bridge.
+ */
+function useEngineTelemetry() {
+  const [snap, setSnap] = useState<{
+    commit: PerfSnapshot;
+    tail: PerfSnapshot;
+    job: PerfSnapshot;
+    ops: TelemetryOp[];
+  }>(() => ({
+    commit: commitPerf.snapshot(),
+    tail: tailPerf.snapshot(),
+    job: jobPerf.snapshot(),
+    ops: chartTelemetry.snapshot(),
+  }));
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSnap({
+        commit: commitPerf.snapshot(),
+        tail: tailPerf.snapshot(),
+        job: jobPerf.snapshot(),
+        ops: chartTelemetry.snapshot(),
+      });
+    }, 2000);
+    return () => clearInterval(id);
+  }, []);
+  return snap;
+}
+
+function ms(v: number): string {
+  return `${v.toFixed(1)}ms`;
+}
+
+function perfRow(commit: PerfSnapshot, tail: PerfSnapshot, job: PerfSnapshot) {
+  const fmt = (p: PerfSnapshot) =>
+    p.count ? `${ms(p.avg)} / ${ms(p.p95)} (${p.count})` : "—";
+  return { commit: fmt(commit), tail: fmt(tail), job: fmt(job) };
+}
 
 /**
  * Feed-health panel: connection state, active source host, reconnect count,
@@ -32,10 +81,13 @@ export function HealthPanel() {
   const dataLineage = useTerminal((s) => s.dataLineage);
   const paneLens = Object.values(paneBarsMap).map((b) => b.length);
   const compareLens = Object.values(compareBarsMap).map((b) => b.length);
+  const tel = useEngineTelemetry();
   if (!open) return null;
 
   const masterKey = `${market}:${symbol}:${interval}`;
   const lineage = lineageSummary(dataLineage[masterKey]);
+  const perf = perfRow(tel.commit, tel.tail, tel.job);
+  const recentOps = tel.ops.slice(-12).reverse();
 
   const ageMs = feedStats.lastMsgAt ? Date.now() - feedStats.lastMsgAt : null;
   const hostName =
@@ -124,6 +176,28 @@ export function HealthPanel() {
             `${compareLens.reduce((a, b) => a + b, 0).toLocaleString()} 根`,
           )}
         </div>
+        <div className="border-t border-border px-3 py-2">
+          <h3 className="text-xs font-semibold text-fg">
+            引擎性能（avg / P95 / 采样）
+          </h3>
+          {row("提交 setData", perf.commit)}
+          {row("实时 tick 尾段", perf.tail)}
+          {row("渲染帧 (volume/指标)", perf.job)}
+        </div>
+        <details className="border-t border-border px-3 py-2">
+          <summary className="cursor-pointer text-xs font-semibold text-fg">
+            op-log 最近 {recentOps.length} 条
+          </summary>
+          <div className="mt-1 max-h-40 overflow-y-auto font-mono text-[10px] leading-tight text-muted">
+            {recentOps.map((op, i) => (
+              <div key={i}>
+                {new Date(op.t).toLocaleTimeString()} {op.op}{" "}
+                {op.ms != null ? ms(op.ms) : ""}
+                {op.detail ? ` ${JSON.stringify(op.detail).slice(0, 80)}` : ""}
+              </div>
+            ))}
+          </div>
+        </details>
         <p className="border-t border-border px-3 py-2 text-[10px] text-subtle">
           心跳看门狗 20s 无消息自动重连；断线指数退避（上限 30s）。异常 tick
           已被过滤，不会进入图表。
