@@ -427,8 +427,6 @@ export const ChartPane = memo(function ChartPane({
       <ChartToolbar engine={eng.current} paneId={paneId} master={master} />
       {master && (
         <HTFBar
-          symbol={symbol}
-          market={market}
           interval={interval}
           viewFrom={viewRangeRef.current?.from ?? null}
           viewTo={viewRangeRef.current?.to ?? null}
