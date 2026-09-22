@@ -15,6 +15,7 @@ import { RestQueue } from "./rest-queue.ts";
 import { IND_TAIL_BARS, IND_TAIL_GROW } from "./constants.ts";
 import { chartTelemetry } from "./telemetry.ts";
 import { commitPerf, jobPerf, tailPerf } from "./perf-metrics.ts";
+import { runInvariants } from "./invariants.ts";
 
 import type { ThemeMode } from "./constants.ts";
 import type { Candle, ChartType, IndicatorInst, Interval } from "./types.ts";
@@ -290,6 +291,21 @@ export class ChartEngine {
     const ms = performance.now() - t0;
     commitPerf.record(ms);
     chartTelemetry.log("commit", { bars: bars.length }, ms);
+    // P3-D4: DEV-only runtime invariant self-test — bars monotonic, tail
+    // synced, columnar round-trip. A violation becomes a telemetry record
+    // instead of a silent chart glitch. Production never runs it.
+    if (import.meta.env.DEV) {
+      const inv = runInvariants(bars, this.indTail);
+      if (!inv.ok) {
+        chartTelemetry.log("lifecycle", {
+          invariant: "VIOLATION",
+          monotonic: inv.monotonic,
+          columns: inv.columns,
+          tailSync: inv.tailSync,
+          firstBadTime: inv.firstBadTime,
+        });
+      }
+    }
   }
 
   private maybeRevealPending() {
