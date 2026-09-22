@@ -1,4 +1,4 @@
-import type { Candle } from "./types";
+import type { Candle } from "./types.ts";
 import { rsi, macd, sma } from "./indicators.ts";
 
 /**

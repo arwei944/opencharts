@@ -5,8 +5,8 @@ import {
   type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { CHART_THEME, COMPARE_COLORS, type ThemeMode } from "./constants";
-import type { Candle } from "./types";
+import { CHART_THEME, COMPARE_COLORS, type ThemeMode } from "./constants.ts";
+import type { Candle } from "./types.ts";
 
 /**
  * Compare-series lifecycle (symbol comparison lines on the left scale),

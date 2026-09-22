@@ -6,13 +6,13 @@ import {
   fetchTicker,
   fetchWatch,
   okxInstId,
-} from "./api";
-import { intervalSec } from "./bars";
-import { cancelHistory, compareRef, ensureCompleteHistory } from "./history";
-import { parseKline } from "./kline-parser";
-import { useTerminal } from "./store";
-import { checkBar } from "./validator";
-import type { Interval } from "./types";
+} from "./api.ts";
+import { intervalSec } from "./bars.ts";
+import { cancelHistory, compareRef, ensureCompleteHistory } from "./history.ts";
+import { parseKline } from "./kline-parser.ts";
+import { useTerminal } from "./store.ts";
+import { checkBar } from "./validator.ts";
+import type { Interval } from "./types.ts";
 
 const WS_BASES = [
   "wss://data-stream.binance.vision/stream",

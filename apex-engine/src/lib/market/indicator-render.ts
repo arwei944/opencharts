@@ -5,7 +5,7 @@ import {
   type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { computeIndicator, type CustomFn } from "./indicator-compute";
+import { computeIndicator, type CustomFn } from "./indicator-compute.ts";
 import {
   ao,
   aroon,
@@ -39,8 +39,8 @@ import {
   vwma,
   wma,
   wr,
-} from "./indicators";
-import type { Candle, IndicatorInst } from "./types";
+} from "./indicators.ts";
+import type { Candle, IndicatorInst } from "./types.ts";
 
 type AnySeries = ISeriesApi<
   "Candlestick" | "Bar" | "Line" | "Area" | "Histogram"
@@ -106,9 +106,13 @@ export class IndicatorRenderer {
   }
 
   /**
-   * One closure per indicator line, each of which does a full-history `setData`.
-   * They are handed to `queueRest` so a 100k-bar reveal paints one series per
-   * frame instead of blocking the main thread for a second and a half.
+   * One closure per indicator, each of which computes its lines and does the
+   * full-history `setData` in the SAME frame. They are handed to `queueRest` so
+   * a 100k-bar reveal paints one series per frame instead of blocking the main
+   * thread: previously all indicators were computed synchronously here (8 common
+   * indicators on 105k bars ≈ 378ms main-thread block); now each indicator gets
+   * one frame, so the batch cost is spread and the first candle is visible
+   * immediately while indicator lines fade in progressively (TV-style).
    */
   jobs(): Array<() => void> {
     const { bars, indicators, customFns } = this.state();
@@ -117,30 +121,30 @@ export class IndicatorRenderer {
     const sub = { value: 1 };
     for (const ind of indicators) {
       if (!ind.visible || ind.kind === "VOL") continue;
-      for (const spec of computeIndicator(
-        ind.kind,
-        ind.id,
-        ind.params,
-        bars,
-        customFns,
-        sub,
-        ind.pane,
-        {
-          color: ind.color,
-          width: ind.width,
-          lineStyle: ind.style,
-          scale: ind.scale,
-        },
-      )) {
-        if (!spec.data.length) continue;
-        // Reuse a series that already exists for this key: progressive reveals
-        // re-run indicatorJobs while the panes/lines are still live, so rebuilt
-        // them means dropping and recreating every pane per commit. Jobs run
-        // inside pumpRest — a broken script must never take the tab down.
-        const existing = this.extra(spec.key);
-        if (spec.type === "hist") {
-          jobs.push(() => {
-            try {
+      jobs.push(() => {
+        try {
+          for (const spec of computeIndicator(
+            ind.kind,
+            ind.id,
+            ind.params,
+            bars,
+            customFns,
+            sub,
+            ind.pane,
+            {
+              color: ind.color,
+              width: ind.width,
+              lineStyle: ind.style,
+              scale: ind.scale,
+            },
+          )) {
+            if (!spec.data.length) continue;
+            // Reuse a series that already exists for this key: progressive
+            // reveals re-run jobs while the panes/lines are still live, so
+            // rebuilding them means dropping and recreating every pane per
+            // commit. A broken script must never take the tab down.
+            const existing = this.extra(spec.key);
+            if (spec.type === "hist") {
               const h =
                 existing?.series &&
                 (existing.series as ISeriesApi<"Histogram">).applyOptions
@@ -158,13 +162,7 @@ export class IndicatorRenderer {
                   color: x.color,
                 })),
               );
-            } catch {
-              /* skip a broken histogram */
-            }
-          });
-        } else {
-          jobs.push(() => {
-            try {
+            } else {
               const s =
                 existing?.series &&
                 (existing.series as ISeriesApi<"Line">).setData
@@ -180,12 +178,12 @@ export class IndicatorRenderer {
                   value: x.value,
                 })),
               );
-            } catch {
-              /* skip a broken line */
             }
-          });
+          }
+        } catch {
+          /* skip a broken indicator */
         }
-      }
+      });
     }
     return jobs;
   }

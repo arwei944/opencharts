@@ -1,4 +1,4 @@
-import type { Candle } from "./types";
+import type { Candle } from "./types.ts";
 
 /**
  * Pure export helpers: time-range filtering + CSV/JSON serialization for the

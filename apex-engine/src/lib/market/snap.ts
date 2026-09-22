@@ -1,4 +1,4 @@
-import type { Candle } from "./types";
+import type { Candle } from "./types.ts";
 
 /**
  * Magnetic snap for drawing anchors. Pure helpers operating through a small

@@ -1,4 +1,4 @@
-import type { ChartType, IndicatorKind, Interval, Tool } from "./types";
+import type { ChartType, IndicatorKind, Interval, Tool } from "./types.ts";
 
 export const INTERVALS: { id: Interval; label: string }[] = [
   { id: "1s", label: "1秒" },

@@ -1,5 +1,5 @@
 import type { StateCreator } from "zustand";
-import type { Candle } from "../types";
+import type { Candle } from "../types.ts";
 
 /**
  * Chart-order interaction + feed-telemetry state: the pending order price

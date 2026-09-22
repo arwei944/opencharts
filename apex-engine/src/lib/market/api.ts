@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { cacheable, guard } from "./api-utils";
-import { primaryProvider } from "./market-provider";
-import type { BookLevel, Candle, Market, Ticker, WatchItem } from "./types";
+import { cacheable, guard } from "./api-utils.ts";
+import { primaryProvider } from "./market-provider.ts";
+import type { BookLevel, Candle, Market, Ticker, WatchItem } from "./types.ts";
 
 const prov = () => primaryProvider();
 

@@ -1,5 +1,5 @@
-import { fetchKlines } from "./api";
-import { intervalSec } from "./bars";
+import { fetchKlines } from "./api.ts";
+import { intervalSec } from "./bars.ts";
 import {
   BAR_CAP,
   HISTORY_PAGE,
@@ -7,17 +7,17 @@ import {
   PREFILL_CONCURRENCY,
   PREFILL_RETRY_MS,
   VIEWPORT_LOOKAHEAD_BARS,
-} from "./constants";
-import { horizonOf, type Horizon } from "./horizon";
-import { needsOlderData, olderWaveEnds } from "./history-paging";
+} from "./constants.ts";
+import { horizonOf, type Horizon } from "./horizon.ts";
+import { needsOlderData, olderWaveEnds } from "./history-paging.ts";
 import {
   decodeBars,
   pruneKlineCache,
   readKlineCache,
   appendKlineCache,
-} from "./kline-cache";
-import { useTerminal } from "./store";
-import type { Candle, Interval, Market } from "./types";
+} from "./kline-cache.ts";
+import { useTerminal } from "./store.ts";
+import type { Candle, Interval, Market } from "./types.ts";
 
 export type SeriesKind = "master" | "pane" | "compare";
 

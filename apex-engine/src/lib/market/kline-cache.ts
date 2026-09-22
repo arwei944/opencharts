@@ -1,4 +1,4 @@
-import type { Candle, Interval, Market } from "./types";
+import type { Candle, Interval, Market } from "./types.ts";
 import { barsOf, colsOf, concatCols, type CandleColumns } from "./columns.ts";
 
 const DB_NAME = "apex-kline-cache";

@@ -1,14 +1,14 @@
-import { uid } from "@/lib/utils";
+import { uid } from "../../utils.ts";
 import type { StateCreator } from "zustand";
 import {
   DEFAULT_PANE_INTERVALS,
   INDICATOR_CATALOG,
   PANE_COUNT,
-} from "../constants";
-import type { ThemeMode, ThemePref } from "../constants";
-import type { ChartSettings } from "../settings";
-import { DEFAULT_SETTINGS } from "../settings";
-import type { CustomFn } from "../indicator-compute";
+} from "../constants.ts";
+import type { ThemeMode, ThemePref } from "../constants.ts";
+import type { ChartSettings } from "../settings.ts";
+import { DEFAULT_SETTINGS } from "../settings.ts";
+import type { CustomFn } from "../indicator-compute.ts";
 import type {
   ChartLayout,
   ChartPaneConfig,
@@ -18,7 +18,7 @@ import type {
   Interval,
   Market,
   Tool,
-} from "../types";
+} from "../types.ts";
 
 export function makePanes(
   layout: ChartLayout,

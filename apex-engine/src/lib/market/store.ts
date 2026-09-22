@@ -1,15 +1,19 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { DEFAULT_SETTINGS } from "./settings";
-import type { ChartLayout } from "./types";
+import { DEFAULT_SETTINGS } from "./settings.ts";
+import type { ChartLayout } from "./types.ts";
 import {
   configSlice,
   makePanes,
   type ConfigSlice,
-} from "./stores/config-slice";
-import { marketSlice, NO_BARS, type MarketSlice } from "./stores/market-slice";
-import { tradingSlice, type TradingSlice } from "./stores/trading-slice";
-import { uiSlice, type UISlice } from "./stores/ui-slice";
+} from "./stores/config-slice.ts";
+import {
+  marketSlice,
+  NO_BARS,
+  type MarketSlice,
+} from "./stores/market-slice.ts";
+import { tradingSlice, type TradingSlice } from "./stores/trading-slice.ts";
+import { uiSlice, type UISlice } from "./stores/ui-slice.ts";
 
 export { NO_BARS };
 

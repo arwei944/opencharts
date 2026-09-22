@@ -1,5 +1,5 @@
-import type { Candle, Interval } from "./types";
-import { INTERVAL_MS } from "./constants";
+import type { Candle, Interval } from "./types.ts";
+import { INTERVAL_MS } from "./constants.ts";
 
 export function intervalSec(iv: Interval): number {
   return Math.max(1, Math.floor(INTERVAL_MS[iv] / 1000));

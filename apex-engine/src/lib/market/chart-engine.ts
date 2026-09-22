@@ -14,35 +14,35 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { intervalSec } from "./bars";
-import { CompareManager } from "./compare";
-import { isValidRange, zoomRange } from "./viewport";
+import { intervalSec } from "./bars.ts";
+import { CompareManager } from "./compare.ts";
+import { isValidRange, zoomRange } from "./viewport.ts";
 import {
   priceToY as coordPriceToY,
   takeScreenshot,
   timeToX as coordTimeToX,
   xToTime as coordXToTime,
   yToPrice as coordYToPrice,
-} from "./export";
-import { diffTail, initialLogicalRange, trimTail } from "./series-ops";
-import { lastHeikinAshi, type CustomFn } from "./indicator-compute";
-import { IndicatorRenderer } from "./indicator-render";
-import { decideCommit } from "./data-pipeline";
-import { clampPanSensitivity, dragDelta, panRange } from "./events";
-import { RestQueue } from "./rest-queue";
+} from "./export.ts";
+import { diffTail, initialLogicalRange, trimTail } from "./series-ops.ts";
+import { lastHeikinAshi, type CustomFn } from "./indicator-compute.ts";
+import { IndicatorRenderer } from "./indicator-render.ts";
+import { decideCommit } from "./data-pipeline.ts";
+import { clampPanSensitivity, dragDelta, panRange } from "./events.ts";
+import { RestQueue } from "./rest-queue.ts";
 import {
   CHART_THEME,
   DOWN,
   IND_TAIL_BARS,
   IND_TAIL_GROW,
   UP,
-} from "./constants";
+} from "./constants.ts";
 
-import type { ThemeMode } from "./constants";
-import { formatTime } from "./timefmt";
-import { heikinAshi } from "./indicators";
-import type { Candle, ChartType, IndicatorInst, Interval } from "./types";
-import { DEFAULT_SETTINGS } from "./settings";
+import type { ThemeMode } from "./constants.ts";
+import { formatTime } from "./timefmt.ts";
+import { heikinAshi } from "./indicators.ts";
+import type { Candle, ChartType, IndicatorInst, Interval } from "./types.ts";
+import { DEFAULT_SETTINGS } from "./settings.ts";
 
 type AnySeries = ISeriesApi<
   "Candlestick" | "Bar" | "Line" | "Area" | "Histogram"

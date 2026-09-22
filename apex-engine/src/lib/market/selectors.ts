@@ -1,5 +1,5 @@
-import { useTerminal, type TerminalState } from "./store";
-import type { Candle, Ticker } from "./types";
+import { useTerminal, type TerminalState } from "./store.ts";
+import type { Candle, Ticker } from "./types.ts";
 
 /**
  * Centralized store selectors. Naming the subscriptions makes the hot paths

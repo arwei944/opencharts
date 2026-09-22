@@ -1,4 +1,4 @@
-import type { Market } from "./types";
+import type { Market } from "./types.ts";
 
 /**
  * Multi-source market data provider. The Binance implementation is the primary
@@ -25,13 +25,21 @@ const HOST_TIMEOUT_MS = 8000;
 const stickyHost: Record<Market, string | null> = { spot: null, usdm: null };
 
 /** Coarse health: consecutive failures degrade, a success resets. */
-const health: Record<Market, { fails: number }> = { spot: { fails: 0 }, usdm: { fails: 0 } };
+const health: Record<Market, { fails: number }> = {
+  spot: { fails: 0 },
+  usdm: { fails: 0 },
+};
 
 export function providerHealth(market: Market): { fails: number } {
   return health[market];
 }
 
-async function fetchFrom(host: string, market: Market, spotPath: string, futPath: string): Promise<unknown> {
+async function fetchFrom(
+  host: string,
+  market: Market,
+  spotPath: string,
+  futPath: string,
+): Promise<unknown> {
   const path = host.includes("fapi") ? futPath : spotPath;
   const res = await fetch(host + path, {
     headers: { Accept: "application/json" },

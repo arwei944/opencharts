@@ -3,8 +3,8 @@ import {
   appendCapped,
   intervalSec,
   prependBars as prependContiguous,
-} from "../bars";
-import { BAR_CAP, PANE_CAP } from "../constants";
+} from "../bars.ts";
+import { BAR_CAP, PANE_CAP } from "../constants.ts";
 import type {
   BookLevel,
   Candle,
@@ -14,7 +14,7 @@ import type {
   Ticker,
   TimeRange,
   WatchItem,
-} from "../types";
+} from "../types.ts";
 
 /** Standing value for a pane whose feed has not produced bars yet. A fresh `[]`
  * in a selector re-renders the pane forever instead of once. */

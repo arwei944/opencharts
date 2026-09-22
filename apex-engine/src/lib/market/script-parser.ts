@@ -3,17 +3,15 @@
  * Provides similar functionality to TradingView's scripting language
  */
 
-import type { Candle } from "./types";
-import { sma, ema } from "./indicators";
-import { compilePine } from "./pine-eval";
+import type { Candle } from "./types.ts";
+import { sma, ema } from "./indicators.ts";
+import { compilePine } from "./pine-eval.ts";
 
 export interface ScriptParseResult {
   success: boolean;
   indicatorKind: string;
   params: Record<string, number | boolean | string>;
-  calculationFn?: (
-    bars: Candle[],
-  ) =>
+  calculationFn?: (bars: Candle[]) =>
     | Array<{ time: number; value: number; color?: string }>
     | Array<{
         key: string;

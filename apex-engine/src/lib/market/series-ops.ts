@@ -1,4 +1,4 @@
-import type { Candle } from "./types";
+import type { Candle } from "./types.ts";
 
 /**
  * Pure series-diff helpers for the chart engine. All functions are
@@ -39,7 +39,10 @@ export function growsLeft(cur: Candle[], next: Candle[]): boolean {
  * Logical zoom target for fresh data (no previous viewport): recent N bars at
  * the right edge. Pure; the engine only maps these to a logical range.
  */
-export function initialLogicalRange(barCount: number, recent = 150): { from: number; to: number } {
+export function initialLogicalRange(
+  barCount: number,
+  recent = 150,
+): { from: number; to: number } {
   const n = Math.max(0, barCount);
   const show = Math.min(recent, n);
   return { from: Math.max(0, n - show), to: n + 5 };

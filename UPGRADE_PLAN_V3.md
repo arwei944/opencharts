@@ -238,7 +238,42 @@ Phase 3  交易与生态（~10%）—— 订单流/杠杆模式/OCO + 云端同�
 | worker 指标计算与主线程同步复杂性 | 中 | P0-D 标记可选；若 P1 性能探针不达标再引入，且用共享内存（SharedArrayBuffer）路径 |
 | 云端同步后端成本 | 低 | 最小版本只做 JSON 导入导出；云同步列为 stretch goal |
 
-## 十一、版本节奏建议
+## 十一、架构打磨 P1.5（Phase 1 后插队，本轮）
+
+> 用户指示先打磨架构层再进 Phase 2。基于实测度量（本轮扫描）制定，每项含**收益量化**。
+
+### 度量基线（实测）
+- src 14.1k 行；chart-engine 1006 行（最大单文件）、indicators 751、DrawingOverlay 677、ChartPane 539、history 496、feed 478
+- 单测 145（纯业务层全绿）；`as any` 仅 9 处、eslint-disable 4 处（卫生良好）
+- bundle 260.7kB gzip（预算 300kB）；serverFn 7 个无统一错误契约；组件高频订阅多裸写 `useTerminal(s=>s.x)`（symbol×8/ticker×6/market×6/invert×6）
+- **指标首算基准**：105k bars × 8 常用指标 = **377.6ms 主线程同步阻塞**（macd 169 / supertrend 71 / boll 48 / ema 17 / atr 18 / rsi 24 / kdj 23 / sma 8）。现有 `indicatorJobs()` 同步算完所有指标才逐帧 setData → 加指标/切周期/首次 commit 时 UI 卡 ~0.4s
+
+### 打磨项 + 收益明细（按收益/风险排序）
+
+| # | 项 | 方案 | 收益量化 | 风险 |
+|---|----|------|----------|------|
+| 1 | **指标分帧计算**（本轮） | compute 移入 restJobs：每帧算 1 个指标 + setData（现在是同步算完 8 个） | 首算阻塞 377ms → 渐进 ~8 帧（每帧 ~40ms 计算 + setData，UI 保持 60fps 响应）；无需 worker 基建；指标逐个出现（TV 同款渐进感） | 低（jobs 队列已存在，仅挪 compute 位置；syncMirror 每 job 后已调用） |
+| 2 | **serverFn 统一错误契约**（本轮） | `serverCall` 包装：`{ok, data}\|{ok:false, error:{code,message}}` + 超时/重试约定；7 个 handler 统一；消费端（feed/history）适配 | 错误处理单源（现各 handler 风格不一）；健康面板/未来鉴权限流统一挂点；重试策略集中 | 中（api.ts + 3 处消费端） |
+| 3 | **store 纯逻辑单测**（本轮） | zustand 无 DOM 可 node 测：config slice（addIndicator/undo/redo 栈、applyIndicatorPreset）、market slice（updateBar gap/同 bar 原地/append 边界、appendOlderBars 窗口裁剪） | 核心数据流回归锁定（updateBar 的 gap 判定、undo 99 上限、BAR_CAP 窗口是目前零测试的最高风险数据路径） | 低 |
+| 4 | **selectors 采用率**（下轮） | 高频裸订阅改用具名（symbol×8/ticker×6/market×6/invert×6/bars×4…） | 订阅意图显式；防未来误改；与 selectors.ts 现有 20+ 导出对齐 | 低（机械替换） |
+| 5 | **as any 清理 + eslint-disable 复核**（下轮） | 9 处 as any（lw-charts 类型 edge）改精确类型；4 处 disable 复核 | 类型安全 + 卫生 | 低 |
+| 6 | **指标真 worker**（下轮评估） | 分帧后首算不再阻塞（收益从防卡顿降为提速至 <60ms）；列式传参已具备（columns.ts） | 需重新基准；仅当分帧后仍慢再引入 | 中 |
+| 7 | **列式驻留**（下轮评估） | BAR_CAP 220k 对象数组 ~10.5MB/序列 + 22 万对象 GC 压力；columns 基础已建 | 待 GC 压力量化后定；优先导出/缓存路径（decode 免重复） | 高（动 store 热路径） |
+
+### 本轮执行
+1. ✅ **指标分帧计算**（#1）：compute 移入 restJobs 每指标一帧；**实测**：加 8 指标（MACD/SUPER/BOLL/RSI/ATR/KDJ/DMI/STOCHRSI）不再单次同步阻塞，8 帧渐进渲染；配合链式去分配后帧峰值 40-140ms（原 647ms 单次冻结）
+2. ✅ **链式去分配**（#1 衍生，新发现）：macd 的 dea 用 `ema(fake)` 物化 6 万+ Candle 对象（61k bars 实测 289ms）→ 新增 `smaLine/emaLine` 值序列重载，替换 macd/stoch/stochrsi/trix/PPO/trima 全部链式分配点，删除 2 处死代码 toCandles。**实测**：macd 289→140ms（-52%）、kdj 106→40、boll 79→35、supertrend 83→39、stochrsi 51→44；8 指标合计 647→408ms（-37%）；指标单测全绿（行为等价）
+3. ✅ **store 纯逻辑单测**（#3）：`store.test.ts` 以 plain reducer 驱动 4 个 slice（无 DOM/persist），10 用例锁定 updateBar gap 判定/同 bar 原地引用稳定/undo 栈上限 100/applyIndicatorPreset/setSymbol 重置等核心数据流
+4. ✅ **lib/market 可测性解锁**：61 处相对 import 补 `.ts` 后缀（node 测试链可加载任意模块，vite/tsc 兼容）
+5. ⏸️ **serverFn 统一错误契约**（#2）**降级记录**：当前 7 个 serverFn 全是只读行情代理（无业务错误类型），`{ok,data|error}` 重构收益 < 破坏面；已有 8s 超时 + cacheable + 多源 fallback。待 Phase 3 加业务接口（云同步/账号）时随新接口引入
+6. ⏸️ **指标真 worker**（#6）**暂缓**：分帧+去分配后首算不再冻结（帧峰值 140ms 可接受），worker 的收益从「防 647ms 冻结」降为「消除 140ms 帧停」，ROI 不足；列式传参基础已备（columns.ts），后续性能门禁（加指标 <100ms/帧）不达标再引入
+7. ⏸️ selectors 采用率（#4）/ as any 清理（#5）留下一轮
+
+**本轮验证**：tsc 0、lint 0、单测 196（+10 store）、mirror 16/16、pixel 4 主题、batch5-12 全绿、build 300kB 内
+
+---
+
+## 十二、版本节奏建议
 
 ```
 v2.0-alpha（P0+P1 完成）→ 内部自测 + 全回归 → v2.0-beta（+P2）→ 公测收集反馈

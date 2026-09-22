@@ -1,4 +1,4 @@
-import type { Candle } from "./types";
+import type { Candle } from "./types.ts";
 
 /**
  * Lightweight data-integrity checks for live market ticks. Pure functions so

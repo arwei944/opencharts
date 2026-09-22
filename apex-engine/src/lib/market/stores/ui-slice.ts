@@ -1,5 +1,5 @@
 import type { StateCreator } from "zustand";
-import type { Tool } from "../types";
+import type { Tool } from "../types.ts";
 
 /**
  * Non-persisted UI state: dialog switches, active tool, mobile tab. These are
