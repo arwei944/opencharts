@@ -219,3 +219,16 @@ P3  积木化 UI + 自测（下轮）—— ChartPane 特征模块化 / DEV 不�
 ### 下轮（P2/P3）待办
 - **P2**：A3 插件注册表 v2（注册即生效）/ C4 主机智能排序+缺口自愈 / C5 指标周期感知默认
 - **P3**：A4 ChartPane 特征模块化 / D4 DEV 不变式自测 / D5 回归探针扩展
+
+### P2 批次（✅ 已全部落地，`d5ff56c`→`22437b8`+`e46cd89`，第 2 轮）
+1. ✅ **A3 插件注册表 v2**：PluginScope 元数据 + activate/deactivate/unregister 生命周期 + `indicatorCatalog()`/`drawingTools()` 合并目录（UI 全部改消费注册表）；`computeIndicator` 插件 kind 分发（带 CUSTOM 同款渲染护栏）；ChartPane 插件工具点数 + DrawingOverlay 插件渲染 shell；**修复根因：demo 插件注册入口从未被导入**（Terminal 挂载）；浏览器验证 DSMA 弹窗可加 + xmark 2 点绘制
+2. ✅ **C4a 主机智能排序**：`host-picker.ts` 失败率加权选下一主机（平局轮询、不立即重试死主机）+ 跨会话失败分；重连遥测带 host+score
+3. ✅ **C4b 异常隔离打点**：丢弃 tick 发 `feedDrop` 遥测（reason/gaps/time），健康面板 op-log 可见
+4. ✅ **C4c 缺口自愈**：`healer.ts` findGaps/mergeGapPage 纯函数 + healGap 单页取数（修正 endTime 分页方向）+ healMasterGaps；lifecycle 60s 可见+idle 时扫描；**端到端实测**：注入缺口 gapsBefore 1 → gapsAfter 0，healGap 打点、零 pageerror
+5. ✅ **C5 指标智能默认**：`indicator-defaults.ts` 1s/1m 短周期默认参数（MA/EMA/RSI/BOLL/MACD），addIndicator 按周期选择；浏览器实测 1s MA→[3,10,25]、15m→[7,25,99]
+6. ✅ **探针加固**：mirror-regression 的 MACD pane 等待改轮询（fill commit 会挤掉指标渲染 job，固定 2500ms 脆弱）；连跑 5/5 零失败
+
+**P2 验证**：lib 188+、mirror 5×16/16、pixel 2 主题、batch10-12、build 265.1kB
+
+### P3（下轮）待办
+- A4 ChartPane 特征模块化 / D4 DEV 不变式自测 / D5 回归探针扩展 / SettingsSections 插件化

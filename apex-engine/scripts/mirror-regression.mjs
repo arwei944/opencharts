@@ -22,14 +22,18 @@ const FAIL = [];
 
 function check(name, cond, detail = "") {
   (cond ? PASS : FAIL).push(`${name}${detail ? " — " + detail : ""}`);
-  console.log(`${cond ? "✅" : "❌"} ${name}${detail ? " (" + detail + ")" : ""}`);
+  console.log(
+    `${cond ? "✅" : "❌"} ${name}${detail ? " (" + detail + ")" : ""}`,
+  );
 }
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
-page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+page.on("console", (m) => {
+  if (m.type() === "error") errors.push(m.text());
+});
 
 await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 60000 });
 await page.waitForTimeout(18000);
@@ -37,42 +41,71 @@ await page.waitForTimeout(18000);
 const r = await page.evaluate(async () => {
   const out = {};
   const get = () => window.useTerminal.getState();
-  const eng = (window.__chartEngines || []).find((e) => (e.bars?.length || 0) > 0);
+  const eng = (window.__chartEngines || []).find(
+    (e) => (e.bars?.length || 0) > 0,
+  );
   if (!eng) return { error: "no live engine" };
   const bars = () => get().bars;
 
   const scaleState = () => {
     const panes = eng.chart.panes();
     return panes.map((p, i) => {
-      let right = null, left = null;
-      try { right = p.priceScale("right").options().invertScale; } catch { right = null; }
-      try { left = p.priceScale("left").options().invertScale; } catch { left = null; }
+      let right = null,
+        left = null;
+      try {
+        right = p.priceScale("right").options().invertScale;
+      } catch {
+        right = null;
+      }
+      try {
+        left = p.priceScale("left").options().invertScale;
+      } catch {
+        left = null;
+      }
       return { pane: i, right, left };
     });
   };
   const volState = () => {
-    try { return eng.chart.priceScale("vol").options().invertScale ?? null; } catch { return null; }
+    try {
+      return eng.chart.priceScale("vol").options().invertScale ?? null;
+    } catch {
+      return null;
+    }
   };
 
   const visPrices = () => {
     const range = eng.chart.timeScale().getVisibleRange();
-    const vis = bars().filter((b) => b.time >= Number(range.from) && b.time <= Number(range.to));
+    const vis = bars().filter(
+      (b) => b.time >= Number(range.from) && b.time <= Number(range.to),
+    );
     const uniq = [];
     for (const b of vis) {
       const k = Math.round(b.close);
-      if (!uniq.some((x) => x.p === k)) { uniq.push({ p: k, y: eng.priceToY(b.close) }); if (uniq.length >= 6) break; }
+      if (!uniq.some((x) => x.p === k)) {
+        uniq.push({ p: k, y: eng.priceToY(b.close) });
+        if (uniq.length >= 6) break;
+      }
     }
     return uniq;
   };
 
-  out.baseline = { mirror: get().mirrorAxis, scales: scaleState(), vol: volState() };
+  out.baseline = {
+    mirror: get().mirrorAxis,
+    scales: scaleState(),
+    vol: volState(),
+  };
 
   // 1. mirror ON with volume anchored
   get().toggleMirrorAxis();
   await new Promise((res) => setTimeout(res, 1500));
   const a = visPrices();
   const flipped = a.length >= 2 && a[a.length - 1].y > a[0].y; // last (lowest?) — actually check monotonicity later
-  out.mirrorOn = { mirror: get().mirrorAxis, scales: scaleState(), vol: volState(), sample: a };
+  out.mirrorOn = {
+    mirror: get().mirrorAxis,
+    scales: scaleState(),
+    vol: volState(),
+    sample: a,
+  };
   out.mirrorFlipped = flipped;
 
   // 2. mirrorVolume = true → vol scale flips too
@@ -85,7 +118,13 @@ const r = await page.evaluate(async () => {
 
   // 3. indicator added while mirrored stays flipped
   get().addIndicator("MACD");
-  await new Promise((res) => setTimeout(res, 2500));
+  // Poll until the MACD sub-pane appears AND stays flipped: history-fill
+  // commits re-queue the indicator render, so a fixed 2500ms wait was flaky
+  // under load (pane can appear ~3s in). Cap at ~9s, then assert.
+  for (let i = 0; i < 30 && scaleState().length < 2; i++) {
+    await new Promise((res) => setTimeout(res, 300));
+  }
+  await new Promise((res) => setTimeout(res, 400)); // afterJob syncMirror lands
   out.indicatorWhileMirror = { scales: scaleState(), vol: volState() };
 
   // 4. symbol switch keeps mirror
@@ -96,7 +135,11 @@ const r = await page.evaluate(async () => {
   // 5. mirror OFF restores everything
   get().toggleMirrorAxis();
   await new Promise((res) => setTimeout(res, 1500));
-  out.mirrorOff = { mirror: get().mirrorAxis, scales: scaleState(), vol: volState() };
+  out.mirrorOff = {
+    mirror: get().mirrorAxis,
+    scales: scaleState(),
+    vol: volState(),
+  };
   return out;
 });
 console.log(JSON.stringify(r, null, 2));
@@ -106,18 +149,29 @@ if (r.error) {
 } else {
   // baseline: not mirrored
   check("baseline mirror off", r.baseline.mirror === false);
-  check("baseline scales upright", r.baseline.scales.every((s) => s.right === false));
+  check(
+    "baseline scales upright",
+    r.baseline.scales.every((s) => s.right === false),
+  );
   check("baseline vol anchored", r.baseline.vol === false);
 
   // mirror on: scales flip, vol stays anchored
   check("mirror toggle on", r.mirrorOn.mirror === true);
-  check("all panes flipped", r.mirrorOn.scales.length > 0 && r.mirrorOn.scales.every((s) => s.right === true));
+  check(
+    "all panes flipped",
+    r.mirrorOn.scales.length > 0 &&
+      r.mirrorOn.scales.every((s) => s.right === true),
+  );
   check("vol stays anchored by default", r.mirrorOn.vol === false);
   // price mapping really reversed: higher price → larger y (bottom)
   const s = r.mirrorOn.sample;
   if (s.length >= 2) {
     const asc = [...s].sort((x, y) => x.p - y.p);
-    check("higher price maps to larger y (bottom)", asc[asc.length - 1].y > asc[0].y, `${asc[0].p}->${asc[0].y} vs ${asc[asc.length-1].p}->${asc[asc.length-1].y}`);
+    check(
+      "higher price maps to larger y (bottom)",
+      asc[asc.length - 1].y > asc[0].y,
+      `${asc[0].p}->${asc[0].y} vs ${asc[asc.length - 1].p}->${asc[asc.length - 1].y}`,
+    );
   }
 
   // mirrorVolume toggling
@@ -125,15 +179,25 @@ if (r.error) {
   check("mirrorVolume off restores vol", r.mirrorVolOff.vol === false);
 
   // indicator while mirrored
-  check("indicator pane stays flipped", r.indicatorWhileMirror.scales.length >= 2 && r.indicatorWhileMirror.scales.every((s) => s.right === true));
+  check(
+    "indicator pane stays flipped",
+    r.indicatorWhileMirror.scales.length >= 2 &&
+      r.indicatorWhileMirror.scales.every((s) => s.right === true),
+  );
   check("vol anchored after indicator", r.indicatorWhileMirror.vol === false);
 
   // symbol switch
-  check("mirror kept across symbol switch", r.afterSymbolSwitch.mirror === true);
+  check(
+    "mirror kept across symbol switch",
+    r.afterSymbolSwitch.mirror === true,
+  );
 
   // mirror off restores
   check("mirror toggle off", r.mirrorOff.mirror === false);
-  check("scales restored upright", r.mirrorOff.scales.every((s) => s.right === false));
+  check(
+    "scales restored upright",
+    r.mirrorOff.scales.every((s) => s.right === false),
+  );
   check("vol restored anchored", r.mirrorOff.vol === false);
 }
 
