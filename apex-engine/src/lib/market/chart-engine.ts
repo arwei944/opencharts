@@ -17,7 +17,7 @@ import {
 } from "lightweight-charts";
 import { intervalSec } from "./bars";
 import { CompareManager } from "./compare";
-import { fitRange, isValidRange, zoomRange } from "./viewport";
+import { isValidRange, zoomRange } from "./viewport";
 import {
   priceToY as coordPriceToY,
   takeScreenshot,
@@ -253,6 +253,13 @@ export class ChartEngine {
         secondsVisible: false,
         rightOffset: settings.timeRightOffset,
         barSpacing: settings.barSpacing,
+        // Default minBarSpacing (0.5px) caps the zoomed-out view at ~viewport/0.5
+        // bars, so a 100k-series can never be seen in full — and the viewport
+        // never reaches the loaded front, which is what triggers the infinite
+        // backfill (ensureCoverage/extendHistory). Lower the floor so zoom-out
+        // covers every resident bar; 0.01 still clamps at ~viewport/0.0114, so
+        // 0.001 it is (measured: fitContent reaches bar 0).
+        minBarSpacing: 0.001,
       },
       autoSize: true,
     });
@@ -816,9 +823,16 @@ export class ChartEngine {
     if (this.pending) this.commit(this.pending);
     if (!this.bars.length) return;
     this.suppressRange = true;
-    this.chart
-      .timeScale()
-      .setVisibleLogicalRange(fitRange(this.bars.length) as LogicalRange);
+    // fitContent() reaches the real front (measured: lr.from=0). A manual
+    // setVisibleLogicalRange({-4, len+4}) is clamped by lw to ~710 bars of
+    // slack at min bar spacing, and lw's *first* fitContent on a fresh
+    // 100k-series clamps to ~714; a second call — one frame later, since lw
+    // batches time-scale ops per frame — lands on the true front (0), which
+    // is what the coverage/backfill trigger needs. Idempotent.
+    this.chart.timeScale().fitContent();
+    requestAnimationFrame(() => {
+      this.chart.timeScale().fitContent();
+    });
     requestAnimationFrame(() => {
       this.suppressRange = false;
     });

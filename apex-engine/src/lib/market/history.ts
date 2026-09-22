@@ -421,7 +421,10 @@ export function extendHistory(ref: SeriesRef, untilTime: number): void {
   const job = jobFor(ref.jobKey);
   if (job.running) return;
   const oldest = readBars(ref)[0]?.time;
-  if (oldest == null || oldest <= untilTime) return;
+  // Strict comparison: the viewport resting exactly on the loaded front (the
+  // zoomed-out/fit case) must still extend — "show me everything" means
+  // "everything available", fetched on demand, not "the 3y budget so far".
+  if (oldest == null || oldest < untilTime) return;
   job.running = true;
   const gen = ++job.gen;
   const alive = () => job.gen === gen;
@@ -440,7 +443,7 @@ async function runExtend(
   while (alive()) {
     const cur = readBars(ref);
     const oldest = cur[0]?.time;
-    if (oldest == null || oldest <= untilTime) break;
+    if (oldest == null || oldest < untilTime) break;
     const ends = olderWaveEnds(
       oldest,
       stepSec,
@@ -476,8 +479,12 @@ async function runExtend(
     }
     failures = 0;
     const after = readBars(ref);
+    // Keep the phase "complete": ChartPane freezes the series while
+    // historyStatus.phase !== "complete" (left-grows park instead of commit),
+    // and flipping back to "prefill" here would park every extended page and
+    // visually stall the infinite scroll. Progress (oldest/newest/bars) still
+    // moves so the health panel reflects the deeper history.
     setStatus(ref, {
-      phase: "prefill",
       bars: after.length,
       target: after.length,
       oldest: after[0]?.time ?? 0,
