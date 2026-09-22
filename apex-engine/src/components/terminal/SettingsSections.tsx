@@ -90,6 +90,15 @@ export function CrosshairSection({ settings, update }: SectionProps) {
           map={{ 0: "隐藏", 1: "实线", 2: "虚线", 3: "点线" }}
           onChange={(v) => update("crosshairLineStyle", Number(v) as never)}
         />
+        <Field
+          label="网格线型"
+          value={settings.gridLineStyle}
+          min={0}
+          max={3}
+          options={[0, 1, 2, 3]}
+          map={{ 0: "实线", 1: "点线", 2: "虚线", 3: "粗虚线" }}
+          onChange={(v) => update("gridLineStyle", Number(v) as never)}
+        />
       </div>
     </section>
   );

@@ -198,8 +198,8 @@ export class ChartEngine {
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: pal.grid },
-        horzLines: { color: pal.grid },
+        vertLines: { color: pal.grid, style: settings.gridLineStyle as any },
+        horzLines: { color: pal.grid, style: settings.gridLineStyle as any },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
@@ -425,6 +425,16 @@ export class ChartEngine {
       layout: {
         fontSize: s.fontSize ?? 11,
         fontFamily: s.fontFamily ?? "IBM Plex Sans, sans-serif",
+      },
+      grid: {
+        vertLines: {
+          color: CHART_THEME[this.mode].grid,
+          style: s.gridLineStyle as any,
+        },
+        horzLines: {
+          color: CHART_THEME[this.mode].grid,
+          style: s.gridLineStyle as any,
+        },
       },
     });
     if (this.main) {
@@ -762,7 +772,16 @@ export class ChartEngine {
         background: { type: ColorType.Solid, color: pal.bg },
         textColor: pal.text,
       },
-      grid: { vertLines: { color: pal.grid }, horzLines: { color: pal.grid } },
+      grid: {
+        vertLines: {
+          color: pal.grid,
+          style: this.settings.gridLineStyle as any,
+        },
+        horzLines: {
+          color: pal.grid,
+          style: this.settings.gridLineStyle as any,
+        },
+      },
       crosshair: {
         vertLine: { color: pal.text, labelBackgroundColor: pal.axisLabel },
         horzLine: { color: pal.text, labelBackgroundColor: pal.axisLabel },

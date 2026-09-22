@@ -51,7 +51,16 @@ export type Tool =
   | "rect"
   | "fib"
   | "parallel"
-  | "measure";
+  | "measure"
+  // Phase-1 additions (12 → 20 geometric + text tools)
+  | "price-range"
+  | "fib-ext"
+  | "fib-time-zone"
+  | "ellipse"
+  | "gann-fan"
+  | "wedge"
+  | "pitchfork"
+  | "symmetry";
 
 export type IndicatorKind =
   | "MA"

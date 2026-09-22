@@ -264,7 +264,7 @@ export const ChartPane = memo(function ChartPane({
           setTextDraft({ x: param.point.x, y: param.point.y, time, price });
           return;
         }
-        if (cur === "hline" || cur === "vline") {
+        if (cur === "hline" || cur === "vline" || cur === "fib-time-zone") {
           useTerminal.getState().addDrawing({
             id: uid(),
             tool: cur,
@@ -274,7 +274,15 @@ export const ChartPane = memo(function ChartPane({
           return;
         }
         draft.current = [...draft.current, pt];
-        const need = cur === "parallel" ? 3 : 2;
+        // Phase-1 geometric tools need 3 anchors (wedge/pitchfork/symmetry
+        // derive a second rail from the third point); everything else is 2.
+        const POINT_NEED: Record<string, number> = {
+          parallel: 3,
+          wedge: 3,
+          pitchfork: 3,
+          symmetry: 3,
+        };
+        const need = POINT_NEED[cur] ?? 2;
         if (draft.current.length >= need) {
           useTerminal.getState().addDrawing({
             id: uid(),

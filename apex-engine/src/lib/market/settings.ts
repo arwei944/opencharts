@@ -24,6 +24,8 @@ export interface ChartSettings {
   lineWidths: Partial<Record<string, number>>;
   /** Crosshair vertical line style. */
   crosshairLineStyle: 0 | 1 | 2 | 3; // LineStyle.None/Normal/Dashed/Dotted
+  /** Chart grid line style: 0 solid / 1 dotted / 2 dashed / 3 large-dashed. */
+  gridLineStyle: 0 | 1 | 2 | 3;
 
   // 📱 Mobile Touch Gesture Settings
   touchPanSensitivity?: number; // Horizontal pan sensitivity multiplier (default: 1)
@@ -62,6 +64,8 @@ export const DEFAULT_SETTINGS: ChartSettings = {
   compareColors: ["#f0b90b", "#00d4ff"],
   lineWidths: { MA: 1, BOLL: 1, MACD_DIF: 1, RSI: 1 },
   crosshairLineStyle: 2, // Dashed
+  /** Chart grid line style: 0 solid / 1 dotted / 2 dashed / 3 large-dashed. */
+  gridLineStyle: 0, // Solid
 
   // 📱 Mobile Touch Gesture Defaults
   touchPanSensitivity: 1, // 1:1 ratio

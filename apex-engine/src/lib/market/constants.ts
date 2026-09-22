@@ -61,6 +61,14 @@ export const TOOLS: { id: Tool; label: string }[] = [
   { id: "fib", label: "斐波那契" },
   { id: "parallel", label: "平行通道" },
   { id: "measure", label: "测距" },
+  { id: "price-range", label: "价格区间" },
+  { id: "fib-ext", label: "斐波那契扩展" },
+  { id: "fib-time-zone", label: "斐波那契时间" },
+  { id: "ellipse", label: "椭圆" },
+  { id: "gann-fan", label: "江恩扇" },
+  { id: "wedge", label: "楔形" },
+  { id: "pitchfork", label: "音叉" },
+  { id: "symmetry", label: "对称" },
 ];
 
 /** One-click indicator groups (layout-preset style). */

@@ -81,7 +81,10 @@ plot(roll, "Roll")`,
     const barsTail = st.bars.slice(-60);
     const sig = barsTail.map((b) => ({ time: b.time, value: 1 }));
     const res = bt.backtestFromSeries(barsTail, sig, 10_000);
-    out.signalBacktest = res.pnl > 0 && res.trades.length >= 1;
+    // Direction-agnostic: pnl sign depends on the current market trend (an all
+    // long signal loses when the recent 60 bars fell), so only assert that the
+    // engine ran and produced a report.
+    out.signalBacktest = Number.isFinite(res.pnl) && res.trades.length >= 1;
   } catch (e) {
     out.signalError = String(e);
   }

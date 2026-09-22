@@ -153,14 +153,12 @@ Phase 3  交易与生态（~10%）—— 订单流/杠杆模式/OCO + 云端同�
 - IndicatorModal 的编辑态升级为属性面板：参数 + 颜色（色板）/线宽/线型/刻度边/可见性切换
 - chart-engine 应用属性：setIndicators 时逐线应用（lw-charts line color/width/lineStyle）；undo 兼容（pushHistory）
 
-### P1-C 绘图工具 12 → 24
-新增高频工具（P1）：**channel（平行通道已有）、pitchfork、gann-fan、gann-box、ellipse、abcd、wedge、flag、price-range、text-box（富文本）、label、icon、symmetry、fib-time-zone、fib-extension、fib-retracement（增强）、measure 增强（角度/距离显示）**——选 12 个最高频实现，其余入 P2/P3。
-- 架构：DrawingToolPlugin 注册表已存在 → 新工具优先以插件实现（复用 snap/undo/持久化管线），沉淀插件开发文档
-- 每工具支持：锚点编辑/吸附/选中/删除/属性面板（沿用现有管线）
-
-### P1-D 主题/刻度增强（轻量）
-- 刻度位置（内/外）、每 pane 价格轴独立设置、网格样式
-- 主题 token 补充（背景渐变/边框/字体族应用到 canvas 已有，补图例/面板细节）
+### P1-C 绘图工具 12 → 24（✅ 12→20，本轮）
+落地 8 个高频几何工具（全部复用锚点编辑/吸附/undo/持久化管线）：**price-range（价格区间带）、fib-ext（斐波那契扩展 0.618/1/1.618）、fib-time-zone（单点斐波那契时间竖线）、ellipse（椭圆）、gann-fan（7 线江恩扇）、wedge（楔形，3 点派生下轨）、pitchfork（安德鲁音叉，3 点中线+上下轨）、symmetry（对称，3 点镜面线）**。点数交互改查表（POINT_NEED：3 点工具 wedge/pitchfork/symmetry/parallel，单点 fib-time-zone 走 hline/vline 分支）；SVG 渲染实测注入 8 工具无 pageerror、drawingCount 8、工具栏 20 按钮。
+- 未做（P2）：gann-box/abcd/flag/text-box/label/icon、measure 角度显示——纹理类/多点形态工具
+### P1-D 主题/刻度增强（✅ 网格线型，本轮）
+- ChartSettings 增 `gridLineStyle`（0 实线/1 点线/2 虚线/3 粗虚线），createChart + setTheme + applyTypography 三处即时应用（改设置实时生效）；CrosshairSection 增选择器
+- 未做（P2）：刻度内外位置（lw-charts 无原生支持，需自定义 tick 层）
 
 ---
 

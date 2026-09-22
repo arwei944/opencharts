@@ -406,5 +406,272 @@ function DrawShape({
       </g>
     );
   }
+  // ---- Phase-1 geometric tools ----
+  if (d.tool === "price-range" && pts[0] && pts[1]) {
+    const p0 = pts[0];
+    const p1 = pts[1];
+    const top = Math.min(p0.y, p1.y);
+    const h = Math.abs(p1.y - p0.y);
+    const mid = (p0.y + p1.y) / 2;
+    return (
+      <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
+        <rect
+          x={0}
+          y={top}
+          width="100%"
+          height={h}
+          fill={color}
+          opacity={0.08}
+        />
+        <line
+          x1={0}
+          x2="100%"
+          y1={top}
+          y2={top}
+          stroke={color}
+          strokeWidth={width}
+          opacity={opacity}
+        />
+        <line
+          x1={0}
+          x2="100%"
+          y1={top + h}
+          y2={top + h}
+          stroke={color}
+          strokeWidth={width}
+          opacity={opacity}
+        />
+        <line
+          x1={0}
+          x2="100%"
+          y1={mid}
+          y2={mid}
+          stroke={color}
+          strokeWidth={width}
+          strokeDasharray="3 3"
+          opacity={opacity * 0.8}
+        />
+        {anchors}
+      </g>
+    );
+  }
+  if (d.tool === "fib-ext" && pts[0] && pts[1]) {
+    const p0 = pts[0];
+    const p1 = pts[1];
+    const levels = [0.618, 1, 1.618];
+    return (
+      <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
+        {levels.map((lv) => {
+          const y = p1.y + (p0.y - p1.y) * lv;
+          return (
+            <g key={lv}>
+              <line
+                x1={0}
+                x2="100%"
+                y1={y}
+                y2={y}
+                stroke={color}
+                strokeWidth={width}
+                strokeDasharray="4 3"
+                opacity={opacity}
+              />
+              <text x={2} y={y - 2} fill={color} fontSize={9} opacity={opacity}>
+                {lv.toFixed(3)}
+              </text>
+            </g>
+          );
+        })}
+        <line
+          x1={p0.x}
+          y1={p0.y}
+          x2={p1.x}
+          y2={p1.y}
+          stroke={color}
+          strokeWidth={width}
+          opacity={opacity}
+        />
+        {anchors}
+      </g>
+    );
+  }
+  if (d.tool === "fib-time-zone" && pts[0]) {
+    const p0 = pts[0];
+    const seq = [1, 2, 3, 5, 8, 13, 21, 34];
+    const base = 24;
+    return (
+      <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
+        {seq.map((n, i) => (
+          <line
+            key={i}
+            x1={p0.x + n * base}
+            y1={0}
+            x2={p0.x + n * base}
+            y2="100%"
+            stroke={color}
+            strokeWidth={width}
+            strokeDasharray="4 3"
+            opacity={opacity}
+          />
+        ))}
+        {anchors}
+      </g>
+    );
+  }
+  if (d.tool === "ellipse" && pts[0] && pts[1]) {
+    const p0 = pts[0];
+    const p1 = pts[1];
+    const cx = (p0.x + p1.x) / 2;
+    const cy = (p0.y + p1.y) / 2;
+    const rx = Math.abs(p1.x - p0.x) / 2;
+    const ry = Math.abs(p1.y - p0.y) / 2;
+    return (
+      <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
+        <ellipse
+          cx={cx}
+          cy={cy}
+          rx={rx}
+          ry={ry}
+          fill={color}
+          opacity={0.06}
+          stroke={color}
+          strokeWidth={width}
+        />
+        {anchors}
+      </g>
+    );
+  }
+  if (d.tool === "gann-fan" && pts[0] && pts[1]) {
+    const p0 = pts[0];
+    const p1 = pts[1];
+    const angles = [-63.4, -45, -26.6, 0, 26.6, 45, 63.4];
+    const baseAng = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+    const len = Math.hypot(p1.x - p0.x, p1.y - p0.y) * 3;
+    return (
+      <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
+        {angles.map((a) => {
+          const ang = baseAng + (a * Math.PI) / 180;
+          const x2 = p0.x + Math.cos(ang) * len;
+          const y2 = p0.y + Math.sin(ang) * len;
+          return (
+            <line
+              key={a}
+              x1={p0.x}
+              y1={p0.y}
+              x2={x2}
+              y2={y2}
+              stroke={color}
+              strokeWidth={a === 0 ? width : Math.max(1, width * 0.7)}
+              strokeDasharray={a === 0 ? undefined : "3 4"}
+              opacity={opacity}
+            />
+          );
+        })}
+        {anchors}
+      </g>
+    );
+  }
+  if (d.tool === "wedge" && pts[0] && pts[1] && pts[2]) {
+    const p0 = pts[0];
+    const p1 = pts[1];
+    const p2 = pts[2];
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    return (
+      <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
+        <line
+          x1={p0.x}
+          y1={p0.y}
+          x2={p1.x}
+          y2={p1.y}
+          stroke={color}
+          strokeWidth={width}
+          opacity={opacity}
+        />
+        <line
+          x1={p2.x}
+          y1={p2.y}
+          x2={p2.x + dx}
+          y2={p2.y + dy}
+          stroke={color}
+          strokeWidth={width}
+          opacity={opacity}
+        />
+        {anchors}
+      </g>
+    );
+  }
+  if (d.tool === "pitchfork" && pts[0] && pts[1] && pts[2]) {
+    const p0 = pts[0];
+    const p1 = pts[1];
+    const p2 = pts[2];
+    const mx = (p1.x + p2.x) / 2;
+    const my = (p1.y + p2.y) / 2;
+    const dx = mx - p0.x;
+    const dy = my - p0.y;
+    return (
+      <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
+        {[p1, p2].map((p, i) => (
+          <line
+            key={i}
+            x1={p.x}
+            y1={p.y}
+            x2={p.x + dx}
+            y2={p.y + dy}
+            stroke={color}
+            strokeWidth={width}
+            strokeDasharray="4 3"
+            opacity={opacity}
+          />
+        ))}
+        <line
+          x1={p0.x}
+          y1={p0.y}
+          x2={mx}
+          y2={my}
+          stroke={color}
+          strokeWidth={Math.max(1, width * 0.7)}
+          opacity={opacity}
+        />
+        {anchors}
+      </g>
+    );
+  }
+  if (d.tool === "symmetry" && pts[0] && pts[1] && pts[2]) {
+    const p0 = pts[0];
+    const p1 = pts[1];
+    const p2 = pts[2];
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    const len2 = dx * dx + dy * dy || 1;
+    const t = ((p2.x - p0.x) * dx + (p2.y - p0.y) * dy) / len2;
+    const px = p0.x + t * dx;
+    const py = p0.y + t * dy;
+    const rx = 2 * px - p2.x;
+    const ry = 2 * py - p2.y;
+    return (
+      <g onClick={onSelect} onPointerDown={onBodyDown} {...hit}>
+        <line
+          x1={p0.x}
+          y1={p0.y}
+          x2={p1.x}
+          y2={p1.y}
+          stroke={color}
+          strokeWidth={width}
+          strokeDasharray="6 3"
+          opacity={opacity}
+        />
+        <line
+          x1={p2.x}
+          y1={p2.y}
+          x2={rx}
+          y2={ry}
+          stroke={color}
+          strokeWidth={width}
+          opacity={opacity}
+        />
+        {anchors}
+      </g>
+    );
+  }
   return null;
 }
