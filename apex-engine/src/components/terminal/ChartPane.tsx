@@ -10,6 +10,14 @@ import {
   masterRef,
   paneRef,
 } from "@/lib/market/history";
+import { chartTelemetry } from "@/lib/market/telemetry";
+import { VIEWPORT_LOOKAHEAD_BARS } from "@/lib/market/constants";
+import {
+  adaptiveLookahead,
+  predictVelocity,
+  pushSample,
+  type PanSample,
+} from "@/lib/market/predictor";
 import { NO_BARS, useTerminal } from "@/lib/market/store";
 import type { Candle, DrawPoint, Interval } from "@/lib/market/types";
 import { fmtNum, fmtPx, uid } from "@/lib/utils";
@@ -148,8 +156,24 @@ export const ChartPane = memo(function ChartPane({
       // The only way a pan can need data is if the background fill has not reached
       // that far back yet; ensureCoverage restarts the fill in that case and does
       // nothing at all while the array already spans the viewport.
+      // P1-C2: velocity-aware lookahead — fast leftward pans trigger the fill
+      // before the frontier comes into view, not after.
+      let panSamples: PanSample[] = [];
       e.onViewport = (from, to) => {
-        ensureCoverage(refFor(useTerminal.getState(), paneId, master), from);
+        panSamples = pushSample(panSamples, {
+          t: Date.now(),
+          from,
+          to,
+        });
+        const lookahead = adaptiveLookahead(predictVelocity(panSamples));
+        if (lookahead > VIEWPORT_LOOKAHEAD_BARS) {
+          chartTelemetry.log("panPredict", { from, lookahead });
+        }
+        ensureCoverage(
+          refFor(useTerminal.getState(), paneId, master),
+          from,
+          lookahead,
+        );
         setViewRange(from, to);
       };
       e.onMinimap = (range) => {

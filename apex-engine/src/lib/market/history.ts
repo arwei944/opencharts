@@ -385,8 +385,17 @@ async function snapshot(
  * Viewport safety net: only reachable if the mouse out-pans the background fill.
  * The fill itself walks the same frontier, so restarting the job is the correct
  * (and only) response — never a separate request that would race the cursor.
+ *
+ * `lookaheadBars` is the trigger margin: how far ahead of the viewport left
+ * edge we insist on loaded data. P1-C2: the predictor scales it up while the
+ * user drags fast toward older data, so the fill starts before the frontier
+ * becomes visible instead of after.
  */
-export function ensureCoverage(ref: SeriesRef, fromTime: number): void {
+export function ensureCoverage(
+  ref: SeriesRef,
+  fromTime: number,
+  lookaheadBars = VIEWPORT_LOOKAHEAD_BARS,
+): void {
   const bars = readBars(ref);
   const oldest = bars[0]?.time;
   if (oldest == null) {
@@ -394,8 +403,7 @@ export function ensureCoverage(ref: SeriesRef, fromTime: number): void {
     return;
   }
   const stepSec = intervalSec(ref.interval);
-  if (!needsOlderData(fromTime, oldest, stepSec, VIEWPORT_LOOKAHEAD_BARS))
-    return;
+  if (!needsOlderData(fromTime, oldest, stepSec, lookaheadBars)) return;
   const status = getStatus(ref);
   const job = jobs.get(ref.jobKey);
   if (job?.running) return;
