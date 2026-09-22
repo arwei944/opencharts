@@ -117,11 +117,13 @@ function appendNewer(ref: SeriesRef, newer: Candle[]): void {
   const last = cur[cur.length - 1];
   if (!last) {
     setAll(ref, newer);
+    useTerminal.getState().recordSource(dataKey(ref), "rest", newer.length);
     return;
   }
   const fresh = newer.filter((b) => b.time > last.time);
   if (!fresh.length) return;
   setAll(ref, [...cur, ...fresh].slice(-BAR_CAP));
+  useTerminal.getState().recordSource(dataKey(ref), "rest", fresh.length);
 }
 
 function setStatus(
@@ -235,6 +237,7 @@ async function hydrateFromCache(
   const { bars } = rec;
   if (!bars.length) return false;
   setAll(ref, bars);
+  useTerminal.getState().recordSource(dataKey(ref), "cache", bars.length);
   setStatus(ref, {
     cached: true,
     oldest: bars[0].time,
@@ -258,6 +261,7 @@ async function fillTail(
     if (!alive()) return;
     if (!first.length) throw new Error("no data");
     setAll(ref, first);
+    useTerminal.getState().recordSource(dataKey(ref), "rest", first.length);
     cur = first;
   }
   const newest = cur[cur.length - 1].time;
@@ -319,6 +323,7 @@ async function fillOlder(
         continue;
       }
       addedThisWave += commitOlder(ref, older);
+      useTerminal.getState().recordSource(dataKey(ref), "rest", older.length);
     }
     if (!addedThisWave) {
       if (failures >= 3) {
@@ -460,6 +465,7 @@ async function runExtend(
         continue;
       }
       addedThisWave += commitOlder(ref, older);
+      useTerminal.getState().recordSource(dataKey(ref), "rest", older.length);
     }
     if (!addedThisWave) {
       if (failures >= 3) {

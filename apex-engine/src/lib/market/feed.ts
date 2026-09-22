@@ -166,7 +166,7 @@ export function useMarketFeed() {
               });
             }
             if (check.anomaly) return; // skip the corrupt tick entirely
-            useTerminal.getState().updateBar(bar);
+            useTerminal.getState().updateBar(bar, "ws");
             const t = useTerminal.getState().ticker;
             if (t) {
               useTerminal.getState().setTicker({
@@ -436,6 +436,11 @@ export function useOkxCandleFeed() {
           const close = Number(row.c);
           if (!Number.isFinite(t) || !Number.isFinite(close)) return;
           useTerminal.getState().setOkxLast({ time: t, close });
+          // Lineage: the secondary stream observed one more tick (informational
+          // — OKX never writes into the resident series, only cross-checks it).
+          useTerminal
+            .getState()
+            .recordSource(`${market}:${symbol}:${interval}`, "okx", 1);
           // Cross-source check: when OKX and Binance report the same bar,
           // a >1% close gap flags the pair (once per bar).
           const st = useTerminal.getState();

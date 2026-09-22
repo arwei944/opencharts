@@ -1,5 +1,6 @@
 import { useTerminal } from "@/lib/market/store";
 import { useConnection } from "@/lib/market/selectors";
+import { lineageSummary } from "@/lib/market/lineage";
 import { fmtPx } from "@/lib/utils";
 import { Modal } from "./Modal";
 
@@ -21,14 +22,20 @@ export function HealthPanel() {
   const feedStats = useTerminal((s) => s.feedStats);
   const dataWarnings = useTerminal((s) => s.dataWarnings);
   const market = useTerminal((s) => s.market);
+  const symbol = useTerminal((s) => s.symbol);
+  const interval = useTerminal((s) => s.interval);
   const okxLive = useTerminal((s) => s.okxLive);
   const okxLast = useTerminal((s) => s.okxLast);
   const barsLen = useTerminal((s) => s.bars.length);
   const paneBarsMap = useTerminal((s) => s.paneBars);
   const compareBarsMap = useTerminal((s) => s.compareBars);
+  const dataLineage = useTerminal((s) => s.dataLineage);
   const paneLens = Object.values(paneBarsMap).map((b) => b.length);
   const compareLens = Object.values(compareBarsMap).map((b) => b.length);
   if (!open) return null;
+
+  const masterKey = `${market}:${symbol}:${interval}`;
+  const lineage = lineageSummary(dataLineage[masterKey]);
 
   const ageMs = feedStats.lastMsgAt ? Date.now() - feedStats.lastMsgAt : null;
   const hostName =
@@ -98,6 +105,16 @@ export function HealthPanel() {
           {row("异常 tick 过滤", String(dataWarnings.anomalies))}
           {row("备份源", "OKX REST 备源（历史/深度降级时自动切换）")}
           {row("内存驻留（主图）", `${barsLen.toLocaleString()} 根`)}
+          {row(
+            "数据来源构成",
+            lineage.total > 0
+              ? `WS ${lineage.ws.toLocaleString()} · REST ${lineage.rest.toLocaleString()} · 缓存 ${lineage.cache.toLocaleString()}`
+              : "—",
+          )}
+          {row(
+            "OKX 副流 tick 数",
+            lineage.okx > 0 ? lineage.okx.toLocaleString() : "—",
+          )}
           {row(
             "内存驻留（副图合计）",
             `${paneLens.reduce((a, b) => a + b, 0).toLocaleString()} 根（${paneLens.length} 面板）`,

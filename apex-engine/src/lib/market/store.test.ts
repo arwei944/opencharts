@@ -140,3 +140,39 @@ test("toggleTheme cycles the 4 presets and undo stays consistent", () => {
   s.toggleTheme();
   assert.notEqual(s.theme, before);
 });
+
+// ---------- data lineage (P1-B2) ----------
+
+test("updateBar with a source tags the master series lineage", () => {
+  const s = harness();
+  s.setMarket("usdm");
+  s.setSymbol("BTCUSDT");
+  s.setInterval("15m");
+  s.updateBar(bar(1000), "ws");
+  s.updateBar(bar(1900), "ws");
+  const key = "usdm:BTCUSDT:15m";
+  const li = s.dataLineage[key];
+  assert.ok(li, "lineage record created for the master key");
+  assert.equal(li.sources.ws, 2);
+  assert.equal(li.sources.rest, 0);
+});
+
+test("updateBar without a source leaves lineage untouched", () => {
+  const s = harness();
+  s.setSymbol("BTCUSDT");
+  s.updateBar(bar(1000));
+  assert.deepEqual(s.dataLineage, {});
+});
+
+test("recordSource accumulates rest/cache independently of ws ticks", () => {
+  const s = harness();
+  const key = "usdm:BTCUSDT:15m";
+  s.recordSource(key, "cache", 13000);
+  s.recordSource(key, "rest", 1000);
+  s.recordSource(key, "ws", 5);
+  const li = s.dataLineage[key];
+  assert.equal(li.sources.cache, 13000);
+  assert.equal(li.sources.rest, 1000);
+  assert.equal(li.sources.ws, 5);
+  assert.equal(li.lastSeen.ws > 0, true);
+});

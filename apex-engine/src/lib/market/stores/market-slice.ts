@@ -5,6 +5,7 @@ import {
   prependBars as prependContiguous,
 } from "../bars.ts";
 import { BAR_CAP, PANE_CAP } from "../constants.ts";
+import { bumpLineage, type DataSource, type LineageInfo } from "../lineage.ts";
 import type {
   BookLevel,
   Candle,
@@ -58,13 +59,17 @@ export interface MarketSlice {
   okxLast: { time: number; close: number } | null;
   setOkxLive: (v: boolean) => void;
   setOkxLast: (t: { time: number; close: number }) => void;
+  /** Per-series provenance: how many resident bars came from each source. */
+  dataLineage: Record<string, LineageInfo>;
+  recordSource: (key: string, source: DataSource, n?: number) => void;
   mark: number;
   funding: number;
   nextFunding: number;
   setPremium: (mark: number, funding: number, next: number) => void;
   setBars: (b: Candle[]) => void;
   appendOlderBars: (b: Candle[]) => number;
-  updateBar: (b: Candle) => void;
+  /** source tags the accepted tick in the master series' lineage (P1-B2). */
+  updateBar: (b: Candle, source?: DataSource) => void;
   setPaneBars: (paneId: string, bars: Candle[]) => void;
   appendOlderPaneBars: (paneId: string, bars: Candle[]) => number;
   updatePaneBar: (paneId: string, bar: Candle) => void;
@@ -110,6 +115,14 @@ export const marketSlice: StateCreator<
   dataWarnings: { gaps: 0, anomalies: 0, skew: 0 },
   okxLive: false,
   okxLast: null,
+  dataLineage: {},
+  recordSource: (key, source, n = 1) =>
+    set((s) => ({
+      dataLineage: {
+        ...s.dataLineage,
+        [key]: bumpLineage(s.dataLineage[key], source, n),
+      },
+    })),
   mark: 0,
   funding: 0,
   nextFunding: 0,
@@ -130,9 +143,13 @@ export const marketSlice: StateCreator<
     set({ bars: next });
     return next.length - cur.length;
   },
-  updateBar: (bar) => {
+  updateBar: (bar, source) => {
     const cur = get().bars;
     const last = cur[cur.length - 1];
+    // Tag the accepted tick's source in the master series lineage. The key
+    // mirrors historyKey(market, symbol, interval) — see history.ts.
+    const lineageKey = () =>
+      `${get().market}:${get().symbol}:${get().interval}`;
 
     // If we have nothing yet (history still loading or failed), accept the
     // live bar as a seed — otherwise a blank store swallows every update.
@@ -142,6 +159,7 @@ export const marketSlice: StateCreator<
         lastBar: bar,
         liveOpenTime: bar.time,
       });
+      if (source) get().recordSource(lineageKey(), source);
       return;
     }
 
@@ -153,6 +171,7 @@ export const marketSlice: StateCreator<
       // only the lightweight lastBar path (legend + engine live update) fires.
       cur[cur.length - 1] = bar;
       set({ lastBar: bar, liveOpenTime: bar.time });
+      if (source) get().recordSource(lineageKey(), source);
       return;
     }
 
@@ -165,6 +184,7 @@ export const marketSlice: StateCreator<
         lastBar: bar,
         liveOpenTime: bar.time,
       });
+      if (source) get().recordSource(lineageKey(), source);
     } else if (bar.time > last.time + stepSec) {
       console.warn(
         "[Store] Skipped gap in bar times:",
