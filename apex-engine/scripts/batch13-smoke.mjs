@@ -110,14 +110,18 @@ const r = await page.evaluate(async () => {
     out.healError = String(e);
   }
 
-  // 6. plugins: merged catalogs include builtin + demo plugin
+  // 6. plugins: rendered UI evidence (same module graph the app uses — a
+  //    dynamic absolute-URL import forks the registry instance in dev, so
+  //    assert on what the user sees instead): toolbar lists X 记号, and the
+  //    indicator modal lists 双均线带 after opening it.
   try {
-    const reg = await import("/src/lib/plugins/registry.ts");
-    const cats = reg.indicatorCatalog().map((x) => x.kind);
-    out.pluginDSMA = cats.includes("DSMA");
-    out.pluginBuiltinMA = cats.includes("MA");
-    const tools = reg.drawingTools().map((t) => t.id);
-    out.pluginXmark = tools.includes("xmark");
+    out.toolbarHasXmark = (document.body.textContent ?? "").includes("X 记号");
+    const st0 = get();
+    st0.setIndicatorOpen(true);
+    await new Promise((res) => setTimeout(res, 600));
+    out.modalHasDSMA = (document.body.textContent ?? "").includes("双均线带");
+    st0.setIndicatorOpen(false);
+    await new Promise((res) => setTimeout(res, 200));
   } catch (e) {
     out.pluginError = String(e);
   }
@@ -170,11 +174,8 @@ if (r.error) {
     `gaps=${r.healGaps}`,
   );
   check("healer: healMasterGaps no-op when healthy", !!r.healNoop);
-  check(
-    "plugins: catalog merges DSMA + builtins",
-    !!r.pluginDSMA && !!r.pluginBuiltinMA,
-  );
-  check("plugins: toolbar merges xmark tool", !!r.pluginXmark);
+  check("plugins: toolbar renders plugin tool", !!r.toolbarHasXmark);
+  check("plugins: indicator modal lists plugin indicator", !!r.modalHasDSMA);
   check("invariants: DEV self-test clean", !!r.invOk, r.invDetail);
 }
 
