@@ -213,7 +213,19 @@ export const configSlice: StateCreator<
       const next = order[(order.indexOf(s.theme) + 1) % order.length];
       return { themePref: next, theme: next };
     }),
-  setThemePref: (themePref) => set({ themePref }),
+  setThemePref: (themePref) =>
+    set((s) => {
+      // System preference resolves to the concrete OS theme right away;
+      // any named theme (builtin or plugin) applies directly — previously
+      // only `pref` updated and the Settings modal never actually re-themed.
+      if (themePref === "system") {
+        const dark =
+          typeof window !== "undefined" &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+        return { ...s, themePref, theme: dark ? "dark" : "light" };
+      }
+      return { ...s, themePref, theme: themePref };
+    }),
   applyIndicatorPreset: (list) => {
     get().pushHistory();
     set({

@@ -1,5 +1,5 @@
 import type { Candle } from "../market/types.ts";
-import { INDICATOR_CATALOG, TOOLS } from "../market/constants.ts";
+import { CHART_THEME, INDICATOR_CATALOG, TOOLS } from "../market/constants.ts";
 import type React from "react";
 
 /**
@@ -71,11 +71,27 @@ export interface SettingsSectionPlugin {
   render: (ctx: SettingsSectionProps) => React.ReactNode;
 }
 
+/** Plugin canvas theme (P4): replaces the chart-canvas palette per mode id. */
+export interface ThemePlugin {
+  id: string;
+  name: string;
+  palette: { bg: string; grid: string; text: string; axisLabel: string };
+}
+
+/** Plugin side panel rendered into the right rail (P4). */
+export interface PanelPlugin {
+  id: string;
+  label: string;
+  render: () => React.ReactNode;
+}
+
 // Registry (process-wide singletons).
 const indicatorRegistry = new Map<string, IndicatorPlugin>();
 const drawingRegistry = new Map<string, DrawingToolPlugin>();
 const dataSourceRegistry = new Map<string, DataSourcePlugin>();
 const settingsSectionRegistry = new Map<string, SettingsSectionPlugin>();
+const themeRegistry = new Map<string, ThemePlugin>();
+const panelRegistry = new Map<string, PanelPlugin>();
 /** Activated plugin kinds (default: everything registered is active). */
 const activeIndicators = new Set<string>();
 const activeDrawingTools = new Set<string>();
@@ -85,6 +101,8 @@ export const pluginRegistry = {
   drawingTools: drawingRegistry,
   dataSources: dataSourceRegistry,
   settingsSections: settingsSectionRegistry,
+  themes: themeRegistry,
+  panels: panelRegistry,
 };
 
 export function registerIndicator(p: IndicatorPlugin): void {
@@ -107,6 +125,49 @@ export function listSettingsSections(): SettingsSectionPlugin[] {
 }
 export function unregisterSettingsSection(id: string): void {
   settingsSectionRegistry.delete(id);
+}
+
+// ---- themes (P4) ----
+
+export function registerTheme(p: ThemePlugin): void {
+  themeRegistry.set(p.id, p);
+}
+export function listThemes(): ThemePlugin[] {
+  return [...themeRegistry.values()];
+}
+export function unregisterTheme(id: string): void {
+  themeRegistry.delete(id);
+}
+
+/** Builtin palette, then a plugin theme's, then dark as the last resort. */
+export function resolveThemePalette(mode: string): ThemePlugin["palette"] {
+  const builtin = (
+    CHART_THEME as Record<
+      string,
+      {
+        bg: string;
+        grid: string;
+        text: string;
+        axisLabel: string;
+      }
+    >
+  )[mode];
+  if (builtin) return builtin;
+  const plugin = themeRegistry.get(mode);
+  if (plugin) return plugin.palette;
+  return CHART_THEME.dark;
+}
+
+// ---- panels (P4) ----
+
+export function registerPanel(p: PanelPlugin): void {
+  panelRegistry.set(p.id, p);
+}
+export function listPanels(): PanelPlugin[] {
+  return [...panelRegistry.values()];
+}
+export function unregisterPanel(id: string): void {
+  panelRegistry.delete(id);
 }
 export function listIndicators(): IndicatorPlugin[] {
   return [...indicatorRegistry.values()];

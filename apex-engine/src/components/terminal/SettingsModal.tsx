@@ -8,7 +8,8 @@ import {
 } from "@/lib/trading/broker";
 import { toast } from "sonner";
 import { Modal } from "./Modal";
-import { listSettingsSections } from "@/lib/plugins/registry";
+import { listSettingsSections, listThemes } from "@/lib/plugins/registry";
+import { BUILTIN_THEMES } from "@/lib/market/constants";
 import { TIMEZONE_OPTIONS } from "@/lib/market/timefmt";
 import {
   CandleSection,
@@ -68,15 +69,12 @@ export function SettingsModal() {
               外观 · 主题模式
             </h3>
             <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  ["dark", "深色"],
-                  ["light", "浅色"],
-                  ["ocean", "海洋"],
-                  ["sand", "沙色"],
-                  ["system", "跟随系统"],
-                ] as const
-              ).map(([id, lab]) => (
+              {[
+                ...BUILTIN_THEMES.map((t) => [t.id, t.label] as const),
+                // P4: plugin themes render after the builtins.
+                ...listThemes().map((t) => [t.id, t.name] as const),
+                ["system", "跟随系统"] as const,
+              ].map(([id, lab]) => (
                 <button
                   key={id}
                   type="button"

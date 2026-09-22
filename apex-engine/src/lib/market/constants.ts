@@ -426,7 +426,22 @@ export const BG = "#0b0e11";
 export const GRID = "#1e2329";
 export const TEXT = "#848e9c";
 
-export type ThemeMode = "dark" | "light" | "ocean" | "sand";
+export type ThemeMode =
+  | "dark"
+  | "light"
+  | "ocean"
+  | "sand"
+  // P4: plugin-registered themes carry their own ids (builtin exhaustiveness
+  // checks stay intact for the four builtin presets).
+  | (string & {});
+
+/** Builtin theme choices shown in the Settings modal (before plugin themes). */
+export const BUILTIN_THEMES: { id: ThemeMode; label: string }[] = [
+  { id: "dark", label: "深色" },
+  { id: "light", label: "浅色" },
+  { id: "ocean", label: "海洋" },
+  { id: "sand", label: "沙色" },
+];
 
 /** User theme preference: explicit mode, or follow the OS. */
 export type ThemePref = ThemeMode | "system";

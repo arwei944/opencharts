@@ -3,6 +3,7 @@ import { Toaster } from "sonner";
 // Demo/ecosystem plugin registrations: loaded with the terminal so plugin
 // capabilities (indicators, drawing tools) exist before the chart renders.
 import "@/lib/plugins/index";
+import { listPanels } from "@/lib/plugins/registry";
 import { useMarketFeed, useOkxCandleFeed } from "@/lib/market/feed";
 import { useLifecycle } from "@/lib/market/lifecycle-hook";
 import { useTerminal } from "@/lib/market/store";
@@ -191,7 +192,16 @@ export function Terminal() {
               <ChartBoard />
               <div className="grid min-h-0 border-l border-border">
                 {rightPanelOpen ? (
-                  <div className="grid min-h-0 grid-rows-2">
+                  <div
+                    className="grid min-h-0"
+                    style={{
+                      // collapse button + builtin OrderBook/TradesTape rows +
+                      // one row per registered plugin panel (P4).
+                      gridTemplateRows: `auto minmax(0,1fr) minmax(0,1fr) ${listPanels()
+                        .map(() => "minmax(0,1fr)")
+                        .join(" ")}`,
+                    }}
+                  >
                     <button
                       type="button"
                       onClick={() => setRightPanelOpen(false)}
@@ -202,6 +212,19 @@ export function Terminal() {
                     </button>
                     <OrderBook />
                     <TradesTape />
+                    {listPanels().map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex min-h-0 flex-col overflow-hidden border-t border-border"
+                      >
+                        <div className="shrink-0 border-b border-border px-2 py-1 text-[9px] text-subtle">
+                          {p.label}
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-auto">
+                          {p.render()}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <button

@@ -5,7 +5,7 @@ import {
   type ChartOptions,
   type LineWidth,
 } from "lightweight-charts";
-import { CHART_THEME } from "../constants.ts";
+import { resolveThemePalette } from "../../plugins/registry.ts";
 import type { ThemeMode } from "../constants.ts";
 import type { DEFAULT_SETTINGS } from "../settings.ts";
 
@@ -13,13 +13,14 @@ import type { DEFAULT_SETTINGS } from "../settings.ts";
  * Pure chart-options builder (P0-A1). The 150-line createChart options object
  * used to live inline in the ChartEngine constructor; extracted so the engine
  * constructor stays a wiring pass and the palette/settings mapping is
- * unit-testable in isolation.
+ * unit-testable in isolation. P4: palette resolution goes through the registry
+ * so plugin themes apply to the canvas.
  */
 export function buildChartOptions(
   mode: ThemeMode,
   settings: typeof DEFAULT_SETTINGS,
 ): DeepPartial<ChartOptions> {
-  const pal = CHART_THEME[mode];
+  const pal = resolveThemePalette(mode as string);
   return {
     layout: {
       background: { type: ColorType.Solid, color: pal.bg },

@@ -7,7 +7,9 @@ import {
   registerDataSource,
   registerDrawingTool,
   registerIndicator,
+  registerPanel,
   registerSettingsSection,
+  registerTheme,
 } from "./registry";
 import type { Candle } from "../market/types";
 import { sma } from "../market/indicators";
@@ -80,6 +82,29 @@ registerSettingsSection({
       从注册表加载的自定义设置分区：第三方能力可以在此挂载配置 UI，而不必修改
       核心 SettingsSections 组件。
     </p>
+  ),
+});
+
+// P4: demo plugin theme — a midnight palette registered without editing core.
+registerTheme({
+  id: "midnight",
+  name: "午夜",
+  palette: {
+    bg: "#0a0d14",
+    grid: "#1b2333",
+    text: "#9fb3d1",
+    axisLabel: "#131a28",
+  },
+});
+
+// P4: demo plugin panel — renders into the right rail below book/tape.
+registerPanel({
+  id: "demo.hello",
+  label: "插件面板",
+  render: () => (
+    <div className="p-2 text-[10px] leading-relaxed text-muted">
+      从注册表挂载的面板插件：右侧栏第三行，无需修改 Terminal 布局代码。
+    </div>
   ),
 });
 

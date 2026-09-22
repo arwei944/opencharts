@@ -3,7 +3,7 @@ import {
   type IChartApi,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { CHART_THEME } from "../constants.ts";
+import { resolveThemePalette } from "../../plugins/registry.ts";
 import type { ThemeMode } from "../constants.ts";
 import { formatTime } from "../timefmt.ts";
 import type { DEFAULT_SETTINGS } from "../settings.ts";
@@ -39,7 +39,7 @@ export class ThemeManager {
   setTheme(mode: ThemeMode) {
     if (mode === this.mode) return;
     this.mode = mode;
-    const pal = CHART_THEME[mode];
+    const pal = resolveThemePalette(mode as string);
     this.chart.applyOptions({
       layout: {
         background: { type: ColorType.Solid, color: pal.bg },
@@ -74,11 +74,11 @@ export class ThemeManager {
       },
       grid: {
         vertLines: {
-          color: CHART_THEME[this.mode].grid,
+          color: resolveThemePalette(this.mode as string).grid,
           style: s.gridLineStyle as any,
         },
         horzLines: {
-          color: CHART_THEME[this.mode].grid,
+          color: resolveThemePalette(this.mode as string).grid,
           style: s.gridLineStyle as any,
         },
       },

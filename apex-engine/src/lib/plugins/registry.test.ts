@@ -138,3 +138,28 @@ test("settingsSection: register + list + unregister", async () => {
     false,
   );
 });
+
+test("themes: register → plugin palette resolves, unregister reverts", async () => {
+  const mod = await import("./registry.ts");
+  mod.registerTheme({
+    id: "night2",
+    name: "夜2",
+    palette: { bg: "#000", grid: "#111", text: "#fff", axisLabel: "#222" },
+  });
+  // builtin unchanged
+  assert.equal(mod.resolveThemePalette("dark").bg, "#0b0e11");
+  // plugin resolves
+  assert.equal(mod.resolveThemePalette("night2").grid, "#111");
+  // unknown falls back to dark
+  assert.equal(mod.resolveThemePalette("nope").bg, "#0b0e11");
+  mod.unregisterTheme("night2");
+  assert.equal(mod.resolveThemePalette("night2").bg, "#0b0e11");
+});
+
+test("panels: register + list + unregister", async () => {
+  const mod = await import("./registry.ts");
+  mod.registerPanel({ id: "test.pnl", label: "测试面板", render: () => null });
+  assert.ok(mod.listPanels().some((p) => p.id === "test.pnl"));
+  mod.unregisterPanel("test.pnl");
+  assert.ok(!mod.listPanels().some((p) => p.id === "test.pnl"));
+});

@@ -30,7 +30,14 @@ export function Header() {
   const newAccount = usePaper((s) => s.newAccount);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    // A plugin theme has no DOM CSS token rule — fall back to dark chrome so
+    // the page chrome stays coherent while the canvas uses the plugin palette.
+    const builtin =
+      theme === "dark" ||
+      theme === "light" ||
+      theme === "ocean" ||
+      theme === "sand";
+    document.documentElement.dataset.theme = builtin ? theme : "dark";
   }, [theme]);
 
   return (
