@@ -211,6 +211,34 @@ export function cancelHistory(jobKey: string): void {
   job.running = false;
 }
 
+/** Cancel every in-flight fill (hidden-tab pause). Idempotent. */
+export function cancelAllHistory(): void {
+  for (const job of jobs.values()) {
+    job.gen += 1;
+    job.running = false;
+  }
+}
+
+/**
+ * Write the resident series of a ref into the cache immediately (P1-D1 idle
+ * flush). Idempotent: incremental when the previous snapshot is a left-prefix
+ * of the resident array, full write otherwise. `complete` follows the fill
+ * status so a mid-fill flush re-fills from the resident front on hydrate.
+ */
+export async function flushSnapshot(ref: SeriesRef): Promise<void> {
+  const bars = readBars(ref);
+  if (!bars.length) return;
+  const status = getStatus(ref);
+  const complete = status?.phase === "complete";
+  const floorTime = status?.floorTime ?? bars[0].time;
+  await cachePort.append(
+    dataKey(ref),
+    { symbol: ref.symbol, market: ref.market, interval: ref.interval },
+    { stepSec: intervalSec(ref.interval), floorTime, complete },
+    bars,
+  );
+}
+
 async function runFill(ref: SeriesRef, alive: () => boolean): Promise<void> {
   const { floorTime, targetBars, stepSec } = horizonFor(ref);
   try {
@@ -220,7 +248,9 @@ async function runFill(ref: SeriesRef, alive: () => boolean): Promise<void> {
     if (!alive()) return;
     setStatus(ref, { phase: "prefill", target: targetBars, floorTime });
     const added = await fillOlder(ref, alive, floorTime, targetBars, stepSec);
-    if (added > 0 || !completeFromCache)
+    // Guarded by alive(): a symbol/interval switch mid-fill must not snapshot
+    // the *new* resident array under the *old* series key (cache pollution).
+    if (alive() && (added > 0 || !completeFromCache))
       await snapshot(ref, readBars(ref)[0]?.time ?? floorTime, true);
   } catch {
     if (alive()) setStatus(ref, { phase: "error" });

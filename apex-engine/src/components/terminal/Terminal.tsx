@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { useMarketFeed, useOkxCandleFeed } from "@/lib/market/feed";
+import { useLifecycle } from "@/lib/market/lifecycle-hook";
 import { useTerminal } from "@/lib/market/store";
 import {
   setActiveBroker,
@@ -30,6 +31,8 @@ import { Watchlist } from "./Watchlist";
 export function Terminal() {
   useMarketFeed();
   useOkxCandleFeed();
+  // P1-D1: idle-debounced IDB snapshots + hidden-tab fill pause/resume.
+  useLifecycle();
   useSystemTheme();
   // Restore the persisted trading backend (paper default, live opt-in).
   useEffect(() => {
