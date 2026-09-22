@@ -1,11 +1,13 @@
 import type { Candle, Interval, Market } from "./types";
+import { barsOf, colsOf, concatCols, type CandleColumns } from "./columns.ts";
 
 const DB_NAME = "apex-kline-cache";
 const DB_VERSION = 1;
 const STORE = "klines";
 const META_INDEX = "fetchedAt";
 
-export interface KlineCacheRecord {
+/** The cache record is a CandleColumns record plus identity/metadata. */
+export interface KlineCacheRecord extends CandleColumns {
   key: string;
   symbol: string;
   market: Market;
@@ -16,13 +18,6 @@ export interface KlineCacheRecord {
   floorTime: number;
   /** True once prefill reached floorTime or the exchange's first bar — only a tail catch-up is needed. */
   complete: boolean;
-  count: number;
-  times: Int32Array;
-  opens: Float64Array;
-  highs: Float64Array;
-  lows: Float64Array;
-  closes: Float64Array;
-  volumes: Float64Array;
 }
 
 export interface KlineCacheMeta {
@@ -106,39 +101,11 @@ export function encodeBars(
   KlineCacheRecord,
   "count" | "times" | "opens" | "highs" | "lows" | "closes" | "volumes"
 > {
-  const n = bars.length;
-  const times = new Int32Array(n);
-  const opens = new Float64Array(n);
-  const highs = new Float64Array(n);
-  const lows = new Float64Array(n);
-  const closes = new Float64Array(n);
-  const volumes = new Float64Array(n);
-  for (let i = 0; i < n; i++) {
-    const b = bars[i];
-    times[i] = b.time;
-    opens[i] = b.open;
-    highs[i] = b.high;
-    lows[i] = b.low;
-    closes[i] = b.close;
-    volumes[i] = b.volume;
-  }
-  return { count: n, times, opens, highs, lows, closes, volumes };
+  return colsOf(bars);
 }
 
 export function decodeBars(rec: KlineCacheRecord): Candle[] {
-  const n = Math.min(rec.count, rec.times.length);
-  const out: Candle[] = new Array(n);
-  for (let i = 0; i < n; i++) {
-    out[i] = {
-      time: rec.times[i],
-      open: rec.opens[i],
-      high: rec.highs[i],
-      low: rec.lows[i],
-      close: rec.closes[i],
-      volume: rec.volumes[i],
-    };
-  }
-  return out;
+  return barsOf(rec);
 }
 
 export async function readKlineCache(
@@ -214,32 +181,19 @@ export async function appendKlineCache(
   const p = prev as KlineCacheRecord;
   const added = bars.slice(0, bars.length - p.count);
   if (!added.length) return;
-  const enc = encodeBars(added);
-  const splice = <T extends Int32Array | Float64Array>(
-    oldArr: T,
-    newArr: T,
-  ): T => {
-    const out = new (oldArr.constructor as new (n: number) => T)(
-      oldArr.length + newArr.length,
-    );
-    (out as unknown as { set: (a: T, o?: number) => void }).set(newArr, 0);
-    (out as unknown as { set: (a: T, o?: number) => void }).set(
-      oldArr,
-      newArr.length,
-    );
-    return out;
-  };
+  const enc = colsOf(added);
+  const merged = concatCols(enc, p);
   const rec: KlineCacheRecord = {
     ...p,
     fetchedAt: Date.now(),
     ...meta,
     count: bars.length,
-    times: splice(p.times, enc.times),
-    opens: splice(p.opens, enc.opens),
-    highs: splice(p.highs, enc.highs),
-    lows: splice(p.lows, enc.lows),
-    closes: splice(p.closes, enc.closes),
-    volumes: splice(p.volumes, enc.volumes),
+    times: merged.times,
+    opens: merged.opens,
+    highs: merged.highs,
+    lows: merged.lows,
+    closes: merged.closes,
+    volumes: merged.volumes,
   };
   memSet(key, rec);
   try {

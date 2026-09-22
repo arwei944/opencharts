@@ -126,11 +126,10 @@ Phase 3  交易与生态（~10%）—— 订单流/杠杆模式/OCO + 云端同�
 
 > 决策记录：未拆成 3 个独立 zustand store——zustand 的 selector 订阅已天然隔离渲染（`useTerminal(s => s.x)` 只在 x 变化时重渲染），且跨层 action（setSymbol 清 bars、setLayout 裁 paneBars）在独立 store 间会引入新复杂度；slices 模式达到分层组织的全部收益，外部 29 个调用文件零改动。与 events 模块同理（见 P0-A）。
 
-### P0-C 数据存储列式化（性能地基）
-- bars 由 `Candle[]`（对象数组）改为列式 typed-array（time/open/high/low/close/volume 五列 Float64Array），与 kline-cache 的 encodeBars 编码对齐
-- 消费端：chart-engine 增 setFullData(columns) 直灌路径；指标计算改吃列（indicators.ts 增加列式重载，保留对象数组 API 兼容旧调用）
-- 收益：内存 -60%+、指标首算 3-5x、GC 压力大减
-- **风险**：改动面大（涉及 store/engine/indicators/export），放 P0 尾段，配全量回归
+### P0-C 数据存储列式化（性能地基）✅ 基础层已落地
+- `columns.ts`：CandleColumns 契约（Int32 times + 5×Float64）+ `colsOf/barsOf/concatCols/trimCols/cloneCols` 纯函数（8 单测：round-trip/头部拼接/裁剪/克隆隔离）
+- `kline-cache.ts` 重构：KlineCacheRecord 改为 `extends CandleColumns`；encodeBars=colsOf、decodeBars=barsOf、appendKlineCache 的 typed-array splice 抽为 concatCols——缓存编码逻辑单源化
+- **决策记录**：store 驻留 bars 不列式化——zustand 的 in-place 尾段更新（updateBar 同 bar 原地改引用）+ prependBars 裁剪依赖对象数组的引用稳定性与可变性，列式驻留会破坏这两个性能优化；列式作为 I/O 与缓存层交换格式。指标列式重载（indicators.ts 全量翻新）留待 P1 性能探针不达标时再做（33 个指标逐个改造成本高、收益集中在大数组首次计算，且 render.jobs 已逐帧摊平）。
 
 ### P0-D 指标计算下 Worker（可选，与 P0-C 解耦）
 - `indicator-worker.ts`：接收 (kind, params, columns) → 返回 Line[]；主线程空闲时预计算，结果缓存 key 化
