@@ -2,8 +2,14 @@ import { useEffect } from "react";
 import { OKX_BAR, okxInstId } from "./api.ts";
 import { intervalSec } from "./bars.ts";
 import { cancelHistory, compareRef, ensureCompleteHistory } from "./history.ts";
+import {
+  markHostFailed,
+  markHostHealthy,
+  nextHostIndex,
+} from "./host-picker.ts";
 import { parseKline } from "./kline-parser.ts";
 import { dataSourcePort } from "./ports.ts";
+import { chartTelemetry } from "./telemetry.ts";
 import { useTerminal } from "./store.ts";
 import { checkBar } from "./validator.ts";
 import type { Interval } from "./types.ts";
@@ -23,6 +29,12 @@ const WS_BASES = [
  */
 let pooledQuery: string | null = null;
 let pooledWs: WebSocket | null = null;
+
+/**
+ * Per-host connection-failure scores (P2-C4): shared across feed effect runs,
+ * so switching symbols never forgets which Binance host has been flaky.
+ */
+let hostFailures: number[] = WS_BASES.map(() => 0);
 
 function parkSocket(query: string, ws: WebSocket) {
   if (
@@ -164,6 +176,14 @@ export function useMarketFeed() {
                 gaps: check.gap,
                 anomalies: check.anomaly ? 1 : 0,
               });
+              // P2-C4: isolation telemetry — dropped ticks are recorded (not
+              // silent), so the health panel's op-log shows what the feed was
+              // rejecting and why.
+              chartTelemetry.log("feedDrop", {
+                reason: check.anomaly ? "anomaly" : "gap",
+                gaps: check.gap,
+                time: bar.time,
+              });
             }
             if (check.anomaly) return; // skip the corrupt tick entirely
             useTerminal.getState().updateBar(bar, "ws");
@@ -265,7 +285,7 @@ export function useMarketFeed() {
         bindSocket(pooled);
         return;
       }
-      const base = WS_BASES[host % WS_BASES.length];
+      const base = WS_BASES[host];
       useTerminal
         .getState()
         .setFeedStats({ hostIndex: host, base, reconnects: attempts });
@@ -290,6 +310,8 @@ export function useMarketFeed() {
         }
         attempts = 0;
         lastMsgAt = Date.now();
+        // P2-C4: a successful open clears this host's failure score.
+        hostFailures = markHostHealthy(hostFailures, host);
         useTerminal.getState().setLive(true);
         useTerminal.getState().setConn("live");
       };
@@ -303,7 +325,13 @@ export function useMarketFeed() {
         if (closed) return;
         useTerminal.getState().setLive(false);
         useTerminal.getState().setConn(attempts >= 3 ? "offline" : "degraded");
-        host += 1;
+        // P2-C4: score the failed host and pick the least-flaky one next.
+        hostFailures = markHostFailed(hostFailures, host);
+        chartTelemetry.log("reconnect", {
+          host: WS_BASES[host],
+          hostScore: hostFailures[host],
+        });
+        host = nextHostIndex(hostFailures, host);
         scheduleReconnect();
       };
       // A parked socket is already OPEN when rebinding: mark live immediately.

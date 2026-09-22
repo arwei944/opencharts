@@ -6,6 +6,7 @@ import type { ChartSettings } from "../settings.ts";
 import { DEFAULT_SETTINGS } from "../settings.ts";
 import type { CustomFn } from "../indicator-compute.ts";
 import { indicatorCatalog } from "../../plugins/registry.ts";
+import { defaultParamsFor } from "../indicator-defaults.ts";
 import type {
   ChartLayout,
   ChartPaneConfig,
@@ -243,7 +244,13 @@ export const configSlice: StateCreator<
     set({
       indicators: [
         ...get().indicators,
-        { id, kind, params: [...spec.defaults], visible: true },
+        {
+          id,
+          kind,
+          // P2-C5: interval-aware defaults (short lookbacks on 1s/1m).
+          params: [...defaultParamsFor(kind, get().interval, spec.defaults)],
+          visible: true,
+        },
       ],
     });
     return id;

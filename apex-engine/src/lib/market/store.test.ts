@@ -176,3 +176,22 @@ test("recordSource accumulates rest/cache independently of ws ticks", () => {
   assert.equal(li.sources.ws, 5);
   assert.equal(li.lastSeen.ws > 0, true);
 });
+
+// ---------- interval-aware indicator defaults (P2-C5) ----------
+
+test("addIndicator picks interval-aware defaults on 1s", () => {
+  const s = harness();
+  s.setInterval("1s");
+  const id = s.addIndicator("MA");
+  const ind = s.indicators.find((x) => x.id === id);
+  assert.ok(ind, "indicator added");
+  assert.deepEqual(ind.params, [3, 10, 25]);
+});
+
+test("addIndicator keeps catalog defaults on standard intervals", () => {
+  const s = harness();
+  s.setInterval("15m");
+  const id = s.addIndicator("MA");
+  const ind = s.indicators.find((x) => x.id === id);
+  assert.deepEqual(ind?.params, [7, 25, 99]);
+});

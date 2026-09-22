@@ -18,7 +18,8 @@ export type TelemetryOpName =
   | "reconnect"
   | "historyStatus"
   | "lifecycle"
-  | "panPredict";
+  | "panPredict"
+  | "healGap";
 
 export interface TelemetryOp {
   /** epoch ms */

@@ -15,6 +15,7 @@ import {
   pauseWanted,
   type LifecyclePolicies,
 } from "./lifecycle.ts";
+import { healMasterGaps } from "./healer.ts";
 import { useTerminal } from "./store.ts";
 import type { Candle } from "./types.ts";
 
@@ -145,10 +146,27 @@ export function useLifecycle(
     };
     document.addEventListener("visibilitychange", onVisibility);
 
+    // P2-C4: gap self-heal scan — every 60s, while visible AND the fill has
+    // been idle for a while, walk the master series' holes and refill them
+    // with endTime-paged REST fetches. Never fights a live fill or a pan.
+    const healTimer = setInterval(() => {
+      if (disposed) return;
+      if (
+        pauseWanted(document.visibilityState === "hidden", policies.hiddenPause)
+      )
+        return;
+      if (
+        !isIdleSince(lastActivityAt, Date.now(), policies.idleFlushDelayMs * 2)
+      )
+        return;
+      void healMasterGaps(2);
+    }, 60_000);
+
     schedule();
     return () => {
       disposed = true;
       if (timer) clearTimeout(timer);
+      clearInterval(healTimer);
       unsub();
       document.removeEventListener("visibilitychange", onVisibility);
     };
