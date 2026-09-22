@@ -202,16 +202,20 @@ P3  积木化 UI + 自测（下轮）—— ChartPane 特征模块化 / DEV 不�
 
 ## 七、本轮执行计划（P0 + P1）
 
-### P0 批次（顺序执行，每步回归）
-1. **A1**：`engine/series.ts` → `engine/pointer.ts` → `engine/range.ts` 逐个抽取，chart-engine 降至 <400 行；全量回归绿
-2. **B1**：`telemetry.ts` + `perf-metrics.ts` + 单测；引擎/队列接入点打点
-3. **C1**：`aggregate.ts` + 单测；HTFBar 改造为本地派生；devtools 探针验证零请求
-4. **A2**：`ports.ts` + 适配；history/feed 消费端口
-5. **P0 验证**：tsc/lint/test/mirror/pixel/batch/build 全绿 → commit
+### P0 批次（✅ 已全部落地，`e245bc7`→`2c52b92` 4 commits）
+1. ✅ **A1**：`engine/series.ts` → `engine/pointer.ts` → `engine/range.ts` + `engine/options.ts` + `engine/theme.ts`；chart-engine 1006→501 行；全量回归绿
+2. ✅ **B1**：`telemetry.ts` + `perf-metrics.ts` + 6 单测；引擎/队列接入 op-log 与帧耗时；`__chartTelemetry`/`__chartPerf` 钩子（浏览器实测见 park/commit 决策轨迹）
+3. ✅ **C1**：`aggregate.ts` + 5 单测；HTFBar 本地派生（浏览器实测 3×60 蜡烛、**零网络请求**、点击切周期正常）
+4. ✅ **A2**：`ports.ts`（DataSourcePort 6 操作 + CachePort 3 操作）；history/feed 消费端口；3 契约测试；新 symbol 取数链路实测正常
+5. ✅ **P0 验证**：mirror 16/16、pixel 4 主题、batch10-12、lib 161、build 262.8kB
 
-### P1 批次
-6. **B2**：lineage + store source 参数 + 接入点 + 健康面板来源构成
-7. **B3**：HealthPanel 引擎性能段 + 遥测窗口文档化
-8. **C2**：predictor + ensureCoverage 消费自适应前瞻
-9. **D1**：lifecycle + useLifecycle hook + flushSnapshot 导出
-10. **P1 验证**：全量回归绿 → commit
+### P1 批次（✅ 已全部落地，`5cd3d7a`→`a1db0a2` 4 commits）
+6. ✅ **B2 lineage**：`lineage.ts` + 5 单测 + 3 store 测试；updateBar(bar,source?)/recordSource；feed WS/OKX + history REST/缓存全部打点；健康面板来源构成行（实测 rest/ws/okx lastSeen 实时）
+7. ✅ **B3 诊断中心**：健康面板「引擎性能 avg/P95」段 + op-log 折叠查看（实测 commitP95 28.7ms、15 ops）；README 文档化 DEV 钩子
+8. ✅ **C2 predictor**：`predictor.ts` + 8 单测；ensureCoverage 自适应前瞻；ChartPane 喂采样 + panPredict 遥测（实测拖拽产生放大前瞻）
+9. ✅ **D1 lifecycle**：`lifecycle.ts` + 4 单测 + `useLifecycle` hook（Terminal 挂载）；idle 防抖落盘 + dirty 签名门控（实测 fetchedAt 稳定不重复写）+ 隐藏页暂停/恢复；**顺手修复 runFill 收尾 snapshot 未查 alive() 的缓存污染竞态**
+10. ✅ **P1 验证**：mirror 16/16、pixel 4 主题、batch10-12、lib 181、build 264.4kB
+
+### 下轮（P2/P3）待办
+- **P2**：A3 插件注册表 v2（注册即生效）/ C4 主机智能排序+缺口自愈 / C5 指标周期感知默认
+- **P3**：A4 ChartPane 特征模块化 / D4 DEV 不变式自测 / D5 回归探针扩展
