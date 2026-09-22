@@ -196,7 +196,7 @@ v2.0 启动批次（已落地，见 UPGRADE_PLAN_V3.md 第十一章）：
   - chart-engine 模块化第一步：拆 compare.ts（CompareManager）+ export.ts（坐标/截图纯函数），行为等价（mirror/pixel/batch 全回归绿）
 批次 10（v2.0 大版本，规划中，见 UPGRADE_PLAN_V3.md）：
   - P0 架构地基：✅ chart-engine 拆分收官（engine 966 行）；✅ store slices 分层（persist v2 + selectors 补全）；✅ 数据列式基础层（columns.ts 契约 + kline-cache 统一）；下一步可选 指标计算下 worker
-  - P1 图表深度：无限滚动收口（视口驱动分页+内存预算）、多周期数据级联+更高 TF 上下文条、绘图 12→24、刻度/主题增强
+  - P1 图表深度：✅ 无限滚动闭环（minBarSpacing/fitContent/extendHistory 三处修复，实测 +4000 根）+ ✅ 更高 TF 上下文条 HTFBar（3 档迷你蜡烛 + 区间高亮 + 点击切周期）；下一步 绘图 12→24、刻度/主题增强、zoom-out 动态降采样
   - P2 策略与提醒：完整 Pine 常用子集（input/strategy/plotshape/alertcondition）、回测报告产品化+参数优化、Alert 提醒系统、K 线回放
   - P3 交易与生态：杠杆/保证金模式、OCO、滑点估算、大单热图/OI/清算、JSON 导入导出/云同步、插件 API 定型
 ```

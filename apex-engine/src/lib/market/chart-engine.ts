@@ -11,7 +11,6 @@ import {
   type ISeriesApi,
   type LineWidth,
   type Logical,
-  type LogicalRange,
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";

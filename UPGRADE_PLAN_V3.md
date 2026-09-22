@@ -140,14 +140,13 @@ Phase 3  交易与生态（~10%）—— 订单流/杠杆模式/OCO + 云端同�
 ## 六、Phase 1 — 图表深度（用户可感知核心）
 
 ### P1-A 无限历史滚动 + 多周期数据级联
-**现状**：`history.ts` 3 年封顶（INTERVAL_HORIZON），zoom-out 超出即白。
-**方案**：
-- 分页历史模型：`history.ts` 增加「可见区间驱动」——ChartPane 的 visibleLogicalRange 变化时，若左侧仍有缺口则按需向前拉（`ensureBefore(from)`），serverFn 支持 `endTime` 游标分页
-- 内存预算化：保留 BAR_CAP 上限 + LRU 逐出（内存镜像层已存在，升级为逐出策略）；IDB 增量写回代替全量快照
-- 主图与副图周期联动：副图 zoom 区间变化触发主图对齐加载（复用现有 linkedRange）
-- 更高 TF 上下文条（TradingView 顶部）：`/` 键或工具栏切换显示当前 symbol 更高周期的最后一屏（1h 图表看 4h/1d），数据走独立轻量订阅
-
-**验收探针**：`batch13-smoke` 增加——从 1m 加载到最旧、zoom-out 到超 3 年无空白；内存驻留 ≤ 预算。
+**无限滚动（✅ 已闭环，`aabf2c0`）**：extendHistory 机制上一启动批次已落地，本轮修通三个堵点并实测生效：
+- `minBarSpacing` 0.5px → 0.001（0.01 仍 clamp 在 ~viewport/0.0114；0.001 达 bar0）——否则 10 万根序列永远无法全览，视口到不了已加载最左，coverage 永不触发
+- `fit()`：setVisibleLogicalRange 有 ~710 根余量 clamp，且 lw 首次 fitContent 有 ~714 根余量 → 跨帧二次 fitContent 达真前沿（幂等）
+- `extendHistory` 边界 `>=` → `<`（视口贴住最左也要扩展）+ runExtend 不再把 phase 改回 prefill（否则 ChartPane 重新冻结、扩展数据全部 park 不渲染），保持 complete 只动进度字段
+- 实测：fit 后 45s 驻留 bars 105000→109000（+4000），oldest 提前 ~42 天，phase complete、pending null
+**更高 TF 上下文条（✅ 已落地，本轮）**：HTFBar 组件——图表上方细条，当前周期的后 3 档更高周期各 60 根迷你蜡烛（SVG），主图可见窗口高亮（overlapRange 纯函数，3% 阈值节流避免拖拽重渲染），点击段切换主图周期（实测 15m→1h 联动）；数据独立轻量订阅，不占用驻留窗口预算；htf.ts 纯函数 6 单测
+**多周期数据级联（⏳ 未做）**：主图/副图周期联动已有 linkedRange；「zoom-out 自动降采样/更高分辨率自动加载」留 P1 后续轮
 
 ### P1-B 每指标属性弹窗
 - `IndicatorInst` 扩展：`color?/width?/style?/scale?("right"|"left"|"overlay")/visible` 已是 visible

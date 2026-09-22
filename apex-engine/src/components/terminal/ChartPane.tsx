@@ -16,6 +16,7 @@ import { fmtNum, fmtPx, uid } from "@/lib/utils";
 import { ChartToolbar } from "./ChartToolbar";
 import { ChartContextMenu } from "./ChartContextMenu";
 import { DrawingOverlay } from "./DrawingOverlay";
+import { HTFBar } from "./HTFBar";
 import { TpSlOverlay } from "./TpSlOverlay";
 import { Legend } from "./Legend";
 
@@ -95,6 +96,19 @@ export const ChartPane = memo(function ChartPane({
   const minimapSlider = useRef<HTMLDivElement>(null);
   const mmState = useRef({ left: "0%", width: "8%", opacity: 0 });
   const ohlcState = useRef(0);
+  // Visible window (sec) of this pane, throttled: it feeds the HTF context bar
+  // highlight and must not re-render the pane every wheel frame.
+  const viewRangeRef = useRef<{ from: number; to: number } | null>(null);
+  const [, bumpView] = useState(0);
+
+  const setViewRange = (from: number, to: number) => {
+    const prev = viewRangeRef.current;
+    if (prev && Math.abs(prev.from - from) < (prev.to - prev.from) * 0.03)
+      return;
+    if (prev?.from === from && prev?.to === to) return;
+    viewRangeRef.current = { from, to };
+    bumpView((v) => v + 1);
+  };
 
   const hideOhlcReadout = () => {
     ohlcState.current = 0;
@@ -134,8 +148,9 @@ export const ChartPane = memo(function ChartPane({
       // The only way a pan can need data is if the background fill has not reached
       // that far back yet; ensureCoverage restarts the fill in that case and does
       // nothing at all while the array already spans the viewport.
-      e.onViewport = (from) => {
+      e.onViewport = (from, to) => {
         ensureCoverage(refFor(useTerminal.getState(), paneId, master), from);
+        setViewRange(from, to);
       };
       e.onMinimap = (range) => {
         const slider = minimapSlider.current;
@@ -402,6 +417,15 @@ export const ChartPane = memo(function ChartPane({
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-bg">
       <ChartToolbar engine={eng.current} paneId={paneId} master={master} />
+      {master && (
+        <HTFBar
+          symbol={symbol}
+          market={market}
+          interval={interval}
+          viewFrom={viewRangeRef.current?.from ?? null}
+          viewTo={viewRangeRef.current?.to ?? null}
+        />
+      )}
       <div className="relative min-h-0 flex-1">
         <div
           ref={host}
