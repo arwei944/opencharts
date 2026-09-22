@@ -2,8 +2,8 @@ import { useEffect } from "react";
 import type { RefObject } from "react";
 import type { ChartEngine } from "@/lib/market/chart-engine";
 import { COMPARE_COLORS } from "@/lib/market/constants";
-import { NO_BARS, useTerminal } from "@/lib/market/store";
-import type { Interval } from "@/lib/market/types";
+import { useTerminal } from "@/lib/market/store";
+import type { Candle, Interval } from "@/lib/market/types";
 
 /**
  * One-way engine state sync (P3-A4): every store change that must be mirrored
@@ -11,6 +11,10 @@ import type { Interval } from "@/lib/market/types";
  * the data path (setFullData + live updateLastBar), indicator adoption and the
  * compare-series reconciliation. Effects key on `ready` so a lazily-booted
  * engine re-applies the initial state once it exists.
+ *
+ * `bars/lastBar/derivable` come from usePaneBars (P4): a derivable pane feeds
+ * the locally aggregated array and is never frozen (its data is always
+ * complete — it cannot out-pan the master).
  */
 export function useSyncEffects(
   eng: RefObject<ChartEngine | null>,
@@ -18,6 +22,9 @@ export function useSyncEffects(
   paneId: string,
   master: boolean,
   interval: Interval,
+  bars: Candle[],
+  lastBar: Candle | null,
+  derivable: boolean,
 ) {
   const chartType = useTerminal((s) => s.chartType);
   const invert = useTerminal((s) => s.invert);
@@ -31,12 +38,6 @@ export function useSyncEffects(
   const customFns = useTerminal((s) => s.customFns);
   const theme = useTerminal((s) => s.theme);
   const chartSettings = useTerminal((s) => s.chartSettings);
-  const bars = useTerminal((s) =>
-    master ? s.bars : (s.paneBars[paneId] ?? NO_BARS),
-  );
-  const lastBar = useTerminal((s) =>
-    master ? s.lastBar : ((s.paneBars[paneId] ?? NO_BARS).at(-1) ?? null),
-  );
   const historyKey_ = useTerminal((s) =>
     master
       ? `${s.market}:${s.symbol}:${s.interval}`
@@ -83,8 +84,11 @@ export function useSyncEffects(
     eng.current?.applyTypography(chartSettings);
   }, [chartSettings, ready, eng]);
   useEffect(() => {
-    eng.current?.setFullData(bars, historyPhase !== "complete");
-  }, [bars, historyPhase, ready, eng]);
+    eng.current?.setFullData(
+      bars,
+      derivable ? false : historyPhase !== "complete",
+    );
+  }, [bars, historyPhase, derivable, ready, eng]);
 
   // Live path: in-place tail updates repaint via the engine's cheap
   // updateLastBar instead of re-committing the whole series.

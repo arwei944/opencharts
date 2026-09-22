@@ -1,12 +1,13 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { useChartEngine } from "./panes/use-chart-engine.ts";
+import { usePaneBars } from "./panes/use-pane-bars.ts";
 import { useViewportCoverage } from "./panes/use-viewport-coverage.ts";
 import { useOhlcReadout } from "./panes/use-ohlc-readout.ts";
 import { useDrawClick } from "./panes/use-draw-click.ts";
 import { useSyncEffects } from "./panes/use-sync-effects.ts";
 import { useHistoryFill } from "./panes/use-history-fill.ts";
 import { historyKey } from "@/lib/market/history";
-import { NO_BARS, useTerminal } from "@/lib/market/store";
+import { useTerminal } from "@/lib/market/store";
 import type { Candle, Interval } from "@/lib/market/types";
 import { uid } from "@/lib/utils";
 import { ChartToolbar } from "./ChartToolbar";
@@ -42,12 +43,13 @@ export const ChartPane = memo(function ChartPane({
   const pane = useTerminal((s) => s.panes.find((p) => p.id === paneId));
   const interval: Interval = pane?.interval ?? masterInterval;
   const compareSymbols = useTerminal((s) => s.compareSymbols);
-  const lastBar = useTerminal((s) =>
-    master ? s.lastBar : ((s.paneBars[paneId] ?? NO_BARS).at(-1) ?? null),
-  );
   const invert = useTerminal((s) => s.invert);
   const mirrorAxis = useTerminal((s) => s.mirrorAxis);
   const historyKey_ = historyKey(market, symbol, interval);
+
+  // P4: pane data source — master series, a locally derived coarser pane, or
+  // the fetched paneBars (derivable panes cost zero requests and never freeze).
+  const paneBars = usePaneBars(paneId, master, masterInterval, interval);
 
   // Visible window (sec) of this pane, throttled: it feeds the HTF context bar
   // highlight and must not re-render the pane every wheel frame.
@@ -71,8 +73,17 @@ export const ChartPane = memo(function ChartPane({
   );
   const { readoutRef, ohlcState } = useOhlcReadout(eng, ready, master);
   const draw = useDrawClick(eng, ready, master);
-  useSyncEffects(eng, ready, paneId, master, interval);
-  useHistoryFill(paneId, master, symbol, market, interval);
+  useSyncEffects(
+    eng,
+    ready,
+    paneId,
+    master,
+    interval,
+    paneBars.bars,
+    paneBars.lastBar,
+    paneBars.derivable,
+  );
+  useHistoryFill(paneId, master, symbol, market, interval, paneBars.derivable);
 
   // Global shortcuts: Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z / Ctrl+Y redo.
   useEffect(() => {
@@ -90,7 +101,8 @@ export const ChartPane = memo(function ChartPane({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const shown: Candle | null = (master ? overlayBar : null) ?? lastBar ?? null;
+  const shown: Candle | null =
+    (master ? overlayBar : null) ?? paneBars.lastBar ?? null;
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-bg">

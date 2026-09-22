@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   aggregateCandles,
   aggregateToInterval,
+  isDerivable,
   lastAggregated,
 } from "./aggregate.ts";
 import type { Candle } from "./types.ts";
@@ -103,4 +104,17 @@ test("lastAggregated: returns the live tail group only", () => {
   assert.equal(last.close, 19);
   assert.equal(last.volume, 700);
   assert.equal(lastAggregated([], 120), null);
+});
+
+test("isDerivable: coarser divisible pane derives, finer/same/uneven don't", () => {
+  assert.equal(isDerivable("15m", "1h"), true);
+  assert.equal(isDerivable("15m", "30m"), true);
+  assert.equal(isDerivable("1h", "4h"), true);
+  assert.equal(isDerivable("15m", "15m"), false); // same
+  assert.equal(isDerivable("15m", "5m"), false); // finer
+  assert.equal(isDerivable("1h", "15m"), false); // finer
+  assert.equal(isDerivable("1w", "1M"), false); // uneven (months)
+  assert.equal(isDerivable("1M", "1w"), false); // master is 1M
+  assert.equal(isDerivable("8h", "1d"), true); // 86400 % 28800 === 0
+  assert.equal(isDerivable("1d", "3d"), true);
 });

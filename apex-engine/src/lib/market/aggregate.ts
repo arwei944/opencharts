@@ -51,6 +51,21 @@ export function aggregateToInterval(
   return aggregateCandles(bars, intervalSec(target));
 }
 
+/**
+ * P4: can a pane at `pane` interval be derived locally from a `master` series
+ * instead of fetching its own history? True when the pane is strictly coarser
+ * and its step divides the master's step evenly (15m→1h yes; 15m→5m no, it's
+ * finer; 1w→1M no — months aren't uniform weeks). Month is excluded because
+ * Moon phases make floor-aligned month aggregation drift from exchange bars.
+ */
+export function isDerivable(master: Interval, pane: Interval): boolean {
+  if (master === pane) return false;
+  if (pane === "1M" || master === "1M") return false;
+  const ms = intervalSec(master);
+  const ps = intervalSec(pane);
+  return ps > ms && ps % ms === 0;
+}
+
 /** Only the live (still-forming) aggregated tail group. */
 export function lastAggregated(bars: Candle[], stepSec: number): Candle | null {
   if (!bars.length) return null;
